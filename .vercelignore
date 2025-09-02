@@ -1,0 +1,9 @@
+functions/
+firestore.rules
+firebase.json
+*.md
+comprehensive_business_plan.md
+deployment_scaling_strategy.md
+technical_specifications.md
+windsurf_development_prompt.md
+*firebase-adminsdk*.json
