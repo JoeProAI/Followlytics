@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     `response_type=code&` +
     `client_id=${twitterClientId}&` +
     `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-    `scope=tweet.read%20users.read%20follows.read&` +
+    `scope=tweet.read%20users.read%20account.follows.read&` +
     `state=${state}&` +
     `code_challenge=${codeChallenge}&` +
     `code_challenge_method=S256`
