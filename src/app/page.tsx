@@ -43,10 +43,10 @@ export default function LandingPage() {
               </div>
               <div className="space-x-4">
                 <Button size="lg" asChild>
-                  <Link href="/auth/login">Start Free Trial</Link>
+                  <Link href="/api/auth/twitter/login">Start Free Trial</Link>
                 </Button>
-                <Button variant="outline" size="lg">
-                  View Demo
+                <Button variant="outline" size="lg" asChild>
+                  <Link href="/dashboard">View Dashboard</Link>
                 </Button>
               </div>
             </div>
