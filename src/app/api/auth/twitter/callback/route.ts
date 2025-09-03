@@ -31,6 +31,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}?error=access_denied`)
   }
 
+  console.log('OAuth callback received:', { oauthToken, oauthVerifier })
+
   if (!oauthToken || !oauthVerifier) {
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}?error=missing_params`)
   }
@@ -184,7 +186,9 @@ export async function GET(request: NextRequest) {
     return response
 
   } catch (error) {
-    console.error('OAuth 1.0a callback error:', error)
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}?error=callback_error`)
+    console.error('OAuth callback error:', error)
+    // Instead of redirecting to error, redirect to dashboard with debug info
+    const response = NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard?debug=auth_failed`)
+    return response
   }
 }

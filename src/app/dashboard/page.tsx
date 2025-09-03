@@ -106,12 +106,27 @@ export default function DashboardPage() {
         <div className="text-center">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Authentication Required</h2>
           <p className="text-gray-600 mb-4">Please sign in to access your dashboard</p>
+          <p className="text-sm text-gray-500 mb-4">Debug: loading={loading.toString()}, isAuthenticated={isAuthenticated.toString()}</p>
           <button 
-            onClick={() => window.location.href = '/api/auth/twitter/login'}
+            onClick={() => {
+              console.log('Redirecting to Twitter OAuth')
+              window.location.href = '/api/auth/twitter/login'
+            }}
             className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
           >
             Sign in with Twitter
           </button>
+          <div className="mt-4">
+            <button 
+              onClick={() => {
+                console.log('Current cookies:', document.cookie)
+                console.log('Auth state:', { loading, isAuthenticated, user })
+              }}
+              className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+            >
+              Debug Auth State
+            </button>
+          </div>
         </div>
       </div>
     )
