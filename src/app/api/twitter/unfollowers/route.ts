@@ -18,6 +18,8 @@ if (!admin.apps.length) {
   })
 }
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     // Get user from Firebase token
@@ -68,11 +70,11 @@ export async function GET(request: NextRequest) {
     const previousFollowersData = previousSnapshot.data().followers_data || []
 
     // Find unfollowers (in previous but not in current)
-    const unfollowerIds = [...previousFollowerIds].filter(id => !currentFollowerIds.has(id))
+    const unfollowerIds = Array.from(previousFollowerIds).filter(id => !currentFollowerIds.has(id))
     const unfollowers = previousFollowersData.filter((f: any) => unfollowerIds.includes(f.id))
 
     // Find new followers (in current but not in previous)
-    const newFollowerIds = [...currentFollowerIds].filter(id => !previousFollowerIds.has(id))
+    const newFollowerIds = Array.from(currentFollowerIds).filter(id => !previousFollowerIds.has(id))
     const newFollowers = currentFollowersData.filter((f: any) => newFollowerIds.includes(f.id))
 
     // Store unfollower events

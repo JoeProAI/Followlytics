@@ -1,16 +1,10 @@
-'use client'
-
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle, TrendingDown, Brain, Users, Zap, Shield } from "lucide-react"
 import Link from "next/link"
-import { useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
 
 export default function LandingPage() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
   
   return (
     <div className="flex flex-col min-h-screen">
