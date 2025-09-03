@@ -1,0 +1,5 @@
+functions/
+*.md
+firestore.rules
+firebase.json
+*firebase-adminsdk*.json
