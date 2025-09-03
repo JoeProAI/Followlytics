@@ -25,28 +25,35 @@ export default function DashboardPage() {
   useEffect(() => {
     const handleTokenAuth = async () => {
       const hash = window.location.hash
+      console.log('Current URL hash:', hash)
+      
       if (hash.startsWith('#token=')) {
         const token = hash.substring(7) // Remove '#token='
-        console.log('Found token in URL hash, authenticating...')
+        console.log('Found token in URL hash, authenticating...', token.substring(0, 20) + '...')
         
         try {
           const { signInWithCustomToken } = await import('firebase/auth')
           const { auth } = await import('@/lib/firebase')
           
-          await signInWithCustomToken(auth, token)
-          console.log('Authentication successful')
+          const result = await signInWithCustomToken(auth, token)
+          console.log('Authentication successful:', result.user)
           
           // Clear the token from URL
           window.history.replaceState({}, '', '/dashboard')
         } catch (error) {
           console.error('Token authentication failed:', error)
         }
+      } else {
+        console.log('No token found in URL hash')
       }
     }
     
+    // Run immediately and also after a short delay to catch late hash updates
     handleTokenAuth()
+    setTimeout(handleTokenAuth, 100)
+    
     console.log('Dashboard auth check:', { loading, isAuthenticated, user })
-  }, [loading, isAuthenticated, user])
+  }, [])
 
   useEffect(() => {
     if (user) {
@@ -138,6 +145,7 @@ export default function DashboardPage() {
             <button 
               onClick={() => {
                 console.log('Current cookies:', document.cookie)
+                console.log('Current URL hash:', window.location.hash)
                 console.log('Auth state:', { loading, isAuthenticated, user })
               }}
               className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
