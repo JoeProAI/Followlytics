@@ -1,6 +1,8 @@
-# Followlytics - AI-Powered X Follower Analytics
+# Followlytics
 
-A full-stack SaaS application that tracks X (Twitter) unfollows and provides AI-powered insights using xAI Grok.
+AI-powered X (Twitter) follower analytics platform helping creators understand their audience engagement patterns and track unfollows with intelligent insights.
+
+🚀 **Ready for Production Deployment** using xAI Grok.
 
 ## 🚀 Features
 
