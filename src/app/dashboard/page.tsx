@@ -23,7 +23,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
-      redirect('/auth/login')
+      redirect('/')
     }
   }, [loading, isAuthenticated])
 

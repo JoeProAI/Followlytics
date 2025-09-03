@@ -12,15 +12,6 @@ export default function LandingPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   
-  useEffect(() => {
-    // Check if user just completed authentication
-    if (searchParams.get('auth') === 'success') {
-      // Small delay to ensure cookie is set, then redirect to dashboard
-      setTimeout(() => {
-        router.push('/dashboard')
-      }, 1000)
-    }
-  }, [searchParams, router])
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
