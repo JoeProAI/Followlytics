@@ -90,16 +90,20 @@ export default function DashboardPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-          <p className="mt-4 text-gray-600">Loading your dashboard...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading dashboard...</p>
         </div>
       </div>
     )
   }
 
-  if (!user) {
-    return null
-  }
+  // Show dashboard regardless of auth state for debugging
+  console.log('Dashboard render state:', { loading, isAuthenticated, user })
+  
+  // Always render dashboard for debugging
+  // if (!user) {
+  //   return null
+  // }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -110,8 +114,8 @@ export default function DashboardPage() {
             <div className="flex items-center">
               <TrendingDown className="h-8 w-8 text-primary mr-3" />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Followlytics</h1>
-                <p className="text-sm text-gray-600">Welcome back, @{user.displayName || user.email || 'User'}</p>
+                <h1 className="text-xl font-semibold text-gray-900">Followlytics</h1>
+                <p className="text-sm text-gray-500">Welcome back, {user?.displayName || user?.email || 'User'}</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
