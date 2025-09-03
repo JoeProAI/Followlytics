@@ -2,45 +2,83 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 
 export async function GET(request: NextRequest) {
-  const twitterClientId = process.env.TWITTER_CLIENT_ID
-  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/twitter/callback`
+  const consumerKey = process.env.TWITTER_API_KEY
+  const consumerSecret = process.env.TWITTER_API_SECRET
+  const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/twitter/callback`
   
-  if (!twitterClientId) {
-    return NextResponse.json({ error: 'Twitter client ID not configured' }, { status: 500 })
+  if (!consumerKey || !consumerSecret) {
+    return NextResponse.json({ error: 'Twitter API credentials not configured' }, { status: 500 })
   }
 
-  // Generate state parameter for security
-  const state = crypto.randomBytes(32).toString('hex')
+  // OAuth 1.0a Request Token step
+  const oauthTimestamp = Math.floor(Date.now() / 1000).toString()
+  const oauthNonce = crypto.randomBytes(32).toString('hex')
   
-  // Generate PKCE code verifier and challenge
-  const codeVerifier = crypto.randomBytes(32).toString('base64url')
-  const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url')
+  // OAuth 1.0a parameters
+  const oauthParams = {
+    oauth_callback: callbackUrl,
+    oauth_consumer_key: consumerKey,
+    oauth_nonce: oauthNonce,
+    oauth_signature_method: 'HMAC-SHA1',
+    oauth_timestamp: oauthTimestamp,
+    oauth_version: '1.0'
+  }
   
-  // Store state and code verifier in session/cookie for verification
-  const response = NextResponse.redirect(
-    `https://twitter.com/i/oauth2/authorize?` +
-    `response_type=code&` +
-    `client_id=${twitterClientId}&` +
-    `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-    `scope=tweet.read%20users.read%20account.follows.read&` +
-    `state=${state}&` +
-    `code_challenge=${codeChallenge}&` +
-    `code_challenge_method=S256`
-  )
+  // Create parameter string for signature
+  const paramString = Object.keys(oauthParams)
+    .sort()
+    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(oauthParams[key as keyof typeof oauthParams])}`)
+    .join('&')
   
-  response.cookies.set('twitter_oauth_state', state, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 600 // 10 minutes
-  })
+  // Create signature base string
+  const signatureBaseString = `POST&${encodeURIComponent('https://api.twitter.com/oauth/request_token')}&${encodeURIComponent(paramString)}`
   
-  response.cookies.set('twitter_code_verifier', codeVerifier, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 600 // 10 minutes
-  })
+  // Create signing key
+  const signingKey = `${encodeURIComponent(consumerSecret)}&`
   
-  return response
+  // Generate signature
+  const signature = crypto.createHmac('sha1', signingKey).update(signatureBaseString).digest('base64')
+  
+  // Add signature to parameters
+  const authHeader = `OAuth oauth_callback="${encodeURIComponent(callbackUrl)}", oauth_consumer_key="${consumerKey}", oauth_nonce="${oauthNonce}", oauth_signature="${encodeURIComponent(signature)}", oauth_signature_method="HMAC-SHA1", oauth_timestamp="${oauthTimestamp}", oauth_version="1.0"`
+  
+  try {
+    // Request token from Twitter
+    const response = await fetch('https://api.twitter.com/oauth/request_token', {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Twitter API error: ${response.status}`)
+    }
+    
+    const responseText = await response.text()
+    const params = new URLSearchParams(responseText)
+    const oauthToken = params.get('oauth_token')
+    const oauthTokenSecret = params.get('oauth_token_secret')
+    
+    if (!oauthToken || !oauthTokenSecret) {
+      throw new Error('Invalid response from Twitter API')
+    }
+    
+    // Store token secret for callback
+    const redirectResponse = NextResponse.redirect(`https://api.twitter.com/oauth/authorize?oauth_token=${oauthToken}`)
+    
+    redirectResponse.cookies.set('twitter_oauth_token_secret', oauthTokenSecret, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 600 // 10 minutes
+    })
+    
+    return redirectResponse
+    
+  } catch (error) {
+    console.error('OAuth 1.0a error:', error)
+    return NextResponse.json({ error: 'Failed to initiate Twitter authentication' }, { status: 500 })
+  }
 }

@@ -9,26 +9,27 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "14.2.5",
-    "react": "^18",
-    "react-dom": "^18",
-    "firebase": "^10.12.2",
-    "firebase-admin": "^12.1.0",
     "@radix-ui/react-avatar": "^1.0.4",
     "@radix-ui/react-label": "^2.0.2",
     "@radix-ui/react-slot": "^1.0.2",
     "@radix-ui/react-switch": "^1.0.3",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "crypto-js": "^4.2.0",
+    "date-fns": "^3.6.0",
+    "firebase": "^10.12.2",
+    "firebase-admin": "^12.1.0",
     "lucide-react": "^0.400.0",
+    "next": "14.2.5",
+    "oauth-1.0a": "^2.2.6",
+    "react": "^18",
+    "react-dom": "^18",
     "recharts": "^2.12.7",
     "stripe": "^16.2.0",
     "tailwind-merge": "^2.4.0",
-    "tailwindcss-animate": "^1.0.7",
-    "date-fns": "^3.6.0"
+    "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
-    "typescript": "^5",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
@@ -36,6 +37,7 @@
     "eslint": "^8",
     "eslint-config-next": "14.2.5",
     "postcss": "^8.4.39",
-    "tailwindcss": "^3.4.4"
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5"
   }
 }
