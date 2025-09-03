@@ -169,15 +169,63 @@ export async function GET(request: NextRequest) {
       created_at: admin.firestore.FieldValue.serverTimestamp()
     }, { merge: true })
 
-    // Create response with redirect directly to dashboard
-    const response = NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard`)
+    // Create simple HTML page that handles authentication client-side
+    const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Authentication Success</title>
+      <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        
+        const firebaseConfig = {
+          apiKey: "${process.env.NEXT_PUBLIC_FIREBASE_API_KEY}",
+          authDomain: "${process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}",
+          projectId: "${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}",
+          storageBucket: "${process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}",
+          messagingSenderId: "${process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}",
+          appId: "${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        
+        async function authenticate() {
+          try {
+            console.log('Signing in with custom token...');
+            await signInWithCustomToken(auth, '${customToken}');
+            console.log('Authentication successful, redirecting to dashboard');
+            window.location.href = '/dashboard';
+          } catch (error) {
+            console.error('Authentication failed:', error);
+            window.location.href = '/dashboard?error=auth_failed';
+          }
+        }
+        
+        authenticate();
+      </script>
+    </head>
+    <body style="font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f5f5f5;">
+      <div style="text-align: center;">
+        <div style="width: 50px; height: 50px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
+        <h2>Completing authentication...</h2>
+        <p>Please wait while we sign you in.</p>
+      </div>
+      <style>
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      </style>
+    </body>
+    </html>
+    `;
     
-    // Set Firebase custom token as cookie
-    response.cookies.set('firebase_token', customToken, {
-      httpOnly: false, // Make it accessible to client-side JS
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 3600 // 1 hour
+    const response = new NextResponse(html, {
+      headers: {
+        'Content-Type': 'text/html',
+      },
     })
 
     // Clear OAuth cookies
