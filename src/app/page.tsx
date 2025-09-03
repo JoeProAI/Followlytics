@@ -1,3 +1,5 @@
+'use client'
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -43,8 +45,8 @@ export default function LandingPage() {
                 </p>
               </div>
               <div className="space-x-4">
-                <Button size="lg" asChild>
-                  <Link href="/api/auth/twitter/login">Start Free Trial</Link>
+                <Button size="lg" onClick={() => window.location.href = '/api/auth/twitter/login'}>
+                  Start Free Trial
                 </Button>
                 <Button variant="outline" size="lg" asChild>
                   <Link href="/dashboard">View Dashboard</Link>

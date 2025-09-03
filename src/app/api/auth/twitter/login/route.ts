@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   const consumerKey = process.env.TWITTER_API_KEY
   const consumerSecret = process.env.TWITTER_API_SECRET

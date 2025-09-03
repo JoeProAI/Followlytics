@@ -19,6 +19,8 @@ if (!admin.apps.length) {
   })
 }
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const oauthToken = searchParams.get('oauth_token')
