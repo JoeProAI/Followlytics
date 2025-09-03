@@ -172,7 +172,7 @@ export async function GET(request: NextRequest) {
     
     // Set Firebase custom token as cookie
     response.cookies.set('firebase_token', customToken, {
-      httpOnly: true,
+      httpOnly: false, // Make it accessible to client-side JS
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 3600 // 1 hour
