@@ -21,13 +21,14 @@ export default function DashboardPage() {
   const [scanningFollowers, setScanningFollowers] = useState(false)
   const [checkingUnfollowers, setCheckingUnfollowers] = useState(false)
 
-  useEffect(() => {
-    console.log('Dashboard auth check:', { loading, isAuthenticated, user })
-    if (!loading && !isAuthenticated) {
-      console.log('Redirecting to home - not authenticated')
-      window.location.href = '/'
-    }
-  }, [loading, isAuthenticated, user])
+  // Remove automatic redirect - let user stay on dashboard
+  // useEffect(() => {
+  //   console.log('Dashboard auth check:', { loading, isAuthenticated, user })
+  //   if (!loading && !isAuthenticated) {
+  //     console.log('Redirecting to home - not authenticated')
+  //     window.location.href = '/'
+  //   }
+  // }, [loading, isAuthenticated, user])
 
   useEffect(() => {
     if (user) {
