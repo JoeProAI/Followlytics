@@ -28,12 +28,18 @@ export async function GET(request: NextRequest) {
   
   // Verify state parameter
   const storedState = request.cookies.get('twitter_oauth_state')?.value
+  const codeVerifier = request.cookies.get('twitter_code_verifier')?.value
+  
   if (!state || !storedState || state !== storedState) {
     return NextResponse.redirect('/auth/login?error=invalid_state')
   }
 
   if (!code) {
     return NextResponse.redirect('/auth/login?error=no_code')
+  }
+
+  if (!codeVerifier) {
+    return NextResponse.redirect('/auth/login?error=missing_code_verifier')
   }
 
   try {
@@ -49,7 +55,7 @@ export async function GET(request: NextRequest) {
         grant_type: 'authorization_code',
         client_id: process.env.TWITTER_CLIENT_ID!,
         redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/twitter/callback`,
-        code_verifier: 'challenge'
+        code_verifier: codeVerifier
       })
     })
 
@@ -111,8 +117,9 @@ export async function GET(request: NextRequest) {
       maxAge: 3600 // 1 hour
     })
     
-    // Clear the state cookie
+    // Clear the state and code verifier cookies
     response.cookies.delete('twitter_oauth_state')
+    response.cookies.delete('twitter_code_verifier')
     
     return response
 
