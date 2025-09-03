@@ -28,11 +28,13 @@ export function useAuth() {
 
       if (token && !auth.currentUser) {
         try {
+          setLoading(true)
           await signInWithCustomToken(auth, token)
           // Clear the cookie after successful sign in
           document.cookie = 'firebase_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
         } catch (error) {
           console.error('Error signing in with custom token:', error)
+          setLoading(false)
         }
       }
     }

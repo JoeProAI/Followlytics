@@ -23,7 +23,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
-      redirect('/')
+      window.location.href = '/'
     }
   }, [loading, isAuthenticated])
 
