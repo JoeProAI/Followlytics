@@ -1,10 +1,26 @@
+'use client'
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle, TrendingDown, Brain, Users, Zap, Shield } from "lucide-react"
 import Link from "next/link"
+import { useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 
 export default function LandingPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  useEffect(() => {
+    // Check if user just completed authentication
+    if (searchParams.get('auth') === 'success') {
+      // Small delay to ensure cookie is set, then redirect to dashboard
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 1000)
+    }
+  }, [searchParams, router])
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}

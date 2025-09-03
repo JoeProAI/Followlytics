@@ -165,8 +165,8 @@ export async function GET(request: NextRequest) {
       created_at: admin.firestore.FieldValue.serverTimestamp()
     }, { merge: true })
 
-    // Create response with redirect
-    const response = NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard`)
+    // Create response with redirect to home page with success flag
+    const response = NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}?auth=success`)
     
     // Set Firebase custom token as cookie
     response.cookies.set('firebase_token', customToken, {
