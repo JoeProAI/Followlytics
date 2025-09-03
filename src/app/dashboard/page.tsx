@@ -21,8 +21,30 @@ export default function DashboardPage() {
   const [scanningFollowers, setScanningFollowers] = useState(false)
   const [checkingUnfollowers, setCheckingUnfollowers] = useState(false)
 
-  // Remove redirect completely - let dashboard handle auth state
+  // Check for token in URL hash and authenticate
   useEffect(() => {
+    const handleTokenAuth = async () => {
+      const hash = window.location.hash
+      if (hash.startsWith('#token=')) {
+        const token = hash.substring(7) // Remove '#token='
+        console.log('Found token in URL hash, authenticating...')
+        
+        try {
+          const { signInWithCustomToken } = await import('firebase/auth')
+          const { auth } = await import('@/lib/firebase')
+          
+          await signInWithCustomToken(auth, token)
+          console.log('Authentication successful')
+          
+          // Clear the token from URL
+          window.history.replaceState({}, '', '/dashboard')
+        } catch (error) {
+          console.error('Token authentication failed:', error)
+        }
+      }
+    }
+    
+    handleTokenAuth()
     console.log('Dashboard auth check:', { loading, isAuthenticated, user })
   }, [loading, isAuthenticated, user])
 
