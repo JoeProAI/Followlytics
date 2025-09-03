@@ -21,14 +21,13 @@ export default function DashboardPage() {
   const [scanningFollowers, setScanningFollowers] = useState(false)
   const [checkingUnfollowers, setCheckingUnfollowers] = useState(false)
 
-  // Remove automatic redirect - let user stay on dashboard
-  // useEffect(() => {
-  //   console.log('Dashboard auth check:', { loading, isAuthenticated, user })
-  //   if (!loading && !isAuthenticated) {
-  //     console.log('Redirecting to home - not authenticated')
-  //     window.location.href = '/'
-  //   }
-  // }, [loading, isAuthenticated, user])
+  useEffect(() => {
+    console.log('Dashboard auth check:', { loading, isAuthenticated, user })
+    if (!loading && !isAuthenticated) {
+      console.log('Redirecting to home - not authenticated')
+      window.location.href = '/'
+    }
+  }, [loading, isAuthenticated, user])
 
   useEffect(() => {
     if (user) {
@@ -100,10 +99,22 @@ export default function DashboardPage() {
   // Show dashboard regardless of auth state for debugging
   console.log('Dashboard render state:', { loading, isAuthenticated, user })
   
-  // Always render dashboard for debugging
-  // if (!user) {
-  //   return null
-  // }
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Authentication Required</h2>
+          <p className="text-gray-600 mb-4">Please sign in to access your dashboard</p>
+          <button 
+            onClick={() => window.location.href = '/api/auth/twitter/login'}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Sign in with Twitter
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
