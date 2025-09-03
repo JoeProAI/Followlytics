@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
   }
 
   console.log('OAuth callback received:', { oauthToken, oauthVerifier })
+  console.log('Creating Firebase custom token for user')
 
   if (!oauthToken || !oauthVerifier) {
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}?error=missing_params`)
@@ -170,6 +171,7 @@ export async function GET(request: NextRequest) {
     }, { merge: true })
 
     // Just redirect to dashboard with token in URL hash
+    console.log('Redirecting to dashboard with token:', customToken.substring(0, 20) + '...')
     const response = NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard#token=${customToken}`)
 
     // Clear OAuth cookies
