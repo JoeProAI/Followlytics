@@ -15,6 +15,7 @@ export function useAuth() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log('Firebase auth state changed:', user)
       setUser(user as AuthUser)
       setLoading(false)
     })
@@ -26,16 +27,23 @@ export function useAuth() {
         .find(row => row.startsWith('firebase_token='))
         ?.split('=')[1]
 
+      console.log('Checking for firebase token:', !!token)
+      
       if (token && !auth.currentUser) {
         try {
+          console.log('Signing in with custom token')
           setLoading(true)
           await signInWithCustomToken(auth, token)
           // Clear the cookie after successful sign in
           document.cookie = 'firebase_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+          console.log('Successfully signed in with custom token')
         } catch (error) {
           console.error('Error signing in with custom token:', error)
           setLoading(false)
         }
+      } else if (!token) {
+        console.log('No firebase token found in cookies')
+        setLoading(false)
       }
     }
 
