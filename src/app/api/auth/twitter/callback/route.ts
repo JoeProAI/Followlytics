@@ -167,8 +167,18 @@ export async function GET(request: NextRequest) {
 
     console.log('Firebase token created successfully')
 
-    // Skip Firestore for now - just authenticate
-    // TODO: Store user data in Firestore once API is enabled
+    // Store user data in Firestore
+    const db = admin.firestore()
+    await db.collection('users').doc(userId).set({
+      twitter_id: userId,
+      username: userData.screen_name,
+      name: userData.name,
+      profile_image_url: userData.profile_image_url_https,
+      access_token: accessToken,
+      access_token_secret: accessTokenSecret,
+      last_login: admin.firestore.FieldValue.serverTimestamp(),
+      created_at: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true })
     
     // Set Firebase token in cookie for useAuth hook
     console.log('Setting Firebase token in cookie and redirecting to dashboard')

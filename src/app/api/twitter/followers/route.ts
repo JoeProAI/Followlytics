@@ -55,11 +55,22 @@ export async function GET(request: NextRequest) {
     const decodedToken = await admin.auth().verifyIdToken(token)
     const userId = decodedToken.uid
 
-    // For now, use mock data since Firestore is disabled
-    // TODO: Get real user data from Firestore once API is enabled
-    const twitterUserId = 'mock_twitter_id'
-    const accessToken = 'mock_access_token'
-    const accessTokenSecret = 'mock_access_token_secret'
+    // Get user data from Firestore
+    const db = admin.firestore()
+    const userDoc = await db.collection('users').doc(userId).get()
+    
+    if (!userDoc.exists) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    const userData = userDoc.data()
+    const twitterUserId = userData?.twitter_id
+    const accessToken = userData?.access_token
+    const accessTokenSecret = userData?.access_token_secret
+
+    if (!twitterUserId || !accessToken || !accessTokenSecret) {
+      return NextResponse.json({ error: 'Twitter credentials not found' }, { status: 400 })
+    }
 
     const consumerKey = process.env.TWITTER_API_KEY
     const consumerSecret = process.env.TWITTER_API_SECRET
@@ -118,8 +129,25 @@ export async function GET(request: NextRequest) {
     const followersData = await response.json()
     const followers = followersData.users || []
 
-    // Skip Firestore storage for now - just return data
-    // TODO: Store followers snapshot once Firestore API is enabled
+    // Store current followers snapshot
+    const timestamp_now = admin.firestore.FieldValue.serverTimestamp()
+    const followerIds = followers.map((f: any) => f.id_str)
+    
+    await db.collection('follower_snapshots').add({
+      user_id: userId,
+      twitter_user_id: twitterUserId,
+      follower_ids: followerIds,
+      follower_count: followers.length,
+      timestamp: timestamp_now,
+      followers_data: followers.map((f: any) => ({
+        id: f.id_str,
+        username: f.screen_name,
+        name: f.name,
+        profile_image_url: f.profile_image_url_https,
+        followers_count: f.followers_count,
+        verified: f.verified
+      }))
+    })
 
     return NextResponse.json({
       followers: followers.map((f: any) => ({
