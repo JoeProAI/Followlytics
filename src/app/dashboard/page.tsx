@@ -65,17 +65,24 @@ export default function DashboardPage() {
   const scanFollowers = async () => {
     setScanningFollowers(true)
     try {
+      console.log('Starting follower scan...')
       const response = await fetch('/api/twitter/followers')
+      console.log('Follower scan response:', response.status, response.statusText)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('Follower scan data:', data)
         setFollowers(data.followers || [])
         // Refresh analytics after scan
         await fetchAnalytics()
       } else {
-        console.error('Failed to scan followers')
+        const errorText = await response.text()
+        console.error('Failed to scan followers:', response.status, errorText)
+        alert(`Failed to scan followers: ${response.status} ${errorText}`)
       }
     } catch (error) {
       console.error('Error scanning followers:', error)
+      alert(`Error scanning followers: ${(error as Error).message}`)
     } finally {
       setScanningFollowers(false)
     }
@@ -84,13 +91,22 @@ export default function DashboardPage() {
   const fetchUnfollowers = async () => {
     setCheckingUnfollowers(true)
     try {
+      console.log('Fetching unfollowers...')
       const response = await fetch('/api/twitter/unfollowers')
+      console.log('Unfollowers response:', response.status, response.statusText)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('Unfollowers data:', data)
         setUnfollowers(data.unfollowers || [])
+      } else {
+        const errorText = await response.text()
+        console.error('Failed to fetch unfollowers:', response.status, errorText)
+        alert(`Failed to fetch unfollowers: ${response.status} ${errorText}`)
       }
     } catch (error) {
       console.error('Error fetching unfollowers:', error)
+      alert(`Error fetching unfollowers: ${(error as Error).message}`)
     } finally {
       setCheckingUnfollowers(false)
     }
@@ -99,13 +115,22 @@ export default function DashboardPage() {
   const fetchAnalytics = async () => {
     setLoadingData(true)
     try {
+      console.log('Fetching analytics...')
       const response = await fetch('/api/twitter/analytics?days=30')
+      console.log('Analytics response:', response.status, response.statusText)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('Analytics data:', data)
         setAnalytics(data)
+      } else {
+        const errorText = await response.text()
+        console.error('Failed to fetch analytics:', response.status, errorText)
+        alert(`Failed to fetch analytics: ${response.status} ${errorText}`)
       }
     } catch (error) {
       console.error('Error fetching analytics:', error)
+      alert(`Error fetching analytics: ${(error as Error).message}`)
     } finally {
       setLoadingData(false)
     }
