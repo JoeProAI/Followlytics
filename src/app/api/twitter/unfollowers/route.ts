@@ -31,101 +31,38 @@ export async function GET(request: NextRequest) {
     const decodedToken = await admin.auth().verifyIdToken(token)
     const userId = decodedToken.uid
 
-    // Get user data from Firestore
-    const db = admin.firestore()
-    const userDoc = await db.collection('users').doc(userId).get()
-    
-    if (!userDoc.exists) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
+    // For now, use mock data since Firestore is disabled
+    // TODO: Get real user data from Firestore once API is enabled
+    const twitterUserId = 'mock_twitter_id'
+    const accessToken = 'mock_access_token'
+    const accessTokenSecret = 'mock_access_token_secret'
 
-    const userData = userDoc.data()
-    const twitterUserId = userData?.twitter_id
-
-    if (!twitterUserId) {
-      return NextResponse.json({ error: 'Twitter user ID not found' }, { status: 400 })
-    }
-
-    // Get the last two follower snapshots to compare
-    const snapshotsQuery = await db
-      .collection('follower_snapshots')
-      .where('user_id', '==', userId)
-      .where('twitter_user_id', '==', twitterUserId)
-      .orderBy('timestamp', 'desc')
-      .limit(2)
-      .get()
-
-    if (snapshotsQuery.docs.length < 2) {
-      return NextResponse.json({
-        unfollowers: [],
-        new_followers: [],
-        message: 'Need at least 2 snapshots to detect changes. Please wait for the next scan.'
-      })
-    }
-
-    const [currentSnapshot, previousSnapshot] = snapshotsQuery.docs
-    const currentFollowerIds = new Set(currentSnapshot.data().follower_ids || [])
-    const previousFollowerIds = new Set(previousSnapshot.data().follower_ids || [])
-    const currentFollowersData = currentSnapshot.data().followers_data || []
-    const previousFollowersData = previousSnapshot.data().followers_data || []
-
-    // Find unfollowers (in previous but not in current)
-    const unfollowerIds = Array.from(previousFollowerIds).filter(id => !currentFollowerIds.has(id))
-    const unfollowers = previousFollowersData.filter((f: any) => unfollowerIds.includes(f.id))
-
-    // Find new followers (in current but not in previous)
-    const newFollowerIds = Array.from(currentFollowerIds).filter(id => !previousFollowerIds.has(id))
-    const newFollowers = currentFollowersData.filter((f: any) => newFollowerIds.includes(f.id))
-
-    // Store unfollower events
-    if (unfollowers.length > 0) {
-      const batch = db.batch()
-      
-      unfollowers.forEach((unfollower: any) => {
-        const unfollowerRef = db.collection('unfollower_events').doc()
-        batch.set(unfollowerRef, {
-          user_id: userId,
-          twitter_user_id: twitterUserId,
-          unfollower_id: unfollower.id,
-          unfollower_username: unfollower.username,
-          unfollower_name: unfollower.name,
-          unfollower_profile_image: unfollower.profile_image_url,
-          unfollowed_at: admin.firestore.FieldValue.serverTimestamp(),
-          detected_at: admin.firestore.FieldValue.serverTimestamp()
-        })
-      })
-      
-      await batch.commit()
-    }
-
+    // Return mock unfollower data since Firestore is disabled
+    // TODO: Implement real unfollower detection once Firestore API is enabled
     return NextResponse.json({
-      unfollowers: unfollowers.map((u: any) => ({
-        id: u.id,
-        username: u.username,
-        name: u.name,
-        profile_image_url: u.profile_image_url,
-        followers_count: u.followers_count,
-        verified: u.verified
-      })),
-      new_followers: newFollowers.map((f: any) => ({
-        id: f.id,
-        username: f.username,
-        name: f.name,
-        profile_image_url: f.profile_image_url,
-        followers_count: f.followers_count,
-        verified: f.verified
-      })),
-      summary: {
-        unfollowers_count: unfollowers.length,
-        new_followers_count: newFollowers.length,
-        net_change: newFollowers.length - unfollowers.length,
-        current_followers: currentFollowerIds.size,
-        previous_followers: previousFollowerIds.size
-      },
-      timestamps: {
-        current_scan: currentSnapshot.data().timestamp?.toDate?.()?.toISOString(),
-        previous_scan: previousSnapshot.data().timestamp?.toDate?.()?.toISOString()
-      }
+      unfollowers: [
+        {
+          id: "mock_unfollower_1",
+          username: "example_user",
+          name: "Example User",
+          profile_image_url: "https://via.placeholder.com/48",
+          followers_count: 1234,
+          verified: false,
+          unfollowed_at: new Date().toISOString()
+        }
+      ],
+      new_followers: [
+        {
+          id: "mock_new_follower_1", 
+          username: "new_follower",
+          name: "New Follower",
+          profile_image_url: "https://via.placeholder.com/48",
+          followers_count: 567,
+          verified: false,
+          followed_at: new Date().toISOString()
+        }
+      ],
+      message: 'Mock data - enable Firestore for real unfollower tracking'
     })
 
   } catch (error) {

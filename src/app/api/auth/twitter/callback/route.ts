@@ -152,24 +152,14 @@ export async function GET(request: NextRequest) {
       twitter_id: userId,
       username: userData.screen_name,
       name: userData.name,
-      profile_image_url: userData.profile_image_url_https,
-      access_token: accessToken,
-      access_token_secret: accessTokenSecret
+      profile_image_url: userData.profile_image_url_https
     })
 
-    // Store user data in Firestore
-    const db = admin.firestore()
-    await db.collection('users').doc(userId).set({
-      twitter_id: userId,
-      username: userData.screen_name,
-      name: userData.name,
-      profile_image_url: userData.profile_image_url_https,
-      access_token: accessToken,
-      access_token_secret: accessTokenSecret,
-      last_login: admin.firestore.FieldValue.serverTimestamp(),
-      created_at: admin.firestore.FieldValue.serverTimestamp()
-    }, { merge: true })
+    console.log('Firebase token created successfully')
 
+    // Skip Firestore for now - just authenticate
+    // TODO: Store user data in Firestore once API is enabled
+    
     // Just redirect to dashboard with token in URL hash
     console.log('Redirecting to dashboard with token:', customToken.substring(0, 20) + '...')
     const response = NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard#token=${customToken}`)
