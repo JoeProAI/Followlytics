@@ -4,10 +4,20 @@ import crypto from 'crypto'
 
 // Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
-  const privateKey = process.env.FIREBASE_ADMIN_SDK_KEY?.replace(/\\n/g, '\n')
+  let privateKey = process.env.FIREBASE_ADMIN_SDK_KEY
   
   if (!privateKey) {
     throw new Error('Firebase Admin SDK private key is not configured')
+  }
+
+  // Handle different private key formats
+  if (privateKey.includes('\\n')) {
+    privateKey = privateKey.replace(/\\n/g, '\n')
+  }
+  
+  // Ensure proper PEM format
+  if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+    throw new Error('Invalid private key format - must be PEM format')
   }
 
   admin.initializeApp({
