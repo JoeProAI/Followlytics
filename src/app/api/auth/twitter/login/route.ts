@@ -74,7 +74,13 @@ export async function GET(request: NextRequest) {
     if (!response.ok) {
       const errorText = await response.text()
       console.error('Twitter API request token failed:', response.status, errorText)
-      throw new Error(`Twitter API error: ${response.status} - ${errorText}`)
+      console.error('Callback URL used:', callbackUrl)
+      return NextResponse.json({
+        error: 'Failed to initiate Twitter authentication',
+        details: `Twitter API error: ${response.status}`,
+        callbackUrl: callbackUrl,
+        twitterError: errorText
+      }, { status: 500 })
     }
     
     const responseText = await response.text()
