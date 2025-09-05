@@ -5,15 +5,24 @@ import crypto from 'crypto'
 // Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
   const privateKey = process.env.FIREBASE_ADMIN_SDK_KEY?.replace(/\\n/g, '\n')
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
   
-  if (!privateKey) {
-    throw new Error('Firebase Admin SDK private key is not configured')
+  console.log('Firebase config check:', {
+    hasPrivateKey: !!privateKey,
+    hasProjectId: !!projectId,
+    hasClientEmail: !!clientEmail,
+    projectId: projectId
+  })
+  
+  if (!privateKey || !projectId || !clientEmail) {
+    throw new Error(`Firebase Admin SDK not properly configured: missing ${!privateKey ? 'private key' : !projectId ? 'project ID' : 'client email'}`)
   }
 
   admin.initializeApp({
     credential: admin.credential.cert({
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "followlytics-cd4e1",
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL || "firebase-adminsdk-fbsvc@followlytics-cd4e1.iam.gserviceaccount.com",
+      projectId: projectId,
+      clientEmail: clientEmail,
       privateKey: privateKey,
     }),
   })
