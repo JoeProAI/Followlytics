@@ -47,6 +47,9 @@ export async function GET(request: NextRequest) {
   const authHeader = `OAuth oauth_callback="${encodeURIComponent(callbackUrl)}", oauth_consumer_key="${consumerKey}", oauth_nonce="${oauthNonce}", oauth_signature="${encodeURIComponent(signature)}", oauth_signature_method="HMAC-SHA1", oauth_timestamp="${oauthTimestamp}", oauth_version="1.0"`
   
   try {
+    console.log('Initiating Twitter OAuth request with callback:', callbackUrl)
+    console.log('Using consumer key:', consumerKey ? `${consumerKey.substring(0, 10)}...` : 'MISSING')
+    
     // Request token from Twitter
     const response = await fetch('https://api.twitter.com/oauth/request_token', {
       method: 'POST',
@@ -57,7 +60,9 @@ export async function GET(request: NextRequest) {
     })
     
     if (!response.ok) {
-      throw new Error(`Twitter API error: ${response.status}`)
+      const errorText = await response.text()
+      console.error('Twitter API request token failed:', response.status, errorText)
+      throw new Error(`Twitter API error: ${response.status} - ${errorText}`)
     }
     
     const responseText = await response.text()
