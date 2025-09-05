@@ -4,20 +4,10 @@ import crypto from 'crypto'
 
 // Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
-  let privateKey = process.env.FIREBASE_ADMIN_SDK_KEY
+  const privateKey = process.env.FIREBASE_ADMIN_SDK_KEY?.replace(/\\n/g, '\n')
   
   if (!privateKey) {
     throw new Error('Firebase Admin SDK private key is not configured')
-  }
-
-  // Handle different private key formats
-  if (privateKey.includes('\\n')) {
-    privateKey = privateKey.replace(/\\n/g, '\n')
-  }
-  
-  // Ensure proper PEM format
-  if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
-    throw new Error('Invalid private key format - must be PEM format')
   }
 
   admin.initializeApp({
@@ -162,10 +152,10 @@ export async function GET(request: NextRequest) {
       twitter_id: userId,
       username: userData.screen_name,
       name: userData.name,
-      profile_image_url: userData.profile_image_url_https
+      profile_image_url: userData.profile_image_url_https,
+      access_token: accessToken,
+      access_token_secret: accessTokenSecret
     })
-
-    console.log('Firebase token created successfully')
 
     // Store user data in Firestore
     const db = admin.firestore()
@@ -179,18 +169,10 @@ export async function GET(request: NextRequest) {
       last_login: admin.firestore.FieldValue.serverTimestamp(),
       created_at: admin.firestore.FieldValue.serverTimestamp()
     }, { merge: true })
-    
-    // Set Firebase token in cookie for useAuth hook
-    console.log('Setting Firebase token in cookie and redirecting to dashboard')
-    const response = NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard`)
-    
-    // Set the Firebase token cookie (accessible to client JS)
-    response.cookies.set('firebase_token', customToken, {
-      httpOnly: false, // Allow client-side access
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 // 24 hours
-    })
+
+    // Just redirect to dashboard with token in URL hash
+    console.log('Redirecting to dashboard with token:', customToken.substring(0, 20) + '...')
+    const response = NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard#token=${customToken}`)
 
     // Clear OAuth cookies
     response.cookies.delete('twitter_oauth_token_secret')

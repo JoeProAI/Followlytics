@@ -115,13 +115,16 @@ export async function GET(request: NextRequest) {
         followers_count: f.followers_count,
         verified: f.verified
       })),
-      total_unfollowers: unfollowers.length,
-      total_new_followers: newFollowers.length,
-      current_follower_count: currentFollowerIds.size,
-      previous_follower_count: previousFollowerIds.size,
-      scan_dates: {
-        current: currentSnapshot.data().timestamp?.toDate?.()?.toISOString() || new Date().toISOString(),
-        previous: previousSnapshot.data().timestamp?.toDate?.()?.toISOString() || new Date().toISOString()
+      summary: {
+        unfollowers_count: unfollowers.length,
+        new_followers_count: newFollowers.length,
+        net_change: newFollowers.length - unfollowers.length,
+        current_followers: currentFollowerIds.size,
+        previous_followers: previousFollowerIds.size
+      },
+      timestamps: {
+        current_scan: currentSnapshot.data().timestamp?.toDate?.()?.toISOString(),
+        previous_scan: previousSnapshot.data().timestamp?.toDate?.()?.toISOString()
       }
     })
 

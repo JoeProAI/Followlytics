@@ -64,11 +64,11 @@ export async function GET(request: NextRequest) {
     }
 
     const userData = userDoc.data()
-    const twitterUserId = userData?.twitter_id
     const accessToken = userData?.access_token
     const accessTokenSecret = userData?.access_token_secret
+    const twitterUserId = userData?.twitter_id
 
-    if (!twitterUserId || !accessToken || !accessTokenSecret) {
+    if (!accessToken || !accessTokenSecret || !twitterUserId) {
       return NextResponse.json({ error: 'Twitter credentials not found' }, { status: 400 })
     }
 
