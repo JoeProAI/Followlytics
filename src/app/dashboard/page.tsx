@@ -143,12 +143,12 @@ export default function DashboardPage() {
     }
   }
 
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      window.location.href = '/'
-    }
-  }, [loading, isAuthenticated])
+  // Don't auto-redirect - let user see the login button
+  // useEffect(() => {
+  //   if (!loading && !isAuthenticated) {
+  //     window.location.href = '/'
+  //   }
+  // }, [loading, isAuthenticated])
 
   if (loading) {
     return (
