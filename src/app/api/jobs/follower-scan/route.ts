@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
       oauth_version: '1.0'
     }
 
-    const allParams = { ...params, ...oauthParams }
+    const allParams: Record<string, string> = { ...params, ...oauthParams }
     const paramString = Object.keys(allParams)
       .sort()
       .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(allParams[key])}`)
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
     const authHeader = `OAuth oauth_consumer_key="${consumerKey}", oauth_nonce="${oauthNonce}", oauth_signature="${encodeURIComponent(signature)}", oauth_signature_method="HMAC-SHA1", oauth_timestamp="${oauthTimestamp}", oauth_token="${accessToken}", oauth_version="1.0"`
 
     const queryString = Object.keys(params)
-      .map(key => `${key}=${encodeURIComponent(params[key])}`)
+      .map(key => `${key}=${encodeURIComponent(params[key as keyof typeof params])}`)
       .join('&')
 
     const response = await fetch(`${baseUrl}?${queryString}`, {
