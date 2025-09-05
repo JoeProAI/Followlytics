@@ -152,20 +152,42 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
-          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-gray-600">Loading your dashboard...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="mt-4 text-lg text-gray-600">Loading dashboard...</p>
         </div>
       </div>
     )
   }
 
   if (!isAuthenticated) {
+    // Check for debug parameters
+    const urlParams = new URLSearchParams(window.location.search)
+    const debugMode = urlParams.get('debug')
+    const errorParam = urlParams.get('error')
+    
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">Redirecting to login...</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            {debugMode ? 'Authentication Issue' : 'Access Denied'}
+          </h1>
+          <p className="text-lg text-gray-600 mb-8">
+            {errorParam ? `Error: ${decodeURIComponent(errorParam)}` : 'Please log in to access the dashboard.'}
+          </p>
+          {debugMode && (
+            <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
+              <p className="text-sm">Debug mode: {debugMode}</p>
+              <p className="text-sm">Try refreshing the page or logging in again.</p>
+            </div>
+          )}
+          <a 
+            href="/api/auth/twitter/login" 
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          >
+            Login with Twitter
+          </a>
         </div>
       </div>
     )

@@ -36,10 +36,12 @@ export function useAuth() {
           setLoading(true)
           const result = await signInWithCustomToken(auth, decodeURIComponent(token))
           console.log('Successfully signed in with custom token:', result.user)
-          // Clear the cookie after successful sign in
-          document.cookie = 'firebase_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+          // Don't clear the cookie immediately - keep it for API calls
+          setLoading(false)
         } catch (error) {
           console.error('Error signing in with custom token:', error)
+          // Clear invalid token
+          document.cookie = 'firebase_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
           setLoading(false)
         }
       } else if (!token) {
