@@ -161,14 +161,22 @@ export async function GET(request: NextRequest) {
     console.log('Twitter user data:', { id: twitterUserId, username: userData.screen_name, name: userData.name })
 
     // Create Firebase custom token using the Twitter user ID
-    const customToken = await admin.auth().createCustomToken(twitterUserId, {
-      twitter_id: twitterUserId,
-      username: userData.screen_name,
-      name: userData.name,
-      profile_image_url: userData.profile_image_url_https
-    })
-
-    console.log('Firebase token created successfully')
+    console.log('Creating Firebase custom token for user:', twitterUserId)
+    
+    let customToken: string
+    try {
+      customToken = await admin.auth().createCustomToken(twitterUserId, {
+        twitter_id: twitterUserId,
+        username: userData.screen_name,
+        name: userData.name,
+        profile_image_url: userData.profile_image_url_https
+      })
+      
+      console.log('Firebase token created successfully, length:', customToken.length)
+    } catch (tokenError) {
+      console.error('Firebase token creation failed:', tokenError)
+      throw new Error(`Firebase token creation failed: ${tokenError instanceof Error ? tokenError.message : 'Unknown error'}`)
+    }
 
     // Store user data in Firestore
     const db = admin.firestore()
