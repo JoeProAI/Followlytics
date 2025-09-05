@@ -8,14 +8,24 @@ function initializeFirebaseAdmin() {
   }
 
   try {
-    const privateKey = process.env.FIREBASE_ADMIN_SDK_KEY?.replace(/\\n/g, '\n')
+    // Handle different private key formats in production
+    let privateKey = process.env.FIREBASE_ADMIN_SDK_KEY
+    if (privateKey) {
+      // Replace escaped newlines with actual newlines
+      privateKey = privateKey.replace(/\\n/g, '\n')
+      // Ensure proper PEM format
+      if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+        privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey}\n-----END PRIVATE KEY-----\n`
+      }
+    }
+    
     const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
     
     console.log('Firebase Admin init - Project ID:', projectId)
     console.log('Firebase Admin init - Client Email:', clientEmail)
     console.log('Firebase Admin init - Private Key exists:', !!privateKey)
-    console.log('Firebase Admin init - Private Key length:', privateKey?.length || 0)
+    console.log('Firebase Admin init - Private Key has BEGIN marker:', privateKey?.includes('-----BEGIN') || false)
     
     if (!privateKey || !projectId || !clientEmail) {
       throw new Error(`Firebase Admin SDK not properly configured: privateKey=${!!privateKey}, projectId=${!!projectId}, clientEmail=${!!clientEmail}`)
