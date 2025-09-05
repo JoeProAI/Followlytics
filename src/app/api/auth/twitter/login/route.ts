@@ -11,7 +11,19 @@ export async function GET(request: NextRequest) {
   const callbackUrl = `${origin}/api/auth/twitter/callback`
   
   if (!consumerKey || !consumerSecret) {
-    return NextResponse.json({ error: 'Twitter API credentials not configured' }, { status: 500 })
+    console.error('Missing Twitter credentials:', {
+      hasConsumerKey: !!consumerKey,
+      hasConsumerSecret: !!consumerSecret,
+      keyPrefix: consumerKey?.substring(0, 10),
+      env: process.env.NODE_ENV
+    })
+    return NextResponse.json({ 
+      error: 'Twitter API credentials not configured',
+      debug: {
+        hasConsumerKey: !!consumerKey,
+        hasConsumerSecret: !!consumerSecret
+      }
+    }, { status: 500 })
   }
 
   // OAuth 1.0a Request Token step
