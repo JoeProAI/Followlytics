@@ -27,28 +27,29 @@ export async function GET(request: NextRequest) {
   const oauthVerifier = searchParams.get('oauth_verifier')
   const denied = searchParams.get('denied')
 
+  const origin = request.nextUrl.origin
   if (denied) {
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}?error=access_denied`)
+    return NextResponse.redirect(`${origin}?error=access_denied`)
   }
 
   console.log('OAuth callback received:', { oauthToken, oauthVerifier })
   console.log('Creating Firebase custom token for user')
 
   if (!oauthToken || !oauthVerifier) {
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}?error=missing_params`)
+    return NextResponse.redirect(`${origin}?error=missing_params`)
   }
 
   // Get token secret from cookie
   const oauthTokenSecret = request.cookies.get('twitter_oauth_token_secret')?.value
   if (!oauthTokenSecret) {
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}?error=missing_token_secret`)
+    return NextResponse.redirect(`${origin}?error=missing_token_secret`)
   }
 
   const consumerKey = process.env.TWITTER_API_KEY
   const consumerSecret = process.env.TWITTER_API_SECRET
 
   if (!consumerKey || !consumerSecret) {
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}?error=missing_credentials`)
+    return NextResponse.redirect(`${origin}?error=missing_credentials`)
   }
 
   try {
@@ -96,7 +97,7 @@ export async function GET(request: NextRequest) {
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text()
       console.error('Access token exchange failed:', errorText)
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}?error=token_exchange_failed`)
+      return NextResponse.redirect(`${origin}?error=token_exchange_failed`)
     }
 
     const tokenText = await tokenResponse.text()
@@ -107,7 +108,7 @@ export async function GET(request: NextRequest) {
     const screenName = tokenParams.get('screen_name')
 
     if (!accessToken || !accessTokenSecret || !userId) {
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}?error=invalid_token_response`)
+      return NextResponse.redirect(`${origin}?error=invalid_token_response`)
     }
 
     // Get user info from Twitter API v1.1 (OAuth 1.0a compatible)
@@ -142,7 +143,7 @@ export async function GET(request: NextRequest) {
 
     if (!userResponse.ok) {
       console.error('Failed to get user info')
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}?error=user_info_failed`)
+      return NextResponse.redirect(`${origin}?error=user_info_failed`)
     }
 
     const userData = await userResponse.json()
@@ -172,7 +173,7 @@ export async function GET(request: NextRequest) {
 
     // Just redirect to dashboard with token in URL hash
     console.log('Redirecting to dashboard with token:', customToken.substring(0, 20) + '...')
-    const response = NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard#token=${customToken}`)
+    const response = NextResponse.redirect(`${origin}/dashboard#token=${customToken}`)
 
     // Clear OAuth cookies
     response.cookies.delete('twitter_oauth_token_secret')
@@ -182,7 +183,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('OAuth callback error:', error)
     // Instead of redirecting to error, redirect to dashboard with debug info
-    const response = NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard?debug=auth_failed`)
+    const response = NextResponse.redirect(`${origin}/dashboard?debug=auth_failed`)
     return response
   }
 }

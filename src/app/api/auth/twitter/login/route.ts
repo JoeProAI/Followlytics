@@ -6,7 +6,9 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   const consumerKey = process.env.TWITTER_API_KEY
   const consumerSecret = process.env.TWITTER_API_SECRET
-  const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/twitter/callback`
+  // Use the current request origin to ensure cookie domain matches callback domain
+  const origin = request.nextUrl.origin
+  const callbackUrl = `${origin}/api/auth/twitter/callback`
   
   if (!consumerKey || !consumerSecret) {
     return NextResponse.json({ error: 'Twitter API credentials not configured' }, { status: 500 })
