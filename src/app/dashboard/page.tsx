@@ -29,12 +29,17 @@ export default function DashboardPage() {
   const fetchFollowers = async () => {
     try {
       const response = await fetch('/api/followers', {
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       })
       
       if (response.ok) {
         const data = await response.json()
         setFollowers(data.followers || [])
+      } else {
+        console.error('Failed to fetch followers:', response.status, response.statusText)
       }
     } catch (error) {
       console.error('Error fetching followers:', error)
