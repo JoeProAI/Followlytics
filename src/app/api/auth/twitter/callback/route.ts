@@ -193,8 +193,17 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('OAuth callback error:', error)
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      oauthToken,
+      oauthVerifier,
+      hasTokenSecret: !!oauthTokenSecret,
+      consumerKey: !!consumerKey,
+      consumerSecret: !!consumerSecret
+    })
     // Instead of redirecting to error, redirect to dashboard with debug info
-    const response = NextResponse.redirect(`${origin}/dashboard?debug=auth_failed`)
+    const response = NextResponse.redirect(`${origin}/dashboard?debug=auth_failed&error=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`)
     return response
   }
 }

@@ -20,25 +20,30 @@ export default function DashboardPage() {
   const [loadingData, setLoadingData] = useState(false)
   const [scanningFollowers, setScanningFollowers] = useState(false)
   const [checkingUnfollowers, setCheckingUnfollowers] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Check for token in URL hash and authenticate
   useEffect(() => {
     const handleTokenAuth = async () => {
       const hash = window.location.hash
+      const urlParams = new URLSearchParams(window.location.search)
+      const debugMode = urlParams.get('debug')
+      const errorMessage = urlParams.get('error')
+      
       console.log('Current URL hash:', hash)
+      console.log('Debug mode:', debugMode, 'Error:', errorMessage)
+      
+      if (debugMode === 'auth_failed') {
+        console.error('Authentication failed:', errorMessage)
+        setError(`Authentication failed: ${errorMessage || 'Unknown error'}`)
+      }
       
       if (hash.startsWith('#token=')) {
-        const token = hash.substring(7) // Remove '#token='
-        console.log('Found token in URL hash, authenticating...', token.substring(0, 20) + '...')
-        
+        const token = hash.substring(7)
         try {
           const { signInWithCustomToken } = await import('firebase/auth')
           const { auth } = await import('@/lib/firebase')
-          
-          const result = await signInWithCustomToken(auth, token)
-          console.log('Authentication successful:', result.user)
-          
-          // Clear the token from URL
+          await signInWithCustomToken(auth, token)
           window.history.replaceState({}, '', '/dashboard')
         } catch (error) {
           console.error('Token authentication failed:', error)
@@ -160,6 +165,14 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 mx-4 mt-4">
+          <strong className="font-bold">Error: </strong>
+          <span className="block sm:inline">{error}</span>
+        </div>
+      )}
+      
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
