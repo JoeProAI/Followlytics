@@ -147,10 +147,13 @@ export async function GET(request: NextRequest) {
     }
 
     const userData = await userResponse.json()
+    const twitterUserId = userData.id_str || userData.id.toString()
 
-    // Create Firebase custom token
-    const customToken = await admin.auth().createCustomToken(userId, {
-      twitter_id: userId,
+    console.log('Twitter user data:', { id: twitterUserId, username: userData.screen_name, name: userData.name })
+
+    // Create Firebase custom token using the Twitter user ID
+    const customToken = await admin.auth().createCustomToken(twitterUserId, {
+      twitter_id: twitterUserId,
       username: userData.screen_name,
       name: userData.name,
       profile_image_url: userData.profile_image_url_https
@@ -160,8 +163,8 @@ export async function GET(request: NextRequest) {
 
     // Store user data in Firestore
     const db = admin.firestore()
-    await db.collection('users').doc(userId).set({
-      twitter_id: userId,
+    await db.collection('users').doc(twitterUserId).set({
+      twitter_id: twitterUserId,
       username: userData.screen_name,
       name: userData.name,
       profile_image_url: userData.profile_image_url_https,
