@@ -2,6 +2,75 @@ import { NextRequest, NextResponse } from 'next/server'
 import * as admin from 'firebase-admin'
 import crypto from 'crypto'
 
+// Helper function to fetch user details by IDs using users/lookup
+async function fetchUsersByIds(userIds: string[], consumerKey: string, consumerSecret: string, accessToken: string, accessTokenSecret: string): Promise<any[]> {
+  const users: any[] = []
+  
+  // Process IDs in chunks of 100 (API limit)
+  for (let i = 0; i < userIds.length; i += 100) {
+    const chunk = userIds.slice(i, i + 100)
+    
+    // Build Twitter API request for users/lookup
+    const baseUrl = 'https://api.twitter.com/1.1/users/lookup.json'
+    const params = {
+      user_id: chunk.join(','),
+      include_entities: 'false'
+    }
+
+    // OAuth 1.0a signature
+    const oauthNonce = crypto.randomBytes(16).toString('hex')
+    const oauthTimestamp = Math.floor(Date.now() / 1000).toString()
+
+    const oauthParams = {
+      oauth_consumer_key: consumerKey,
+      oauth_nonce: oauthNonce,
+      oauth_signature_method: 'HMAC-SHA1',
+      oauth_timestamp: oauthTimestamp,
+      oauth_token: accessToken,
+      oauth_version: '1.0'
+    }
+
+    const allParams = { ...params, ...oauthParams }
+    const paramString = Object.keys(allParams)
+      .sort()
+      .map(key => `${key}=${encodeURIComponent(allParams[key as keyof typeof allParams])}`)
+      .join('&')
+
+    const signatureBase = `GET&${encodeURIComponent(baseUrl)}&${encodeURIComponent(paramString)}`
+    const signingKey = `${encodeURIComponent(consumerSecret)}&${encodeURIComponent(accessTokenSecret)}`
+    const signature = crypto.createHmac('sha1', signingKey).update(signatureBase).digest('base64')
+
+    const authHeader = `OAuth oauth_consumer_key="${consumerKey}", oauth_nonce="${oauthNonce}", oauth_signature="${encodeURIComponent(signature)}", oauth_signature_method="HMAC-SHA1", oauth_timestamp="${oauthTimestamp}", oauth_token="${accessToken}", oauth_version="1.0"`
+
+    const queryString = Object.keys(params)
+      .map(key => `${key}=${encodeURIComponent(params[key as keyof typeof params])}`)
+      .join('&')
+
+    const response = await fetch(`${baseUrl}?${queryString}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': authHeader,
+        'User-Agent': 'Followlytics/1.0'
+      }
+    })
+
+    if (!response.ok) {
+      console.error('Users lookup error:', response.status, await response.text())
+      continue // Skip this chunk on error
+    }
+
+    const chunkUsers = await response.json()
+    users.push(...chunkUsers)
+    
+    // Rate limiting delay between chunks
+    if (i + 100 < userIds.length) {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+    }
+  }
+  
+  return users
+}
+
 // Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
   const privateKey = process.env.FIREBASE_ADMIN_SDK_KEY?.replace(/\\n/g, '\n')
@@ -37,21 +106,27 @@ interface ScanJob {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, cursor, jobId } = await request.json()
+    const { userId, cursor, jobId, firebaseUserId } = await request.json()
     
     if (!userId) {
-      return NextResponse.json({ error: 'User ID required' }, { status: 400 })
+      return NextResponse.json({ error: 'Twitter User ID required' }, { status: 400 })
     }
 
     const db = admin.firestore()
     
-    // Get user's Twitter credentials
-    const userDoc = await db.collection('users').doc(userId).get()
-    if (!userDoc.exists) {
+    // Get user's Twitter credentials using Firebase user ID
+    const firebaseId = firebaseUserId || userId
+    const userQuery = await db.collection('users')
+      .where('twitter_id', '==', userId)
+      .limit(1)
+      .get()
+    
+    if (userQuery.empty) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    const userData = userDoc.data()!
+    const userDoc = userQuery.docs[0]
+    const userData = userDoc.data()
     const accessToken = userData.access_token
     const accessTokenSecret = userData.access_token_secret
 
@@ -91,13 +166,12 @@ export async function POST(request: NextRequest) {
       throw new Error('Twitter API credentials not configured')
     }
 
-    // Build Twitter API request for followers
-    const baseUrl = 'https://api.twitter.com/1.1/followers/list.json'
+    // Build Twitter API request for follower IDs (much faster - 5000 vs 200 per request)
+    const baseUrl = 'https://api.twitter.com/1.1/followers/ids.json'
     const params: Record<string, string> = {
       user_id: userId,
-      count: job.batchSize.toString(),
-      skip_status: 'true',
-      include_user_entities: 'false'
+      count: '5000', // Max IDs per request
+      stringify_ids: 'true'
     }
 
     if (cursor && cursor !== '-1') {
@@ -134,35 +208,32 @@ export async function POST(request: NextRequest) {
       .join('&')
 
     const response = await fetch(`${baseUrl}?${queryString}`, {
+      method: 'GET',
       headers: {
-        'Authorization': authHeader
+        'Authorization': authHeader,
+        'User-Agent': 'Followlytics/1.0'
       }
     })
 
     if (!response.ok) {
       const errorText = await response.text()
       console.error('Twitter API error:', response.status, errorText)
-      
-      // Update job status to failed
-      await jobRef.update({
-        status: 'failed',
-        lastUpdated: Date.now(),
-        error: `Twitter API error: ${response.status}`
-      })
-      
-      return NextResponse.json({ 
-        error: 'Twitter API request failed',
-        details: errorText 
-      }, { status: response.status })
+      throw new Error(`Twitter API error: ${response.status} ${errorText}`)
     }
 
     const data = await response.json()
-    const followers = data.users || []
-    const nextCursor = data.next_cursor_str
+    const followerIds = data.ids || []
+    const nextCursor = data.next_cursor_str || null
+
+    // Convert IDs to full user objects using users/lookup
+    let followers: any[] = []
+    if (followerIds.length > 0) {
+      followers = await fetchUsersByIds(followerIds, consumerKey, consumerSecret, userDoc.data()?.twitter_access_token, userDoc.data()?.twitter_access_token_secret)
+    }
 
     // Store followers in batches to avoid memory issues
     const batch = db.batch()
-    const followersCollection = db.collection('users').doc(userId).collection('followers')
+    const followersCollection = db.collection('users').doc(userDoc.id).collection('followers')
 
     // Clear existing followers if this is the first batch
     if (!cursor || cursor === '-1') {
@@ -207,7 +278,7 @@ export async function POST(request: NextRequest) {
       updatedJob.status = 'completed'
       
       // Update user's last scan timestamp
-      await db.collection('users').doc(userId).update({
+      await db.collection('users').doc(userDoc.id).update({
         last_follower_scan: admin.firestore.FieldValue.serverTimestamp(),
         follower_count: updatedJob.totalProcessed
       })

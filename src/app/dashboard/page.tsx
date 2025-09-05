@@ -2,42 +2,49 @@
 
 import { useAuth } from '@/hooks/useAuth'
 import { useEffect, useState } from 'react'
-import { redirect } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Progress } from '@/components/ui/progress'
+import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import AnalyticsDashboard from '@/components/dashboard/AnalyticsDashboard'
 import { Users, TrendingDown, TrendingUp, Brain, Settings, LogOut, RefreshCw, UserMinus, UserPlus } from "lucide-react"
-import { FollowerChart } from '@/components/dashboard/FollowerChart'
-import { UnfollowList } from '@/components/dashboard/UnfollowList'
-import { StatsCards } from '@/components/dashboard/StatsCards'
-import { GrokInsights } from '@/components/dashboard/GrokInsights'
 
 export default function DashboardPage() {
   const { user, loading, logout, isAuthenticated } = useAuth()
   const [followers, setFollowers] = useState<any[]>([])
   const [unfollowers, setUnfollowers] = useState<any[]>([])
-  const [analytics, setAnalytics] = useState<any>(null)
-  const [loadingData, setLoadingData] = useState(false)
-  const [scanningFollowers, setScanningFollowers] = useState(false)
-  const [checkingUnfollowers, setCheckingUnfollowers] = useState(false)
+  const [scanLoading, setScanLoading] = useState(false)
+  const [scanProgress, setScanProgress] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Fetch followers on component mount
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      fetchFollowers()
+    }
+  }, [isAuthenticated, user])
+
+  const fetchFollowers = async () => {
+    try {
+      const response = await fetch('/api/followers', {
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setFollowers(data.followers || [])
+      }
+    } catch (error) {
+      console.error('Error fetching followers:', error)
+    }
+  }
 
   // Check for token in URL hash and authenticate
   useEffect(() => {
     const handleTokenAuth = async () => {
       const hash = window.location.hash
-      const urlParams = new URLSearchParams(window.location.search)
-      const debugMode = urlParams.get('debug')
-      const errorMessage = urlParams.get('error')
-      
-      console.log('Current URL hash:', hash)
-      console.log('Debug mode:', debugMode, 'Error:', errorMessage)
-      
-      if (debugMode === 'auth_failed') {
-        console.error('Authentication failed:', errorMessage)
-        setError(`Authentication failed: ${errorMessage || 'Unknown error'}`)
-      }
-      
       if (hash.startsWith('#token=')) {
         const token = hash.substring(7)
         try {
@@ -47,183 +54,113 @@ export default function DashboardPage() {
           window.history.replaceState({}, '', '/dashboard')
         } catch (error) {
           console.error('Token authentication failed:', error)
+          setError('Authentication failed. Please try logging in again.')
         }
-      } else {
-        console.log('No token found in URL hash')
       }
     }
-    
-    // Run immediately and also after a short delay to catch late hash updates
     handleTokenAuth()
-    setTimeout(handleTokenAuth, 100)
-    
-    console.log('Dashboard auth check:', { loading, isAuthenticated, user })
   }, [])
 
-  useEffect(() => {
-    if (user) {
-      fetchAnalytics()
-      fetchUnfollowers()
-    }
-  }, [user])
-
-  const [scanProgress, setScanProgress] = useState<{
-    processed: number
-    total: number
-    status: string
-    jobId?: string
-  } | null>(null)
-
-  const scanFollowers = async () => {
-    setScanningFollowers(true)
-    setScanProgress(null)
-    
+  const handleScanFollowers = async () => {
     try {
-      const response = await fetch('/api/twitter/followers')
-      if (response.ok) {
-        const data = await response.json()
-        
-        if (data.scanning && data.jobId) {
-          // Background job started for large account
-          setScanProgress({
-            processed: data.progress.processed,
-            total: data.progress.total,
-            status: data.progress.status,
-            jobId: data.jobId
-          })
-          
-          // Poll for progress updates
-          pollScanProgress(data.jobId)
-        } else {
-          // Immediate scan completed for small account
-          setFollowers(data.followers || [])
-          await fetchAnalytics()
-          setScanningFollowers(false)
-        }
+      setScanLoading(true)
+      setError(null)
+      setScanProgress(null)
+      
+      const response = await fetch('/api/twitter/followers', {
+        method: 'GET',
+        credentials: 'include'
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to scan followers')
+      }
+      
+      const data = await response.json()
+      
+      if (data.job_id) {
+        setScanProgress({
+          processed: 0,
+          total: data.estimated_total || 1000,
+          status: 'Starting background scan...',
+          job_id: data.job_id
+        })
+        pollJobProgress(data.job_id)
       } else {
-        console.error('Failed to scan followers')
-        setScanningFollowers(false)
+        setFollowers(data.followers || [])
+        setScanLoading(false)
       }
     } catch (error) {
-      console.error('Error scanning followers:', error)
-      setScanningFollowers(false)
+      console.error('Scan error:', error)
+      setError(error instanceof Error ? error.message : 'Failed to scan followers')
+      setScanLoading(false)
+      setScanProgress(null)
     }
   }
 
-  const pollScanProgress = async (jobId: string) => {
-    const pollInterval = setInterval(async () => {
-      try {
-        const response = await fetch(`/api/jobs/follower-scan?jobId=${jobId}`)
-        if (response.ok) {
-          const jobData = await response.json()
-          
-          setScanProgress({
-            processed: jobData.totalProcessed || 0,
-            total: jobData.totalFollowers || 0,
-            status: jobData.status,
-            jobId: jobId
-          })
-          
-          if (jobData.status === 'completed' || jobData.status === 'failed') {
-            clearInterval(pollInterval)
-            setScanningFollowers(false)
-            
-            if (jobData.status === 'completed') {
-              // Refresh data after completion
-              await fetchAnalytics()
-              // Load followers from Firestore
-              await loadStoredFollowers()
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error polling scan progress:', error)
-      }
-    }, 2000) // Poll every 2 seconds
-  }
-
-  const loadStoredFollowers = async () => {
+  const pollJobProgress = async (jobId: string) => {
     try {
-      // This would need a new API endpoint to fetch stored followers
-      // For now, we'll just refresh analytics
-      await fetchAnalytics()
+      const response = await fetch(`/api/jobs/follower-scan?jobId=${jobId}`, {
+        credentials: 'include'
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to get job status')
+      }
+      
+      const data = await response.json()
+      
+      setScanProgress({
+        processed: data.totalProcessed || 0,
+        total: data.totalFollowers || 1000,
+        status: data.status || 'Processing...',
+        job_id: jobId
+      })
+      
+      if (data.status === 'completed') {
+        setScanLoading(false)
+        setScanProgress(null)
+        // Fetch updated followers
+        await fetchFollowers()
+      } else if (data.status === 'failed') {
+        setError('Follower scan failed. Please try again.')
+        setScanLoading(false)
+        setScanProgress(null)
+      } else {
+        setTimeout(() => pollJobProgress(jobId), 2000)
+      }
     } catch (error) {
-      console.error('Error loading stored followers:', error)
+      console.error('Polling error:', error)
+      setError('Failed to get scan progress')
+      setScanLoading(false)
+      setScanProgress(null)
     }
   }
 
-  const fetchUnfollowers = async () => {
-    setCheckingUnfollowers(true)
-    try {
-      const response = await fetch('/api/twitter/unfollowers')
-      if (response.ok) {
-        const data = await response.json()
-        setUnfollowers(data.unfollowers || [])
-      }
-    } catch (error) {
-      console.error('Error fetching unfollowers:', error)
-    } finally {
-      setCheckingUnfollowers(false)
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      window.location.href = '/'
     }
-  }
-
-  const fetchAnalytics = async () => {
-    setLoadingData(true)
-    try {
-      const response = await fetch('/api/twitter/analytics?days=30')
-      if (response.ok) {
-        const data = await response.json()
-        setAnalytics(data)
-      }
-    } catch (error) {
-      console.error('Error fetching analytics:', error)
-    } finally {
-      setLoadingData(false)
-    }
-  }
+  }, [loading, isAuthenticated])
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Loading your dashboard...</p>
         </div>
       </div>
     )
   }
 
-  // Show dashboard regardless of auth state for debugging
-  console.log('Dashboard render state:', { loading, isAuthenticated, user })
-  
-  if (!user) {
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Authentication Required</h2>
-          <p className="text-gray-600 mb-4">Please sign in to access your dashboard</p>
-          <p className="text-sm text-gray-500 mb-4">Debug: loading={loading.toString()}, isAuthenticated={isAuthenticated.toString()}</p>
-          <button 
-            onClick={() => {
-              console.log('Redirecting to Twitter OAuth')
-              window.location.href = '/api/auth/twitter/login'
-            }}
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-          >
-            Sign in with Twitter
-          </button>
-          <div className="mt-4">
-            <button 
-              onClick={() => {
-                console.log('Current cookies:', document.cookie)
-                console.log('Current URL hash:', window.location.hash)
-                console.log('Auth state:', { loading, isAuthenticated, user })
-              }}
-              className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-            >
-              Debug Auth State
-            </button>
-          </div>
+          <p className="text-gray-600 mb-4">Redirecting to login...</p>
         </div>
       </div>
     )
@@ -231,248 +168,253 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Error Display */}
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 mx-4 mt-4">
-          <strong className="font-bold">Error: </strong>
-          <span className="block sm:inline">{error}</span>
-        </div>
-      )}
-      
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
-              <TrendingDown className="h-8 w-8 text-primary mr-3" />
-              <div>
-                <h1 className="text-xl font-semibold text-gray-900">Followlytics</h1>
-                <p className="text-sm text-gray-500">Welcome back, {user?.displayName || user?.email || 'User'}</p>
-              </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Welcome back, {user?.displayName || 'User'}!
+              </h1>
+              <p className="text-gray-600 mt-1">
+                Track your Twitter followers and discover who unfollowed you
+              </p>
             </div>
             <div className="flex items-center space-x-4">
-              <Badge variant="secondary">Free Plan</Badge>
-              <Button variant="outline" size="sm">
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
+              <Button 
+                onClick={handleScanFollowers} 
+                disabled={scanLoading}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {scanLoading ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    {scanProgress ? `Scanning... ${scanProgress.processed}/${scanProgress.total}` : 'Starting...'}
+                  </>
+                ) : (
+                  <>
+                    <Users className="mr-2 h-4 w-4" />
+                    Scan Followers
+                  </>
+                )}
               </Button>
-              <Button variant="outline" size="sm" onClick={logout}>
-                <LogOut className="h-4 w-4 mr-2" />
+              <Button 
+                onClick={logout} 
+                variant="outline"
+                className="border-gray-300"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
                 Logout
               </Button>
             </div>
           </div>
         </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Action Buttons */}
-        <div className="mb-8 flex flex-wrap gap-4">
-          <button 
-            onClick={scanFollowers}
-            disabled={scanningFollowers}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-2"
-          >
-            <Users className="h-4 w-4" />
-            <span>{scanningFollowers ? 'Scanning...' : 'Scan Followers'}</span>
-          </button>
-            
-          {/* Progress indicator for large account scans */}
-          {scanProgress && (
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-blue-900">
-                  Scanning followers ({scanProgress.status})
-                </span>
-                <span className="text-sm text-blue-700">
-                  {scanProgress.processed.toLocaleString()} / {scanProgress.total.toLocaleString()}
-                </span>
-              </div>
-              <div className="w-full bg-blue-200 rounded-full h-2">
-                <div 
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{ 
-                    width: `${Math.min(100, (scanProgress.processed / Math.max(1, scanProgress.total)) * 100)}%` 
-                  }}
-                ></div>
-              </div>
-              <p className="text-xs text-blue-600 mt-2">
-                Large accounts are processed in the background. This may take several minutes.
-              </p>
-            </div>
-          )}
-          <Button 
-            variant="outline"
-            onClick={fetchUnfollowers} 
-            disabled={checkingUnfollowers}
-            className="flex items-center"
-          >
-            <UserMinus className="h-4 w-4 mr-2" />
-            {checkingUnfollowers ? 'Checking...' : 'Check Unfollowers'}
-          </Button>
-          <Button 
-            variant="outline"
-            onClick={fetchAnalytics} 
-            disabled={loadingData}
-            className="flex items-center"
-          >
-            <TrendingUp className="h-4 w-4 mr-2" />
-            {loadingData ? 'Loading...' : 'Refresh Analytics'}
-          </Button>
-        </div>
-
-        {/* Stats Cards */}
-        <StatsCards 
-          stats={{
-            total: analytics?.summary?.current_followers || 0,
-            gained: analytics?.summary?.net_growth > 0 ? analytics.summary.net_growth : 0,
-            lost: unfollowers.length,
-            netChange: analytics?.summary?.net_growth || 0
-          }}
-        />
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
-          {/* Follower Chart */}
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Follower Trends</CardTitle>
-                <CardDescription>Your follower count over the last 30 days</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <FollowerChart data={analytics?.follower_history || []} />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* AI Insights */}
-          <div>
-            <GrokInsights analysis={analytics} />
-          </div>
-        </div>
-
-        {/* Recent Unfollows */}
-        <div className="mt-8">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Recent Unfollows</CardTitle>
-                  <CardDescription>
-                    {unfollowers.length > 0 
-                      ? `${unfollowers.length} people unfollowed you recently`
-                      : 'No recent unfollows detected'
-                    }
-                  </CardDescription>
+        {/* Progress bar for scanning */}
+        {scanProgress && (
+          <Card className="mb-6">
+            <CardContent className="pt-6">
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Scanning followers...</span>
+                  <span>{scanProgress.processed} / {scanProgress.total}</span>
                 </div>
-                {unfollowers.length > 0 && (
-                  <Badge variant="destructive">{unfollowers.length}</Badge>
-                )}
+                <Progress 
+                  value={(scanProgress.processed / scanProgress.total) * 100} 
+                  className="w-full"
+                />
+                <p className="text-xs text-gray-500">
+                  Status: {scanProgress.status}
+                </p>
               </div>
-            </CardHeader>
-            <CardContent>
-              {unfollowers.length > 0 ? (
-                <div className="space-y-4">
-                  {unfollowers.map((unfollower) => (
-                    <div key={unfollower.id} className="flex items-center space-x-4 p-4 border rounded-lg">
-                      <img 
-                        src={unfollower.profile_image_url} 
-                        alt={unfollower.name}
-                        className="w-12 h-12 rounded-full"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <h4 className="font-semibold">{unfollower.name}</h4>
-                          {unfollower.verified && (
-                            <Badge variant="secondary" className="text-xs">Verified</Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-600">@{unfollower.username}</p>
-                        <p className="text-xs text-gray-500">{unfollower.followers_count?.toLocaleString()} followers</p>
-                      </div>
-                      <UserMinus className="h-5 w-5 text-red-500" />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <UserMinus className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p>No unfollowers detected yet.</p>
-                  <p className="text-sm">Run a follower scan to start tracking changes.</p>
-                </div>
-              )}
             </CardContent>
           </Card>
-        </div>
-
-        {/* Current Followers (if available) */}
-        {followers.length > 0 && (
-          <div className="mt-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Current Followers</CardTitle>
-                <CardDescription>Your most recent follower scan ({followers.length} followers)</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
-                  {followers.slice(0, 50).map((follower) => (
-                    <div key={follower.id} className="flex items-center space-x-3 p-3 border rounded-lg">
-                      <img 
-                        src={follower.profile_image_url} 
-                        alt={follower.name}
-                        className="w-10 h-10 rounded-full"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-1">
-                          <p className="font-medium text-sm truncate">{follower.name}</p>
-                          {follower.verified && (
-                            <Badge variant="secondary" className="text-xs">✓</Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-600 truncate">@{follower.username}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {followers.length > 50 && (
-                  <p className="text-sm text-gray-500 mt-4 text-center">
-                    Showing first 50 of {followers.length} followers
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
         )}
 
-        {/* Upgrade CTA for Free Users */}
-        <div className="mt-8">
-          <Card className="border-primary bg-primary/5">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Brain className="h-5 w-5 mr-2" />
-                Unlock AI Insights
-              </CardTitle>
-              <CardDescription>
-                Get detailed analysis of why people unfollowed you with xAI Grok
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-2">
-                    • Understand unfollow patterns<br/>
-                    • Get actionable content insights<br/>
-                    • Track longer history
-                  </p>
-                </div>
-                <Button>
-                  Upgrade to Starter - $19/mo
-                </Button>
-              </div>
+        {error && (
+          <Card className="mb-6 border-red-200 bg-red-50">
+            <CardContent className="pt-6">
+              <p className="text-red-600">{error}</p>
             </CardContent>
           </Card>
-        </div>
-      </main>
+        )}
+
+        {/* Main Dashboard Tabs */}
+        <Tabs defaultValue="analytics" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="followers">Followers</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="analytics">
+            <AnalyticsDashboard />
+          </TabsContent>
+
+          <TabsContent value="followers" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Followers</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{followers.length.toLocaleString()}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Active followers
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Unfollowers</CardTitle>
+                  <UserMinus className="h-4 w-4 text-red-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-red-600">{unfollowers.length}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Recent unfollowers
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Growth Rate</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-green-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">+2.4%</div>
+                  <p className="text-xs text-muted-foreground">
+                    This week
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Engagement</CardTitle>
+                  <Brain className="h-4 w-4 text-purple-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-purple-600">4.2%</div>
+                  <p className="text-xs text-muted-foreground">
+                    Average rate
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Followers</CardTitle>
+                  <CardDescription>
+                    Your most recent followers
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {followers.length > 0 ? (
+                    <div className="space-y-4">
+                      {followers.slice(0, 10).map((follower) => (
+                        <div key={follower.id} className="flex items-center space-x-4">
+                          <Avatar>
+                            <AvatarImage src={follower.profile_image_url} />
+                            <AvatarFallback>{follower.name?.charAt(0) || 'U'}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="font-medium">{follower.name}</p>
+                            <p className="text-sm text-gray-500">@{follower.username}</p>
+                          </div>
+                          <Badge variant="secondary">
+                            {follower.followers_count?.toLocaleString() || 0} followers
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground mb-2">No followers data available</p>
+                      <p className="text-sm text-muted-foreground">Click "Scan Followers" to get started</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Unfollowers</CardTitle>
+                  <CardDescription>
+                    People who recently unfollowed you
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {unfollowers.length > 0 ? (
+                    <div className="space-y-4">
+                      {unfollowers.slice(0, 10).map((unfollower) => (
+                        <div key={unfollower.id} className="flex items-center space-x-4">
+                          <Avatar>
+                            <AvatarImage src={unfollower.profile_image_url} />
+                            <AvatarFallback>{unfollower.name?.charAt(0) || 'U'}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="font-medium">{unfollower.name}</p>
+                            <p className="text-sm text-gray-500">@{unfollower.username}</p>
+                          </div>
+                          <Badge variant="destructive">
+                            Unfollowed
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <UserMinus className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground mb-2">No unfollowers detected</p>
+                      <p className="text-sm text-muted-foreground">Great job keeping your audience engaged!</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Account Settings</CardTitle>
+                <CardDescription>
+                  Manage your Followlytics account preferences
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Email Notifications</p>
+                    <p className="text-sm text-muted-foreground">Get notified when someone unfollows you</p>
+                  </div>
+                  <Button variant="outline" size="sm">Configure</Button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Scan Frequency</p>
+                    <p className="text-sm text-muted-foreground">How often to check for follower changes</p>
+                  </div>
+                  <Button variant="outline" size="sm">Daily</Button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Data Export</p>
+                    <p className="text-sm text-muted-foreground">Download your follower data</p>
+                  </div>
+                  <Button variant="outline" size="sm">Export</Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   )
 }

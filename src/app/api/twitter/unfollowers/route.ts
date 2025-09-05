@@ -46,36 +46,59 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Twitter user ID not found' }, { status: 400 })
     }
 
-    // Get the last two follower snapshots to compare
+    // Get current followers from user's followers subcollection
+    const currentFollowersQuery = await db
+      .collection('users')
+      .doc(userId)
+      .collection('followers')
+      .get()
+
+    const currentFollowers = currentFollowersQuery.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+
+    // Get previous follower snapshot for comparison
     const snapshotsQuery = await db
       .collection('follower_snapshots')
       .where('user_id', '==', userId)
-      .where('twitter_user_id', '==', twitterUserId)
       .orderBy('timestamp', 'desc')
-      .limit(2)
+      .limit(1)
       .get()
 
-    if (snapshotsQuery.docs.length < 2) {
+    if (snapshotsQuery.empty) {
+      // Create first snapshot
+      await db.collection('follower_snapshots').add({
+        user_id: userId,
+        twitter_user_id: twitterUserId,
+        follower_ids: currentFollowers.map(f => f.id),
+        followers_data: currentFollowers,
+        follower_count: currentFollowers.length,
+        timestamp: admin.firestore.FieldValue.serverTimestamp()
+      })
+
       return NextResponse.json({
         unfollowers: [],
         new_followers: [],
-        message: 'Need at least 2 snapshots to detect changes. Please wait for the next scan.'
+        message: 'First snapshot created. Unfollower detection will be available after the next scan.',
+        summary: {
+          current_followers: currentFollowers.length
+        }
       })
     }
 
-    const [currentSnapshot, previousSnapshot] = snapshotsQuery.docs
-    const currentFollowerIds = new Set(currentSnapshot.data().follower_ids || [])
+    const previousSnapshot = snapshotsQuery.docs[0]
     const previousFollowerIds = new Set(previousSnapshot.data().follower_ids || [])
-    const currentFollowersData = currentSnapshot.data().followers_data || []
     const previousFollowersData = previousSnapshot.data().followers_data || []
+    const currentFollowerIds = new Set(currentFollowers.map(f => f.id))
 
     // Find unfollowers (in previous but not in current)
-    const unfollowerIds = Array.from(previousFollowerIds).filter(id => !currentFollowerIds.has(id))
+    const unfollowerIds = Array.from(previousFollowerIds).filter(id => !currentFollowerIds.has(id as string))
     const unfollowers = previousFollowersData.filter((f: any) => unfollowerIds.includes(f.id))
 
     // Find new followers (in current but not in previous)
     const newFollowerIds = Array.from(currentFollowerIds).filter(id => !previousFollowerIds.has(id))
-    const newFollowers = currentFollowersData.filter((f: any) => newFollowerIds.includes(f.id))
+    const newFollowers = currentFollowers.filter((f: any) => newFollowerIds.includes(f.id))
 
     // Store unfollower events
     if (unfollowers.length > 0) {
@@ -97,6 +120,16 @@ export async function GET(request: NextRequest) {
       
       await batch.commit()
     }
+
+    // Create new snapshot after processing
+    await db.collection('follower_snapshots').add({
+      user_id: userId,
+      twitter_user_id: twitterUserId,
+      follower_ids: currentFollowers.map(f => f.id),
+      followers_data: currentFollowers,
+      follower_count: currentFollowers.length,
+      timestamp: admin.firestore.FieldValue.serverTimestamp()
+    })
 
     return NextResponse.json({
       unfollowers: unfollowers.map((u: any) => ({
@@ -123,7 +156,7 @@ export async function GET(request: NextRequest) {
         previous_followers: previousFollowerIds.size
       },
       timestamps: {
-        current_scan: currentSnapshot.data().timestamp?.toDate?.()?.toISOString(),
+        current_scan: new Date().toISOString(),
         previous_scan: previousSnapshot.data().timestamp?.toDate?.()?.toISOString()
       }
     })

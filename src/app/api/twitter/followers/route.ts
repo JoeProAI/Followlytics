@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
     
     // Check if there's already a running scan job
     const existingJobs = await db.collection('scan_jobs')
-      .where('userId', '==', userData.twitter_id)
+      .where('userId', '==', userId)
       .where('status', '==', 'running')
       .limit(1)
       .get()
@@ -87,43 +87,50 @@ export async function GET(request: NextRequest) {
       const job = existingJobs.docs[0].data()
       return NextResponse.json({
         success: true,
-        scanning: true,
-        jobId: existingJobs.docs[0].id,
-        progress: {
-          processed: job.totalProcessed,
-          total: job.totalFollowers,
-          status: job.status
-        }
+        job_id: existingJobs.docs[0].id,
+        message: 'Scan already in progress',
+        estimated_total: job.totalFollowers || 1000
       })
     }
 
     // Check follower count to determine processing method
     const followerCount = userData.followers_count || 0
+    console.log('User follower count:', followerCount)
     
     if (followerCount > 1000) {
-      // Start background job for large accounts
-      const jobResponse = await fetch(`${request.nextUrl.origin}/api/jobs/follower-scan`, {
+      // Create background job for large accounts
+      const jobId = `${userId}_${Date.now()}`
+      const job = {
+        userId: userId,
+        twitterUserId: userData.twitter_id,
+        totalProcessed: 0,
+        totalFollowers: followerCount,
+        status: 'running',
+        startedAt: Date.now(),
+        lastUpdated: Date.now(),
+        batchSize: 200
+      }
+      
+      await db.collection('scan_jobs').doc(jobId).set(job)
+      
+      // Start the background processing
+      fetch(`${request.nextUrl.origin}/api/jobs/follower-scan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: userData.twitter_id })
+        body: JSON.stringify({ 
+          userId: userData.twitter_id,
+          jobId: jobId,
+          firebaseUserId: userId
+        })
+      }).catch(error => {
+        console.error('Error starting background job:', error)
       })
-
-      if (!jobResponse.ok) {
-        throw new Error('Failed to start background scan job')
-      }
-
-      const jobData = await jobResponse.json()
       
       return NextResponse.json({
         success: true,
-        scanning: true,
-        jobId: jobData.jobId,
+        job_id: jobId,
         message: `Starting background scan for ${followerCount.toLocaleString()} followers`,
-        progress: {
-          processed: 0,
-          total: followerCount,
-          status: 'running'
-        }
+        estimated_total: followerCount
       })
     }
 
