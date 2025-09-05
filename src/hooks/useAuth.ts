@@ -22,6 +22,7 @@ export function useAuth() {
 
     // Check for custom token in cookie on mount
     const checkCustomToken = async () => {
+      console.log('All cookies:', document.cookie)
       const token = document.cookie
         .split('; ')
         .find(row => row.startsWith('firebase_token='))
@@ -33,7 +34,7 @@ export function useAuth() {
         try {
           console.log('Signing in with custom token')
           setLoading(true)
-          const result = await signInWithCustomToken(auth, token)
+          const result = await signInWithCustomToken(auth, decodeURIComponent(token))
           console.log('Successfully signed in with custom token:', result.user)
           // Clear the cookie after successful sign in
           document.cookie = 'firebase_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'

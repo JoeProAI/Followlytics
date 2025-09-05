@@ -180,8 +180,11 @@ export async function GET(request: NextRequest) {
       httpOnly: false, // Allow client-side access
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 // 24 hours
+      maxAge: 60 * 60 * 24, // 24 hours
+      path: '/' // Ensure cookie is available site-wide
     })
+    
+    console.log('Cookie set with domain:', origin, 'secure:', process.env.NODE_ENV === 'production')
 
     // Clear OAuth cookies
     response.cookies.delete('twitter_oauth_token_secret')
