@@ -4,8 +4,8 @@ import crypto from 'crypto'
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
-  const consumerKey = process.env.TWITTER_API_KEY
-  const consumerSecret = process.env.TWITTER_API_SECRET
+  const consumerKey = process.env.TWITTER_API_KEY || process.env.TWITTER_CLIENT_ID
+  const consumerSecret = process.env.TWITTER_API_SECRET || process.env.TWITTER_CLIENT_SECRET
   // Use the current request origin to ensure cookie domain matches callback domain
   const origin = request.nextUrl.origin
   const callbackUrl = `${origin}/api/auth/twitter/callback`

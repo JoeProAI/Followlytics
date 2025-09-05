@@ -45,8 +45,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}?error=missing_token_secret`)
   }
 
-  const consumerKey = process.env.TWITTER_API_KEY
-  const consumerSecret = process.env.TWITTER_API_SECRET
+  const consumerKey = process.env.TWITTER_API_KEY || process.env.TWITTER_CLIENT_ID
+  const consumerSecret = process.env.TWITTER_API_SECRET || process.env.TWITTER_CLIENT_SECRET
 
   if (!consumerKey || !consumerSecret) {
     return NextResponse.redirect(`${origin}?error=missing_credentials`)

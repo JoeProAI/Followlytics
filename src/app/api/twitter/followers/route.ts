@@ -72,8 +72,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Twitter credentials not found' }, { status: 400 })
     }
 
-    const consumerKey = process.env.TWITTER_API_KEY
-    const consumerSecret = process.env.TWITTER_API_SECRET
+    const consumerKey = process.env.TWITTER_API_KEY || process.env.TWITTER_CLIENT_ID
+    const consumerSecret = process.env.TWITTER_API_SECRET || process.env.TWITTER_CLIENT_SECRET
 
     if (!consumerKey || !consumerSecret) {
       return NextResponse.json({ error: 'Twitter API credentials not configured' }, { status: 500 })
