@@ -61,6 +61,7 @@ export async function GET(request: NextRequest) {
   try {
     console.log('Initiating Twitter OAuth request with callback:', callbackUrl)
     console.log('Using consumer key:', consumerKey ? `${consumerKey.substring(0, 10)}...` : 'MISSING')
+    console.log('Request origin:', origin)
     
     // Request token from Twitter
     const response = await fetch('https://api.twitter.com/oauth/request_token', {
