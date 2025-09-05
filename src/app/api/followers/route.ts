@@ -74,12 +74,12 @@ export async function GET(request: NextRequest) {
     const db = admin.firestore()
     console.log('Querying followers for user:', userId)
     
+    // Try to query followers without orderBy first to avoid index issues
     const followersQuery = await db
       .collection('users')
       .doc(userId)
       .collection('followers')
-      .orderBy('scanned_at', 'desc')
-      .limit(1000)
+      .limit(100)
       .get()
 
     const followers = followersQuery.docs.map(doc => ({
