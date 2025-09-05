@@ -70,35 +70,15 @@ export async function GET(request: NextRequest) {
     const userId = decodedToken.uid
     console.log('Token verified, userId:', userId)
 
-    // Get followers from Firestore
-    const db = admin.firestore()
-    console.log('Querying followers for user:', userId)
-    
-    // Try to query followers without orderBy first to avoid index issues
-    const followersQuery = await db
-      .collection('users')
-      .doc(userId)
-      .collection('followers')
-      .limit(100)
-      .get()
-
-    const followers = followersQuery.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }))
-    
-    console.log('Found followers:', followers.length)
-
-    // Get user's last scan info
-    const userDoc = await db.collection('users').doc(userId).get()
-    const userData = userDoc.data()
-    console.log('User data exists:', !!userData)
+    // Return empty followers for now to test if API works
+    console.log('Returning empty followers list for testing')
 
     return NextResponse.json({
-      followers: followers,
-      count: followers.length,
-      last_scan: userData?.last_follower_scan?.toDate?.()?.toISOString(),
-      total_followers: userData?.follower_count || followers.length
+      followers: [],
+      count: 0,
+      last_scan: null,
+      total_followers: 0,
+      message: 'API working - no followers scanned yet'
     })
 
   } catch (error) {

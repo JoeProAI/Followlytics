@@ -59,6 +59,10 @@ export function useAuth() {
   const logout = async () => {
     try {
       await signOut(auth)
+      // Clear firebase token cookie
+      document.cookie = 'firebase_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+      // Redirect to home page
+      window.location.href = '/'
     } catch (error) {
       console.error('Error signing out:', error)
     }
