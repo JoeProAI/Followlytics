@@ -67,22 +67,88 @@ export default function DashboardPage() {
     }
   }, [user])
 
+  const [scanProgress, setScanProgress] = useState<{
+    processed: number
+    total: number
+    status: string
+    jobId?: string
+  } | null>(null)
+
   const scanFollowers = async () => {
     setScanningFollowers(true)
+    setScanProgress(null)
+    
     try {
       const response = await fetch('/api/twitter/followers')
       if (response.ok) {
         const data = await response.json()
-        setFollowers(data.followers || [])
-        // Refresh analytics after scan
-        await fetchAnalytics()
+        
+        if (data.scanning && data.jobId) {
+          // Background job started for large account
+          setScanProgress({
+            processed: data.progress.processed,
+            total: data.progress.total,
+            status: data.progress.status,
+            jobId: data.jobId
+          })
+          
+          // Poll for progress updates
+          pollScanProgress(data.jobId)
+        } else {
+          // Immediate scan completed for small account
+          setFollowers(data.followers || [])
+          await fetchAnalytics()
+          setScanningFollowers(false)
+        }
       } else {
         console.error('Failed to scan followers')
+        setScanningFollowers(false)
       }
     } catch (error) {
       console.error('Error scanning followers:', error)
-    } finally {
       setScanningFollowers(false)
+    }
+  }
+
+  const pollScanProgress = async (jobId: string) => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/jobs/follower-scan?jobId=${jobId}`)
+        if (response.ok) {
+          const jobData = await response.json()
+          
+          setScanProgress({
+            processed: jobData.totalProcessed || 0,
+            total: jobData.totalFollowers || 0,
+            status: jobData.status,
+            jobId: jobId
+          })
+          
+          if (jobData.status === 'completed' || jobData.status === 'failed') {
+            clearInterval(pollInterval)
+            setScanningFollowers(false)
+            
+            if (jobData.status === 'completed') {
+              // Refresh data after completion
+              await fetchAnalytics()
+              // Load followers from Firestore
+              await loadStoredFollowers()
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error polling scan progress:', error)
+      }
+    }, 2000) // Poll every 2 seconds
+  }
+
+  const loadStoredFollowers = async () => {
+    try {
+      // This would need a new API endpoint to fetch stored followers
+      // For now, we'll just refresh analytics
+      await fetchAnalytics()
+    } catch (error) {
+      console.error('Error loading stored followers:', error)
     }
   }
 
@@ -202,14 +268,39 @@ export default function DashboardPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Action Buttons */}
         <div className="mb-8 flex flex-wrap gap-4">
-          <Button 
-            onClick={scanFollowers} 
+          <button 
+            onClick={scanFollowers}
             disabled={scanningFollowers}
-            className="flex items-center"
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-2"
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${scanningFollowers ? 'animate-spin' : ''}`} />
-            {scanningFollowers ? 'Scanning...' : 'Scan Followers'}
-          </Button>
+            <Users className="h-4 w-4" />
+            <span>{scanningFollowers ? 'Scanning...' : 'Scan Followers'}</span>
+          </button>
+            
+          {/* Progress indicator for large account scans */}
+          {scanProgress && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-blue-900">
+                  Scanning followers ({scanProgress.status})
+                </span>
+                <span className="text-sm text-blue-700">
+                  {scanProgress.processed.toLocaleString()} / {scanProgress.total.toLocaleString()}
+                </span>
+              </div>
+              <div className="w-full bg-blue-200 rounded-full h-2">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ 
+                    width: `${Math.min(100, (scanProgress.processed / Math.max(1, scanProgress.total)) * 100)}%` 
+                  }}
+                ></div>
+              </div>
+              <p className="text-xs text-blue-600 mt-2">
+                Large accounts are processed in the background. This may take several minutes.
+              </p>
+            </div>
+          )}
           <Button 
             variant="outline"
             onClick={fetchUnfollowers} 

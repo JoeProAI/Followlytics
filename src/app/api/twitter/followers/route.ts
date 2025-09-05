@@ -46,16 +46,27 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    // Get user from Firebase token
+    // Verify Firebase token from cookie
     const token = request.cookies.get('firebase_token')?.value
+    console.log('Firebase token present:', !!token)
+    
     if (!token) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+      console.log('No Firebase token found in cookies')
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    const decodedToken = await admin.auth().verifyIdToken(token)
+    let decodedToken
+    try {
+      decodedToken = await admin.auth().verifyIdToken(token)
+      console.log('Token verified for user:', decodedToken.uid)
+    } catch (error) {
+      console.error('Token verification failed:', error)
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
+
     const userId = decodedToken.uid
 
-    // Get user data from Firestore
+    // Get user's Twitter credentials from Firestore
     const db = admin.firestore()
     const userDoc = await db.collection('users').doc(userId).get()
     
@@ -63,58 +74,114 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    const userData = userDoc.data()
-    const accessToken = userData?.access_token
-    const accessTokenSecret = userData?.access_token_secret
-    const twitterUserId = userData?.twitter_id
+    const userData = userDoc.data()!
+    
+    // Check if there's already a running scan job
+    const existingJobs = await db.collection('scan_jobs')
+      .where('userId', '==', userData.twitter_id)
+      .where('status', '==', 'running')
+      .limit(1)
+      .get()
 
-    if (!accessToken || !accessTokenSecret || !twitterUserId) {
-      return NextResponse.json({ error: 'Twitter credentials not found' }, { status: 400 })
+    if (!existingJobs.empty) {
+      const job = existingJobs.docs[0].data()
+      return NextResponse.json({
+        success: true,
+        scanning: true,
+        jobId: existingJobs.docs[0].id,
+        progress: {
+          processed: job.totalProcessed,
+          total: job.totalFollowers,
+          status: job.status
+        }
+      })
     }
 
+    // Check follower count to determine processing method
+    const followerCount = userData.followers_count || 0
+    
+    if (followerCount > 1000) {
+      // Start background job for large accounts
+      const jobResponse = await fetch(`${request.nextUrl.origin}/api/jobs/follower-scan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userData.twitter_id })
+      })
+
+      if (!jobResponse.ok) {
+        throw new Error('Failed to start background scan job')
+      }
+
+      const jobData = await jobResponse.json()
+      
+      return NextResponse.json({
+        success: true,
+        scanning: true,
+        jobId: jobData.jobId,
+        message: `Starting background scan for ${followerCount.toLocaleString()} followers`,
+        progress: {
+          processed: 0,
+          total: followerCount,
+          status: 'running'
+        }
+      })
+    }
+
+    // For smaller accounts, process immediately (legacy behavior)
+    const accessToken = userData.access_token
+    const accessTokenSecret = userData.access_token_secret
+
+    if (!accessToken || !accessTokenSecret) {
+      return NextResponse.json({ error: 'Twitter credentials not found' }, { status: 401 })
+    }
+
+    // Get Twitter API credentials
     const consumerKey = process.env.TWITTER_API_KEY || process.env.TWITTER_CLIENT_ID
     const consumerSecret = process.env.TWITTER_API_SECRET || process.env.TWITTER_CLIENT_SECRET
 
     if (!consumerKey || !consumerSecret) {
-      return NextResponse.json({ error: 'Twitter API credentials not configured' }, { status: 500 })
+      return NextResponse.json({ error: 'Twitter API not configured' }, { status: 500 })
     }
 
-    // Get followers using Twitter API v1.1
-    const timestamp = Math.floor(Date.now() / 1000).toString()
-    const nonce = crypto.randomBytes(32).toString('hex')
-    
+    // Fetch followers from Twitter API (single batch for small accounts)
+    const baseUrl = 'https://api.twitter.com/1.1/followers/list.json'
     const params = {
-      oauth_consumer_key: consumerKey,
-      oauth_nonce: nonce,
-      oauth_signature_method: 'HMAC-SHA1',
-      oauth_timestamp: timestamp,
-      oauth_token: accessToken,
-      oauth_version: '1.0',
-      user_id: twitterUserId,
+      user_id: userData.twitter_id,
       count: '200',
       skip_status: 'true',
       include_user_entities: 'false'
     }
 
-    const signature = createOAuthSignature(
-      'GET',
-      'https://api.twitter.com/1.1/followers/list.json',
-      params,
-      consumerSecret,
-      accessTokenSecret
-    )
+    // Generate OAuth 1.0a signature
+    const oauthNonce = crypto.randomBytes(16).toString('hex')
+    const oauthTimestamp = Math.floor(Date.now() / 1000).toString()
 
-    const authHeader = `OAuth oauth_consumer_key="${consumerKey}", oauth_nonce="${nonce}", oauth_signature="${encodeURIComponent(signature)}", oauth_signature_method="HMAC-SHA1", oauth_timestamp="${timestamp}", oauth_token="${accessToken}", oauth_version="1.0"`
+    const oauthParams = {
+      oauth_consumer_key: consumerKey,
+      oauth_nonce: oauthNonce,
+      oauth_signature_method: 'HMAC-SHA1',
+      oauth_timestamp: oauthTimestamp,
+      oauth_token: accessToken,
+      oauth_version: '1.0'
+    }
 
-    // Build query string for non-OAuth parameters
-    const queryParams = new URLSearchParams({
-      user_id: twitterUserId,
-      count: '200',
-      skip_status: 'true',
-      include_user_entities: 'false'
-    })
+    const allParams = { ...params, ...oauthParams }
+    const paramString = Object.keys(allParams)
+      .sort()
+      .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(allParams[key])}`)
+      .join('&')
 
-    const response = await fetch(`https://api.twitter.com/1.1/followers/list.json?${queryParams}`, {
+    const signatureBase = `GET&${encodeURIComponent(baseUrl)}&${encodeURIComponent(paramString)}`
+    const signingKey = `${encodeURIComponent(consumerSecret)}&${encodeURIComponent(accessTokenSecret)}`
+    const signature = crypto.createHmac('sha1', signingKey).update(signatureBase).digest('base64')
+
+    const authHeader = `OAuth oauth_consumer_key="${consumerKey}", oauth_nonce="${oauthNonce}", oauth_signature="${encodeURIComponent(signature)}", oauth_signature_method="HMAC-SHA1", oauth_timestamp="${oauthTimestamp}", oauth_token="${accessToken}", oauth_version="1.0"`
+
+    const queryString = Object.keys(params)
+      .map(key => `${key}=${encodeURIComponent(params[key])}`)
+      .join('&')
+
+    const response = await fetch(`${baseUrl}?${queryString}`, {
       headers: {
         'Authorization': authHeader
       }
@@ -122,48 +189,61 @@ export async function GET(request: NextRequest) {
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('Twitter API error:', errorText)
-      return NextResponse.json({ error: 'Failed to fetch followers' }, { status: response.status })
+      console.error('Twitter API error:', response.status, errorText)
+      return NextResponse.json({ 
+        error: 'Failed to fetch followers',
+        details: errorText 
+      }, { status: response.status })
     }
 
-    const followersData = await response.json()
-    const followers = followersData.users || []
+    const data = await response.json()
+    const followers = data.users || []
 
-    // Store current followers snapshot
-    const timestamp_now = admin.firestore.FieldValue.serverTimestamp()
-    const followerIds = followers.map((f: any) => f.id_str)
-    
-    await db.collection('follower_snapshots').add({
-      user_id: userId,
-      twitter_user_id: twitterUserId,
-      follower_ids: followerIds,
-      follower_count: followers.length,
-      timestamp: timestamp_now,
-      followers_data: followers.map((f: any) => ({
-        id: f.id_str,
-        username: f.screen_name,
-        name: f.name,
-        profile_image_url: f.profile_image_url_https,
-        followers_count: f.followers_count,
-        verified: f.verified
-      }))
+    // Store followers in Firestore
+    const batch = db.batch()
+    const followersCollection = db.collection('users').doc(userId).collection('followers')
+
+    // Clear existing followers
+    const existingFollowers = await followersCollection.limit(500).get()
+    existingFollowers.docs.forEach(doc => {
+      batch.delete(doc.ref)
+    })
+
+    // Add new followers
+    followers.forEach((follower: any) => {
+      const followerRef = followersCollection.doc(follower.id_str)
+      batch.set(followerRef, {
+        id: follower.id_str,
+        username: follower.screen_name,
+        name: follower.name,
+        profile_image_url: follower.profile_image_url_https,
+        followers_count: follower.followers_count,
+        verified: follower.verified,
+        created_at: follower.created_at,
+        scanned_at: admin.firestore.FieldValue.serverTimestamp()
+      })
+    })
+
+    await batch.commit()
+
+    // Update user's last scan timestamp
+    await db.collection('users').doc(userId).update({
+      last_follower_scan: admin.firestore.FieldValue.serverTimestamp(),
+      follower_count: followers.length
     })
 
     return NextResponse.json({
-      followers: followers.map((f: any) => ({
-        id: f.id_str,
-        username: f.screen_name,
-        name: f.name,
-        profile_image_url: f.profile_image_url_https,
-        followers_count: f.followers_count,
-        verified: f.verified
-      })),
-      total_count: followers.length,
-      timestamp: new Date().toISOString()
+      success: true,
+      followers: followers,
+      count: followers.length,
+      scanned_at: new Date().toISOString()
     })
 
   } catch (error) {
     console.error('Followers API error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }
