@@ -178,18 +178,24 @@ export async function GET(request: NextRequest) {
       throw new Error(`Firebase token creation failed: ${tokenError instanceof Error ? tokenError.message : 'Unknown error'}`)
     }
 
-    // Store user data in Firestore
-    const db = admin.firestore()
-    await db.collection('users').doc(twitterUserId).set({
-      twitter_id: twitterUserId,
-      username: userData.screen_name,
-      name: userData.name,
-      profile_image_url: userData.profile_image_url_https,
-      access_token: accessToken,
-      access_token_secret: accessTokenSecret,
-      last_login: admin.firestore.FieldValue.serverTimestamp(),
-      created_at: admin.firestore.FieldValue.serverTimestamp()
-    }, { merge: true })
+    // Store user data in Firestore (temporarily skip to fix auth)
+    try {
+      const db = admin.firestore()
+      await db.collection('users').doc(twitterUserId).set({
+        twitter_id: twitterUserId,
+        username: userData.screen_name,
+        name: userData.name,
+        profile_image_url: userData.profile_image_url_https,
+        access_token: accessToken,
+        access_token_secret: accessTokenSecret,
+        last_login: admin.firestore.FieldValue.serverTimestamp(),
+        created_at: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true })
+      console.log('✅ User data stored in Firestore')
+    } catch (firestoreError) {
+      console.error('⚠️ Firestore write failed, continuing with auth:', firestoreError)
+      // Continue with authentication even if Firestore write fails
+    }
 
     // Set Firebase token in cookie for useAuth hook
     console.log('Setting Firebase token in cookie and redirecting to dashboard')
