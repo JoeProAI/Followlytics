@@ -153,10 +153,10 @@ export async function GET(request: NextRequest) {
       twitter_id: userId,
       username: userData.screen_name,
       name: userData.name,
-      profile_image_url: userData.profile_image_url_https,
-      access_token: accessToken,
-      access_token_secret: accessTokenSecret
+      profile_image_url: userData.profile_image_url_https
     })
+
+    console.log('Firebase token created successfully')
 
     // Store user data in Firestore
     const db = admin.firestore()
@@ -171,9 +171,17 @@ export async function GET(request: NextRequest) {
       created_at: admin.firestore.FieldValue.serverTimestamp()
     }, { merge: true })
 
-    // Just redirect to dashboard with token in URL hash
-    console.log('Redirecting to dashboard with token:', customToken.substring(0, 20) + '...')
-    const response = NextResponse.redirect(`${origin}/dashboard#token=${customToken}`)
+    // Set Firebase token in cookie for useAuth hook
+    console.log('Setting Firebase token in cookie and redirecting to dashboard')
+    const response = NextResponse.redirect(`${origin}/dashboard`)
+    
+    // Set the Firebase token cookie (accessible to client JS)
+    response.cookies.set('firebase_token', customToken, {
+      httpOnly: false, // Allow client-side access
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 // 24 hours
+    })
 
     // Clear OAuth cookies
     response.cookies.delete('twitter_oauth_token_secret')
