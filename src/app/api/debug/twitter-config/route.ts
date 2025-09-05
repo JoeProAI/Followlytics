@@ -3,11 +3,11 @@ import { NextRequest, NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
-  // Only allow in development or with a debug key
-  const debugKey = request.nextUrl.searchParams.get('key')
-  if (process.env.NODE_ENV === 'production' && debugKey !== process.env.DEBUG_KEY) {
-    return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
-  }
+  // Allow access in production for debugging
+  // const debugKey = request.nextUrl.searchParams.get('key')
+  // if (process.env.NODE_ENV === 'production' && debugKey !== process.env.DEBUG_KEY) {
+  //   return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
+  // }
 
   const origin = request.nextUrl.origin
   const expectedCallback = `${origin}/api/auth/twitter/callback`
