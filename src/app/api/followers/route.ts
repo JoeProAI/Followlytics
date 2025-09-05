@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import * as admin from 'firebase-admin'
 
-// Initialize Firebase Admin if not already initialized
-if (!admin.apps.length) {
+// Initialize Firebase Admin - handle serverless environment
+function initializeFirebaseAdmin() {
+  if (admin.apps.length > 0) {
+    return admin.apps[0]
+  }
+
   try {
     const privateKey = process.env.FIREBASE_ADMIN_SDK_KEY?.replace(/\\n/g, '\n')
     const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
@@ -11,12 +15,13 @@ if (!admin.apps.length) {
     console.log('Firebase Admin init - Project ID:', projectId)
     console.log('Firebase Admin init - Client Email:', clientEmail)
     console.log('Firebase Admin init - Private Key exists:', !!privateKey)
+    console.log('Firebase Admin init - Private Key length:', privateKey?.length || 0)
     
     if (!privateKey || !projectId || !clientEmail) {
       throw new Error(`Firebase Admin SDK not properly configured: privateKey=${!!privateKey}, projectId=${!!projectId}, clientEmail=${!!clientEmail}`)
     }
 
-    admin.initializeApp({
+    const app = admin.initializeApp({
       credential: admin.credential.cert({
         projectId: projectId,
         clientEmail: clientEmail,
@@ -25,6 +30,7 @@ if (!admin.apps.length) {
     })
     
     console.log('Firebase Admin initialized successfully')
+    return app
   } catch (error) {
     console.error('Firebase Admin initialization error:', error)
     throw error
@@ -36,6 +42,9 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   try {
     console.log('Followers API called')
+    
+    // Initialize Firebase Admin
+    initializeFirebaseAdmin()
     
     // Get user from Firebase token
     const token = request.cookies.get('firebase_token')?.value
