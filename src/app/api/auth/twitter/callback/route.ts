@@ -2,31 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import * as admin from 'firebase-admin'
 import crypto from 'crypto'
 
-// Initialize Firebase Admin if not already initialized
-if (!admin.apps.length) {
-  const privateKey = process.env.FIREBASE_ADMIN_SDK_KEY?.replace(/\\n/g, '\n')
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
-  
-  console.log('Firebase config check:', {
-    hasPrivateKey: !!privateKey,
-    hasProjectId: !!projectId,
-    hasClientEmail: !!clientEmail,
-    projectId: projectId
-  })
-  
-  if (!privateKey || !projectId || !clientEmail) {
-    throw new Error(`Firebase Admin SDK not properly configured: missing ${!privateKey ? 'private key' : !projectId ? 'project ID' : 'client email'}`)
-  }
-
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: projectId,
-      clientEmail: clientEmail,
-      privateKey: privateKey,
-    }),
-  })
-}
 
 export const dynamic = 'force-dynamic'
 
@@ -162,19 +137,37 @@ export async function GET(request: NextRequest) {
 
     // Create Firebase custom token using the Twitter user ID
     console.log('Creating Firebase custom token for user:', twitterUserId)
+    console.log('User data for token:', {
+      id: twitterUserId,
+      username: userData.screen_name,
+      name: userData.name,
+      hasProfileImage: !!userData.profile_image_url_https
+    })
     
     let customToken: string
     try {
-      customToken = await admin.auth().createCustomToken(twitterUserId, {
+      // Ensure the user ID is a string and valid
+      const uid = String(twitterUserId)
+      console.log('Using UID for Firebase token:', uid)
+      
+      customToken = await admin.auth().createCustomToken(uid, {
         twitter_id: twitterUserId,
         username: userData.screen_name,
         name: userData.name,
         profile_image_url: userData.profile_image_url_https
       })
       
-      console.log('Firebase token created successfully, length:', customToken.length)
+      console.log('Firebase token created successfully')
+      console.log('Token length:', customToken.length)
+      console.log('Token starts with:', customToken.substring(0, 50))
     } catch (tokenError) {
       console.error('Firebase token creation failed:', tokenError)
+      console.error('Token error details:', {
+        message: tokenError instanceof Error ? tokenError.message : 'Unknown error',
+        stack: tokenError instanceof Error ? tokenError.stack : undefined,
+        uid: twitterUserId,
+        userData: userData
+      })
       throw new Error(`Firebase token creation failed: ${tokenError instanceof Error ? tokenError.message : 'Unknown error'}`)
     }
 
