@@ -208,38 +208,11 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Use Twitter API v2 with OAuth 2.0 Client Credentials (compatible with Pro access)
-    const clientId = process.env.TWITTER_CLIENT_ID || 'VHdQbXktdml2QUMxdGx2Wm9lbWk6MTpjaQ'
-    const clientSecret = process.env.TWITTER_CLIENT_SECRET || 'DbpYhM3ao8D3u7lNH01_pJXkJPT1gqW_UQFzBaHxU-vBU8ZzTo'
-    
-    if (!clientId || !clientSecret) {
-      return NextResponse.json({ error: 'Twitter OAuth 2.0 credentials not configured' }, { status: 500 })
+    // Use Twitter API v2 with Bearer token (compatible with Pro access)
+    const bearerToken = process.env.TWITTER_BEARER_TOKEN
+    if (!bearerToken) {
+      return NextResponse.json({ error: 'Twitter Bearer token not configured' }, { status: 500 })
     }
-
-    // Get OAuth 2.0 Bearer token using Client Credentials flow
-    const tokenUrl = 'https://api.twitter.com/oauth2/token'
-    const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
-    
-    const tokenResponse = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${credentials}`,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: 'grant_type=client_credentials'
-    })
-
-    if (!tokenResponse.ok) {
-      const tokenError = await tokenResponse.text()
-      console.error('OAuth 2.0 token error:', tokenError)
-      return NextResponse.json({ 
-        error: 'Failed to get OAuth 2.0 token',
-        details: tokenError 
-      }, { status: tokenResponse.status })
-    }
-
-    const tokenData = await tokenResponse.json()
-    const bearerToken = tokenData.access_token
 
     // Fetch followers using Twitter API v2
     const baseUrl = `https://api.twitter.com/2/users/${userData.twitter_id}/followers`
