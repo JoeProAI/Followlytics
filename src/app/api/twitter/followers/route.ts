@@ -77,14 +77,31 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user's Twitter credentials from Firestore
-    const db = admin.firestore()
-    const userDoc = await db.collection('users').doc(userId).get()
+    console.log('Attempting to get user data from Firestore for user:', userId)
     
-    if (!userDoc.exists) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
+    const db = admin.firestore()
+    let userData
+    try {
+      const userDoc = await db.collection('users').doc(userId).get()
+      
+      if (!userDoc.exists) {
+        console.error('User document not found in Firestore:', userId)
+        return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      }
 
-    const userData = userDoc.data()!
+      userData = userDoc.data()!
+      console.log('User data retrieved:', {
+        hasAccessToken: !!userData.access_token,
+        hasAccessTokenSecret: !!userData.access_token_secret,
+        username: userData.username
+      })
+    } catch (firestoreError) {
+      console.error('Firestore error:', firestoreError)
+      return NextResponse.json({ 
+        error: 'Database error', 
+        details: firestoreError instanceof Error ? firestoreError.message : 'Unknown Firestore error'
+      }, { status: 500 })
+    }
     
     // Check if there's already a running scan job
     const existingJobs = await db.collection('scan_jobs')
