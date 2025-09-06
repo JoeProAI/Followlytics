@@ -28,7 +28,8 @@ export default function DashboardPage() {
 
   const fetchFollowers = async () => {
     try {
-      const response = await fetch('/api/twitter/followers', {
+      const response = await fetch('/api/twitter/followers-scrapfly', {
+        method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
