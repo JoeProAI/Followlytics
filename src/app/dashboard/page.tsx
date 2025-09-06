@@ -74,10 +74,13 @@ export default function DashboardPage() {
       setError(null)
       setScanProgress(null)
       
-      console.log('Making request to /api/twitter/followers')
-      const response = await fetch('/api/twitter/followers', {
-        method: 'GET',
-        credentials: 'include'
+      console.log('Making request to /api/twitter/followers-scrapfly')
+      const response = await fetch('/api/twitter/followers-scrapfly', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       })
       
       console.log('Response status:', response.status)
