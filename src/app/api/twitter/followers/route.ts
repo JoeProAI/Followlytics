@@ -224,47 +224,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Twitter API not configured' }, { status: 500 })
     }
 
-    // Fetch followers from Twitter API (single batch for small accounts)
-    const baseUrl = 'https://api.twitter.com/1.1/followers/list.json'
-    const params = {
-      user_id: userData.twitter_id,
-      count: '200',
-      skip_status: 'true',
-      include_user_entities: 'false'
+    // Use Twitter API v2 with Bearer token (compatible with Pro access)
+    const bearerToken = process.env.TWITTER_BEARER_TOKEN
+    if (!bearerToken) {
+      return NextResponse.json({ error: 'Twitter Bearer token not configured' }, { status: 500 })
     }
 
-    // Generate OAuth 1.0a signature
-    const oauthNonce = crypto.randomBytes(16).toString('hex')
-    const oauthTimestamp = Math.floor(Date.now() / 1000).toString()
+    // Fetch followers using Twitter API v2
+    const baseUrl = `https://api.twitter.com/2/users/${userData.twitter_id}/followers`
+    const params = new URLSearchParams({
+      'max_results': '100',
+      'user.fields': 'id,name,username,profile_image_url,public_metrics'
+    })
+    const fullUrl = `${baseUrl}?${params.toString()}`
 
-    const oauthParams = {
-      oauth_consumer_key: consumerKey,
-      oauth_nonce: oauthNonce,
-      oauth_signature_method: 'HMAC-SHA1',
-      oauth_timestamp: oauthTimestamp,
-      oauth_token: accessToken,
-      oauth_version: '1.0'
-    }
-
-    const allParams: Record<string, string> = { ...params, ...oauthParams }
-    const paramString = Object.keys(allParams)
-      .sort()
-      .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(allParams[key])}`)
-      .join('&')
-
-    const signatureBase = `GET&${encodeURIComponent(baseUrl)}&${encodeURIComponent(paramString)}`
-    const signingKey = `${encodeURIComponent(consumerSecret)}&${encodeURIComponent(accessTokenSecret)}`
-    const signature = crypto.createHmac('sha1', signingKey).update(signatureBase).digest('base64')
-
-    const authHeader = `OAuth oauth_consumer_key="${consumerKey}", oauth_nonce="${oauthNonce}", oauth_signature="${encodeURIComponent(signature)}", oauth_signature_method="HMAC-SHA1", oauth_timestamp="${oauthTimestamp}", oauth_token="${accessToken}", oauth_version="1.0"`
-
-    const queryString = Object.keys(params)
-      .map(key => `${key}=${encodeURIComponent(params[key as keyof typeof params])}`)
-      .join('&')
-
-    const response = await fetch(`${baseUrl}?${queryString}`, {
+    const response = await fetch(fullUrl, {
       headers: {
-        'Authorization': authHeader
+        'Authorization': `Bearer ${bearerToken}`,
+        'Content-Type': 'application/json'
       }
     })
 
@@ -278,7 +255,7 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json()
-    const followers = data.users || []
+    const followers = data.data || []
 
     // Store followers in Firestore
     const batch = db.batch()
@@ -290,17 +267,16 @@ export async function GET(request: NextRequest) {
       batch.delete(doc.ref)
     })
 
-    // Add new followers
+    // Add new followers (Twitter API v2 format)
     followers.forEach((follower: any) => {
-      const followerRef = followersCollection.doc(follower.id_str)
+      const followerRef = followersCollection.doc(follower.id)
       batch.set(followerRef, {
-        id: follower.id_str,
-        username: follower.screen_name,
+        id: follower.id,
+        username: follower.username,
         name: follower.name,
-        profile_image_url: follower.profile_image_url_https,
-        followers_count: follower.followers_count,
-        verified: follower.verified,
-        created_at: follower.created_at,
+        profile_image_url: follower.profile_image_url,
+        followers_count: follower.public_metrics?.followers_count || 0,
+        verified: follower.verified || false,
         scanned_at: admin.firestore.FieldValue.serverTimestamp()
       })
     })
