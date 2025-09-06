@@ -68,17 +68,23 @@ export default function DashboardPage() {
 
   const handleScanFollowers = async () => {
     try {
+      console.log('Starting follower scan...')
       setScanLoading(true)
       setError(null)
       setScanProgress(null)
       
+      console.log('Making request to /api/twitter/followers')
       const response = await fetch('/api/twitter/followers', {
         method: 'GET',
         credentials: 'include'
       })
       
+      console.log('Response status:', response.status)
+      console.log('Response ok:', response.ok)
+      
       if (!response.ok) {
         const errorData = await response.json()
+        console.error('API Error:', errorData)
         throw new Error(errorData.error || 'Failed to scan followers')
       }
       
