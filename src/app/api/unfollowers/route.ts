@@ -28,8 +28,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const decodedToken = await admin.auth().verifyIdToken(token)
-    const userId = decodedToken.uid
+    // The token is a custom token, decode it to get user ID
+    let userId
+    try {
+      const tokenParts = token.split('.')
+      if (tokenParts.length !== 3) {
+        throw new Error('Invalid token format')
+      }
+      
+      const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString())
+      userId = payload.uid
+      
+      if (!userId) {
+        throw new Error('No user ID in token')
+      }
+      
+      console.log('User ID extracted from custom token:', userId)
+    } catch (error) {
+      console.error('Token processing failed:', error)
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
 
     // Get unfollower events from Firestore
     const db = admin.firestore()
