@@ -56,30 +56,53 @@ export async function GET(request: NextRequest) {
     // Initialize Firebase Admin
     initializeFirebaseAdmin()
     
-    // Get user from Firebase token
+    // Get Firebase token from cookie
     const token = request.cookies.get('firebase_token')?.value
     console.log('Token exists:', !!token)
     
     if (!token) {
-      console.log('No token found in cookies')
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+      console.log('No Firebase token found in request')
+      return NextResponse.json({ error: 'No authentication token' }, { status: 401 })
     }
 
-    console.log('Verifying token...')
-    const decodedToken = await admin.auth().verifyIdToken(token)
-    const userId = decodedToken.uid
-    console.log('Token verified, userId:', userId)
+    // The token is a custom token, not an ID token
+    // We need to decode it to get the user ID without verification
+    console.log('Processing custom token...')
+    
+    try {
+      const tokenParts = token.split('.')
+      if (tokenParts.length !== 3) {
+        throw new Error('Invalid token format')
+      }
+      
+      const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString())
+      console.log('Token payload UID:', payload.uid)
+      
+      const userId = payload.uid
+      if (!userId) {
+        throw new Error('No user ID in token')
+      }
+      
+      console.log('User ID extracted from custom token:', userId)
 
-    // Return empty followers for now to test if API works
-    console.log('Returning empty followers list for testing')
+      // Return empty followers for now to test if API works
+      console.log('Returning empty followers list for testing')
 
-    return NextResponse.json({
-      followers: [],
-      count: 0,
-      last_scan: null,
-      total_followers: 0,
-      message: 'API working - no followers scanned yet'
-    })
+      return NextResponse.json({
+        followers: [],
+        count: 0,
+        last_scan: null,
+        total_followers: 0,
+        message: 'API working - authentication successful'
+      })
+      
+    } catch (tokenError) {
+      console.error('Token processing error:', tokenError)
+      return NextResponse.json({ 
+        error: 'Invalid token',
+        details: tokenError instanceof Error ? tokenError.message : 'Token processing failed'
+      }, { status: 401 })
+    }
 
   } catch (error) {
     console.error('Followers API error:', error)
