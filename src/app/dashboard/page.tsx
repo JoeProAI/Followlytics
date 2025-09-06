@@ -83,8 +83,15 @@ export default function DashboardPage() {
       console.log('Response ok:', response.ok)
       
       if (!response.ok) {
-        const errorData = await response.json()
-        console.error('API Error:', errorData)
+        const errorText = await response.text()
+        console.error('API Error Response:', errorText)
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch {
+          errorData = { error: errorText }
+        }
+        console.error('Parsed API Error:', errorData)
         throw new Error(errorData.error || 'Failed to scan followers')
       }
       
