@@ -208,23 +208,47 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Use Twitter API v2 with Bearer token (updated credentials)
-    const bearerToken = process.env.TWITTER_BEARER_TOKEN
-    if (!bearerToken) {
-      return NextResponse.json({ error: 'Twitter Bearer token not configured' }, { status: 500 })
+    // Use Twitter API v1.1 with user's stored OAuth tokens (more reliable)
+    const consumerKey = process.env.TWITTER_API_KEY
+    const consumerSecret = process.env.TWITTER_API_SECRET
+    const accessToken = userData.access_token
+    const accessTokenSecret = userData.access_token_secret
+
+    if (!consumerKey || !consumerSecret || !accessToken || !accessTokenSecret) {
+      return NextResponse.json({ error: 'Twitter credentials not available' }, { status: 401 })
     }
 
-    // Fetch followers using Twitter API v2
-    const baseUrl = `https://api.twitter.com/2/users/${userData.twitter_id}/followers`
+    // Use Twitter API v1.1 followers/list endpoint (works with stored tokens)
+    const baseUrl = 'https://api.twitter.com/1.1/followers/list.json'
     const params = new URLSearchParams({
-      'max_results': '100',
-      'user.fields': 'id,name,username,profile_image_url,public_metrics,verified'
+      'user_id': userData.twitter_id,
+      'count': '200',
+      'include_user_entities': 'false'
     })
-    const fullUrl = `${baseUrl}?${params.toString()}`
 
-    const response = await fetch(fullUrl, {
+    // Generate OAuth 1.0a authorization header
+    const oauth = require('oauth-1.0a')
+    const crypto = require('crypto')
+    
+    const oauthClient = oauth({
+      consumer: { key: consumerKey, secret: consumerSecret },
+      signature_method: 'HMAC-SHA1',
+      hash_function(base_string: string, key: string) {
+        return crypto.createHmac('sha1', key).update(base_string).digest('base64')
+      }
+    })
+
+    const oauthToken = { key: accessToken, secret: accessTokenSecret }
+    const requestData = {
+      url: `${baseUrl}?${params.toString()}`,
+      method: 'GET'
+    }
+
+    const authHeader = oauthClient.toHeader(oauthClient.authorize(requestData, oauthToken))
+
+    const response = await fetch(`${baseUrl}?${params.toString()}`, {
       headers: {
-        'Authorization': `Bearer ${bearerToken}`,
+        ...authHeader,
         'Content-Type': 'application/json'
       }
     })
@@ -239,17 +263,17 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json()
-    console.log('Twitter API response received, followers count:', data.data?.length || 0)
+    console.log('Twitter API response received, followers count:', data.users?.length || 0)
 
-    // Parse Twitter API v2 response
-    const followers = data.data?.map((user: any) => ({
-      id: user.id,
+    // Parse Twitter API v1.1 response
+    const followers = data.users?.map((user: any) => ({
+      id: user.id_str,
       name: user.name,
-      username: user.username,
-      profile_image_url: user.profile_image_url,
-      followers_count: user.public_metrics?.followers_count || 0,
-      following_count: user.public_metrics?.following_count || 0,
-      tweet_count: user.public_metrics?.tweet_count || 0,
+      username: user.screen_name,
+      profile_image_url: user.profile_image_url_https,
+      followers_count: user.followers_count || 0,
+      following_count: user.friends_count || 0,
+      tweet_count: user.statuses_count || 0,
       verified: user.verified || false
     })) || []
 
