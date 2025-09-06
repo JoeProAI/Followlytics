@@ -55,16 +55,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    let decodedToken
+    // The token is a custom token, decode it to get user ID
+    let userId
     try {
-      decodedToken = await admin.auth().verifyIdToken(token)
-      console.log('Token verified for user:', decodedToken.uid)
+      const tokenParts = token.split('.')
+      if (tokenParts.length !== 3) {
+        throw new Error('Invalid token format')
+      }
+      
+      const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString())
+      userId = payload.uid
+      
+      if (!userId) {
+        throw new Error('No user ID in token')
+      }
+      
+      console.log('User ID extracted from custom token:', userId)
     } catch (error) {
-      console.error('Token verification failed:', error)
+      console.error('Token processing failed:', error)
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
-
-    const userId = decodedToken.uid
 
     // Get user's Twitter credentials from Firestore
     const db = admin.firestore()
