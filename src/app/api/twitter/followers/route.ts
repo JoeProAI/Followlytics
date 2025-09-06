@@ -97,29 +97,56 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user's Twitter credentials from Firestore
-    console.log('Attempting to get user data from Firestore for user:', userId)
+    console.log('📊 Attempting to get user data from Firestore for user:', userId)
     
     const db = admin.firestore()
     let userData
     try {
+      console.log('🔍 Querying Firestore for user document...')
       const userDoc = await db.collection('users').doc(userId).get()
       
+      console.log('📄 User document exists:', userDoc.exists)
+      
       if (!userDoc.exists) {
-        console.error('User document not found in Firestore:', userId)
-        return NextResponse.json({ error: 'User not found' }, { status: 404 })
+        console.error('❌ User document not found in Firestore:', userId)
+        
+        // For now, return a helpful error message instead of 404
+        return NextResponse.json({ 
+          error: 'User not found in database. Please log in again to create your profile.',
+          code: 'USER_NOT_FOUND',
+          userId: userId
+        }, { status: 404 })
       }
 
       userData = userDoc.data()!
-      console.log('User data retrieved:', {
+      console.log('✅ User data retrieved successfully:', {
         hasAccessToken: !!userData.access_token,
         hasAccessTokenSecret: !!userData.access_token_secret,
-        username: userData.username
+        username: userData.username,
+        twitter_id: userData.twitter_id
       })
+      
+      // Check if we have the required Twitter credentials
+      if (!userData.access_token || !userData.access_token_secret) {
+        console.error('❌ Missing Twitter credentials for user:', userId)
+        return NextResponse.json({ 
+          error: 'Twitter credentials not found. Please log in again.',
+          code: 'MISSING_CREDENTIALS'
+        }, { status: 401 })
+      }
+      
     } catch (firestoreError) {
-      console.error('Firestore error:', firestoreError)
+      console.error('💥 Firestore error:', firestoreError)
+      console.error('Error details:', {
+        name: firestoreError instanceof Error ? firestoreError.name : 'Unknown',
+        message: firestoreError instanceof Error ? firestoreError.message : 'Unknown Firestore error',
+        stack: firestoreError instanceof Error ? firestoreError.stack : undefined
+      })
+      
       return NextResponse.json({ 
-        error: 'Database error', 
-        details: firestoreError instanceof Error ? firestoreError.message : 'Unknown Firestore error'
+        error: 'Database connection error', 
+        details: firestoreError instanceof Error ? firestoreError.message : 'Unknown Firestore error',
+        code: 'FIRESTORE_ERROR'
       }, { status: 500 })
     }
     
