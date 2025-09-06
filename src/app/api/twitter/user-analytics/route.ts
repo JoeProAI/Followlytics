@@ -37,9 +37,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Use Twitter API v2 for user analytics (available with Pro access)
-    const analyticsData = {
+    const analyticsData: {
+      user_profile: any,
+      recent_tweets: any[],
+      user_metrics: any
+    } = {
       user_profile: null,
-      recent_tweets: null,
+      recent_tweets: [],
       user_metrics: null
     }
 
@@ -71,7 +75,7 @@ export async function GET(request: NextRequest) {
 
       if (tweetsResponse.ok) {
         const tweetsData = await tweetsResponse.json()
-        analyticsData.recent_tweets = tweetsData.data || []
+        analyticsData.recent_tweets = Array.isArray(tweetsData.data) ? tweetsData.data : []
       }
     } catch (error) {
       console.error('Error fetching recent tweets:', error)
