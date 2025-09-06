@@ -208,27 +208,13 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Use Twitter API v2 with OAuth 1.0a (Access Token method)
-    const consumerKey = process.env.TWITTER_API_KEY
-    const consumerSecret = process.env.TWITTER_API_SECRET
-    const accessToken = userData.access_token
-    const accessTokenSecret = userData.access_token_secret
-
-    if (!consumerKey || !consumerSecret || !accessToken || !accessTokenSecret) {
-      return NextResponse.json({ error: 'Twitter OAuth 1.0a credentials not configured' }, { status: 500 })
+    // Use Twitter API v2 with Bearer token (updated credentials)
+    const bearerToken = process.env.TWITTER_BEARER_TOKEN
+    if (!bearerToken) {
+      return NextResponse.json({ error: 'Twitter Bearer token not configured' }, { status: 500 })
     }
 
-    // Generate OAuth 1.0a signature for Twitter API v2
-    const crypto = require('crypto')
-    const oauth = {
-      consumer_key: consumerKey,
-      consumer_secret: consumerSecret,
-      token: accessToken,
-      token_secret: accessTokenSecret,
-      signature_method: 'HMAC-SHA1',
-      version: '1.0'
-    }
-
+    // Fetch followers using Twitter API v2
     const baseUrl = `https://api.twitter.com/2/users/${userData.twitter_id}/followers`
     const params = new URLSearchParams({
       'max_results': '100',
@@ -236,39 +222,9 @@ export async function GET(request: NextRequest) {
     })
     const fullUrl = `${baseUrl}?${params.toString()}`
 
-    // Generate OAuth signature
-    const timestamp = Math.floor(Date.now() / 1000)
-    const nonce = crypto.randomBytes(16).toString('hex')
-    
-    const oauthParams: Record<string, string | number> = {
-      oauth_consumer_key: oauth.consumer_key,
-      oauth_token: oauth.token,
-      oauth_signature_method: oauth.signature_method,
-      oauth_timestamp: timestamp,
-      oauth_nonce: nonce,
-      oauth_version: oauth.version
-    }
-
-    // Create signature base string
-    const paramString = Object.keys(oauthParams)
-      .sort()
-      .map(key => `${key}=${encodeURIComponent(String(oauthParams[key]))}`)
-      .join('&')
-    
-    const signatureBaseString = `GET&${encodeURIComponent(baseUrl)}&${encodeURIComponent(paramString + '&' + params.toString())}`
-    const signingKey = `${encodeURIComponent(oauth.consumer_secret)}&${encodeURIComponent(oauth.token_secret)}`
-    const signature = crypto.createHmac('sha1', signingKey).update(signatureBaseString).digest('base64')
-
-    // Create Authorization header
-    const authHeader = 'OAuth ' + Object.keys(oauthParams)
-      .sort()
-      .map(key => `${key}="${encodeURIComponent(String(oauthParams[key]))}"`)
-      .concat(`oauth_signature="${encodeURIComponent(signature)}"`)
-      .join(', ')
-
     const response = await fetch(fullUrl, {
       headers: {
-        'Authorization': authHeader,
+        'Authorization': `Bearer ${bearerToken}`,
         'Content-Type': 'application/json'
       }
     })
