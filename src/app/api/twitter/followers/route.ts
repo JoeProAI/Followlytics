@@ -214,11 +214,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Twitter Bearer token not configured' }, { status: 500 })
     }
 
-    // Fetch followers using Twitter API v2
-    const baseUrl = `https://api.twitter.com/2/users/${userData.twitter_id}/followers`
+    // Fetch followers using Twitter API v1.1 (no Project required)
+    const baseUrl = `https://api.twitter.com/1.1/followers/list.json`
     const params = new URLSearchParams({
-      'max_results': '100',
-      'user.fields': 'id,name,username,profile_image_url,public_metrics'
+      'user_id': userData.twitter_id,
+      'count': '200',
+      'include_user_entities': 'false'
     })
     const fullUrl = `${baseUrl}?${params.toString()}`
 
@@ -239,7 +240,18 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json()
-    const followers = data.data || []
+    console.log('Twitter API response received, followers count:', data.users?.length || 0)
+
+    // Parse Twitter API v1.1 response
+    const followers = data.users?.map((user: any) => ({
+      id: user.id_str,
+      name: user.name,
+      username: user.screen_name,
+      profile_image_url: user.profile_image_url_https,
+      followers_count: user.followers_count || 0,
+      following_count: user.friends_count || 0,
+      tweet_count: user.statuses_count || 0
+    })) || []
 
     // Store followers in Firestore
     const batch = db.batch()
