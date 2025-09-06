@@ -3,7 +3,7 @@ import admin from 'firebase-admin'
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('authToken')?.value
+    const token = request.cookies.get('firebase_token')?.value
     if (!token) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
