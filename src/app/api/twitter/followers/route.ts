@@ -4,19 +4,37 @@ import crypto from 'crypto'
 
 // Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
-  const privateKey = process.env.FIREBASE_ADMIN_SDK_KEY?.replace(/\\n/g, '\n')
-  
-  if (!privateKey) {
-    throw new Error('Firebase Admin SDK private key is not configured')
-  }
+  try {
+    console.log('🔥 Initializing Firebase Admin SDK...')
+    const privateKey = process.env.FIREBASE_ADMIN_SDK_KEY?.replace(/\\n/g, '\n')
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+    const projectId = 'followlytics-cd4e1'
+    
+    console.log('Environment check:', {
+      hasPrivateKey: !!privateKey,
+      hasClientEmail: !!clientEmail,
+      projectId: projectId
+    })
+    
+    if (!privateKey || !clientEmail) {
+      throw new Error('Firebase Admin SDK credentials not configured')
+    }
 
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "followlytics-cd4e1",
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL || "firebase-adminsdk-fbsvc@followlytics-cd4e1.iam.gserviceaccount.com",
-      privateKey: privateKey,
-    }),
-  })
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: projectId,
+        clientEmail: clientEmail,
+        privateKey: privateKey,
+      }),
+    })
+    
+    console.log('✅ Firebase Admin SDK initialized successfully')
+  } catch (initError) {
+    console.error('❌ Firebase Admin SDK initialization failed:', initError)
+    throw initError
+  }
+} else {
+  console.log('♻️ Firebase Admin SDK already initialized')
 }
 
 function createOAuthSignature(
@@ -45,6 +63,8 @@ function createOAuthSignature(
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
+  console.log('🚀 Twitter followers API called')
+  
   try {
     // Verify Firebase token from cookie
     const token = request.cookies.get('firebase_token')?.value
