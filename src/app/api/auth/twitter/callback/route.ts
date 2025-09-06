@@ -2,6 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import * as admin from 'firebase-admin'
 import crypto from 'crypto'
 
+// Initialize Firebase Admin SDK
+if (!admin.apps.length) {
+  const privateKey = process.env.FIREBASE_ADMIN_SDK_KEY?.replace(/\\n/g, '\n')
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+  const projectId = 'followlytics-cd4e1' // Hardcode to ensure consistency
+  
+  if (!privateKey || !clientEmail) {
+    throw new Error('Missing Firebase Admin SDK environment variables')
+  }
+
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: projectId,
+      clientEmail: clientEmail,
+      privateKey: privateKey,
+    }),
+  })
+  
+  console.log('Firebase Admin SDK initialized with project:', projectId)
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -135,7 +155,6 @@ export async function GET(request: NextRequest) {
 
     console.log('Twitter user data:', { id: twitterUserId, username: userData.screen_name, name: userData.name })
 
-    // Create Firebase custom token using the Twitter user ID
     console.log('Creating Firebase custom token for user:', twitterUserId)
     console.log('User data for token:', {
       id: twitterUserId,
