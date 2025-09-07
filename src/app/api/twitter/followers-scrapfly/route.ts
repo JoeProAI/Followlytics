@@ -76,24 +76,28 @@ async function getFirebaseAdmin() {
 }
 
 export async function POST(request: NextRequest) {
+  console.log('=== FOLLOWERS SCRAPFLY ENDPOINT CALLED ===')
   try {
     // Get user from Firebase token
     const cookieStore = cookies()
     const token = cookieStore.get('firebase_token')?.value
+    console.log('Firebase token exists:', !!token)
     
     if (!token) {
+      console.log('No Firebase token found')
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
-    
-    // Decode token to get user ID
-    let userId: string
+
+    let userId
     try {
       const tokenParts = token.split('.')
       if (tokenParts.length !== 3) throw new Error('Invalid token format')
       const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString())
       userId = payload.uid
+      console.log('Extracted user ID:', userId)
       if (!userId) throw new Error('No user ID in token')
     } catch (error) {
+      console.log('Token parsing error:', error)
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
