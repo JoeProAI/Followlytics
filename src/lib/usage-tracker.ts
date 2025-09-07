@@ -6,12 +6,22 @@ export async function trackAPIUsage(userId: string, endpoint: string, cost: numb
     const { getFirestore, FieldValue } = await import('firebase-admin/firestore')
     
     if (getApps().length === 0) {
-      const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+      const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+      const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+      let privateKey = process.env.FIREBASE_PRIVATE_KEY
+      
+      if (privateKey) {
+        privateKey = privateKey.replace(/^"|"$/g, '').replace(/\\n/g, '\n')
+      }
+      
+      if (!projectId || !clientEmail || !privateKey) {
+        throw new Error(`Missing Firebase config in usage tracker: projectId=${projectId || 'MISSING'}, clientEmail=${clientEmail || 'MISSING'}, privateKey=${privateKey ? 'SET' : 'MISSING'}`)
+      }
       
       initializeApp({
         credential: cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          projectId: projectId,
+          clientEmail: clientEmail,
           privateKey: privateKey
         })
       })
@@ -75,12 +85,22 @@ export async function checkUsageLimit(userId: string): Promise<{ canProceed: boo
     const { getFirestore } = await import('firebase-admin/firestore')
     
     if (getApps().length === 0) {
-      const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+      const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+      const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+      let privateKey = process.env.FIREBASE_PRIVATE_KEY
+      
+      if (privateKey) {
+        privateKey = privateKey.replace(/^"|"$/g, '').replace(/\\n/g, '\n')
+      }
+      
+      if (!projectId || !clientEmail || !privateKey) {
+        throw new Error(`Missing Firebase config in checkUsageLimit: projectId=${projectId || 'MISSING'}, clientEmail=${clientEmail || 'MISSING'}, privateKey=${privateKey ? 'SET' : 'MISSING'}`)
+      }
       
       initializeApp({
         credential: cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          projectId: projectId,
+          clientEmail: clientEmail,
           privateKey: privateKey
         })
       })

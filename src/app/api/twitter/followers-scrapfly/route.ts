@@ -127,7 +127,6 @@ export async function POST(request: NextRequest) {
       'country': 'US',
       'asp': 'true', // Anti-scraping protection
       'format': 'json',
-      'timeout': '8000', // 8 second timeout to stay under Vercel limits
       'wait': '3000' // Wait 3 seconds for content to load
     })
 
