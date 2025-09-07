@@ -122,6 +122,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`Starting Scrapfly follower scan for @${userData.username}`)
+    console.log('User data:', { username: userData.username, hasAccessToken: !!userData.access_token })
 
     // Use Scrapfly to scrape Twitter followers using XHR capture technique
     const scrapflyApiKey = process.env.SCRAPFLY_API_KEY
@@ -134,6 +135,11 @@ export async function POST(request: NextRequest) {
 
     try {
       const profileUrl = `https://x.com/${userData.username}/followers`
+      console.log('Scrapfly request URL:', profileUrl)
+      
+      if (!profileUrl || !userData.username) {
+        throw new Error('Invalid profile URL - username is missing')
+      }
       
       const response = await fetch('https://api.scrapfly.io/scrape', {
         method: 'POST',
