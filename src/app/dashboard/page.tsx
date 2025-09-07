@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import AnalyticsDashboard from '@/components/dashboard/AnalyticsDashboard'
 import SubscriptionStatus from '@/components/dashboard/SubscriptionStatus'
+import FollowersList from '@/components/dashboard/FollowersList'
 import { Users, TrendingDown, TrendingUp, Brain, Settings, LogOut, RefreshCw, UserMinus, UserPlus } from "lucide-react"
 
 export default function DashboardPage() {
@@ -289,16 +290,12 @@ export default function DashboardPage() {
         </div>
 
         {/* Main Dashboard Tabs */}
-        <Tabs defaultValue="analytics" className="space-y-6">
+        <Tabs defaultValue="followers" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="followers">Followers</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="analytics">
-            <AnalyticsDashboard />
-          </TabsContent>
 
           <TabsContent value="followers" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -355,79 +352,12 @@ export default function DashboardPage() {
               </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Followers</CardTitle>
-                  <CardDescription>
-                    Your most recent followers
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {followers.length > 0 ? (
-                    <div className="space-y-4">
-                      {followers.slice(0, 10).map((follower) => (
-                        <div key={follower.id} className="flex items-center space-x-4">
-                          <Avatar>
-                            <AvatarImage src={follower.profile_image_url} />
-                            <AvatarFallback>{follower.name?.charAt(0) || 'U'}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <p className="font-medium">{follower.name}</p>
-                            <p className="text-sm text-gray-500">@{follower.username}</p>
-                          </div>
-                          <Badge variant="secondary">
-                            {follower.followers_count?.toLocaleString() || 0} followers
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground mb-2">No followers data available</p>
-                      <p className="text-sm text-muted-foreground">Click "Scan Followers" to get started</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+            {/* Comprehensive Followers List */}
+            <FollowersList onRefresh={fetchFollowers} />
+          </TabsContent>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Unfollowers</CardTitle>
-                  <CardDescription>
-                    People who recently unfollowed you
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {unfollowers.length > 0 ? (
-                    <div className="space-y-4">
-                      {unfollowers.slice(0, 10).map((unfollower) => (
-                        <div key={unfollower.id} className="flex items-center space-x-4">
-                          <Avatar>
-                            <AvatarImage src={unfollower.profile_image_url} />
-                            <AvatarFallback>{unfollower.name?.charAt(0) || 'U'}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <p className="font-medium">{unfollower.name}</p>
-                            <p className="text-sm text-gray-500">@{unfollower.username}</p>
-                          </div>
-                          <Badge variant="destructive">
-                            Unfollowed
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <UserMinus className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground mb-2">No unfollowers detected</p>
-                      <p className="text-sm text-muted-foreground">Great job keeping your audience engaged!</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+          <TabsContent value="analytics">
+            <AnalyticsDashboard />
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">

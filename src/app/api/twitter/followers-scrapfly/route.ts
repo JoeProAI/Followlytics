@@ -235,7 +235,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Convert to array and limit results
-      const validFollowers = Array.from(followers).slice(0, 50)
+      const validFollowers = Array.from(followers).slice(0, 200)
       console.log(`Extracted ${validFollowers.length} unique followers from HTML content`)
       console.log('Sample followers:', validFollowers.slice(0, 5))
       
