@@ -1,0 +1,301 @@
+import { NextRequest, NextResponse } from 'next/server'
+import crypto from 'crypto'
+
+// Firebase Admin SDK initialization function
+async function initializeFirebaseAdmin() {
+  try {
+    const { getApps, initializeApp, cert } = await import('firebase-admin/app')
+    const { getAuth } = await import('firebase-admin/auth')
+    const { getFirestore } = await import('firebase-admin/firestore')
+    
+    if (getApps().length === 0) {
+      // Try using service account key first (if available)
+      const serviceAccountKey = process.env.FIREBASE_ADMIN_SDK_KEY
+      
+      if (serviceAccountKey) {
+        try {
+          console.log('Attempting to parse service account JSON, length:', serviceAccountKey.length)
+          const serviceAccount = JSON.parse(serviceAccountKey)
+          console.log('Service account parsed successfully, project_id:', serviceAccount.project_id)
+          initializeApp({
+            credential: cert(serviceAccount)
+          })
+        } catch (jsonError) {
+          console.error('Failed to parse service account JSON:', jsonError)
+          console.log('Service account key preview:', serviceAccountKey.substring(0, 100) + '...')
+          // Fall through to individual environment variables instead of throwing
+        }
+      }
+      
+      // Use individual environment variables (either as fallback or primary)
+      if (getApps().length === 0) {
+        // Fallback to individual environment variables
+        const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+        const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+        let privateKey = process.env.FIREBASE_PRIVATE_KEY
+        
+        if (privateKey) {
+          // Enhanced private key processing
+          privateKey = privateKey
+            .replace(/^["']|["']$/g, '') // Remove outer quotes
+            .replace(/\\n/g, '\n') // Convert escaped newlines
+            .trim()
+          
+          // More flexible PEM validation - check for key boundaries after processing
+          const hasBeginMarker = privateKey.includes('-----BEGIN PRIVATE KEY-----') || privateKey.includes('-----BEGIN RSA PRIVATE KEY-----')
+          const hasEndMarker = privateKey.includes('-----END PRIVATE KEY-----') || privateKey.includes('-----END RSA PRIVATE KEY-----')
+          
+          if (!hasBeginMarker || !hasEndMarker) {
+            console.log('Private key validation failed. Key preview:', privateKey.substring(0, 50) + '...')
+            console.log('Has begin marker:', hasBeginMarker, 'Has end marker:', hasEndMarker)
+            throw new Error('Invalid private key format - must be PEM format')
+          }
+        }
+        
+        if (!projectId || !clientEmail || !privateKey) {
+          throw new Error(`Missing Firebase config: projectId=${projectId || 'MISSING'}, clientEmail=${clientEmail || 'MISSING'}, privateKey=${privateKey ? 'SET' : 'MISSING'}`)
+        }
+        
+        initializeApp({
+          credential: cert({
+            projectId: projectId,
+            clientEmail: clientEmail,
+            privateKey: privateKey
+          })
+        })
+      }
+    }
+    
+    return { auth: getAuth, firestore: getFirestore }
+  } catch (error) {
+    console.error('Firebase Admin initialization error:', error)
+    throw error
+  }
+}
+
+export const dynamic = 'force-dynamic'
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
+  const oauthToken = searchParams.get('oauth_token')
+  const oauthVerifier = searchParams.get('oauth_verifier')
+  const denied = searchParams.get('denied')
+
+  const origin = request.nextUrl.origin
+  if (denied) {
+    return NextResponse.redirect(`${origin}?error=access_denied`)
+  }
+
+  console.log('OAuth callback received:', { oauthToken, oauthVerifier })
+  console.log('Creating Firebase custom token for user')
+
+  if (!oauthToken || !oauthVerifier) {
+    return NextResponse.redirect(`${origin}?error=missing_params`)
+  }
+
+  // Get token secret from cookie
+  const oauthTokenSecret = request.cookies.get('twitter_oauth_token_secret')?.value
+  if (!oauthTokenSecret) {
+    return NextResponse.redirect(`${origin}?error=missing_token_secret`)
+  }
+
+  const consumerKey = process.env.TWITTER_API_KEY || process.env.TWITTER_CLIENT_ID
+  const consumerSecret = process.env.TWITTER_API_SECRET || process.env.TWITTER_CLIENT_SECRET
+
+  if (!consumerKey || !consumerSecret) {
+    return NextResponse.redirect(`${origin}?error=missing_credentials`)
+  }
+
+  try {
+    // OAuth 1.0a Access Token step
+    const oauthTimestamp = Math.floor(Date.now() / 1000).toString()
+    const oauthNonce = crypto.randomBytes(32).toString('hex')
+    
+    const oauthParams = {
+      oauth_consumer_key: consumerKey,
+      oauth_nonce: oauthNonce,
+      oauth_signature_method: 'HMAC-SHA1',
+      oauth_timestamp: oauthTimestamp,
+      oauth_token: oauthToken,
+      oauth_verifier: oauthVerifier,
+      oauth_version: '1.0'
+    }
+    
+    // Create parameter string for signature
+    const paramString = Object.keys(oauthParams)
+      .sort()
+      .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(oauthParams[key as keyof typeof oauthParams])}`)
+      .join('&')
+    
+    // Create signature base string
+    const signatureBaseString = `POST&${encodeURIComponent('https://api.twitter.com/oauth/access_token')}&${encodeURIComponent(paramString)}`
+    
+    // Create signing key
+    const signingKey = `${encodeURIComponent(consumerSecret)}&${encodeURIComponent(oauthTokenSecret)}`
+    
+    // Generate signature
+    const signature = crypto.createHmac('sha1', signingKey).update(signatureBaseString).digest('base64')
+    
+    // Create authorization header
+    const authHeader = `OAuth oauth_consumer_key="${consumerKey}", oauth_nonce="${oauthNonce}", oauth_signature="${encodeURIComponent(signature)}", oauth_signature_method="HMAC-SHA1", oauth_timestamp="${oauthTimestamp}", oauth_token="${oauthToken}", oauth_verifier="${oauthVerifier}", oauth_version="1.0"`
+
+    // Exchange for access token
+    const tokenResponse = await fetch('https://api.twitter.com/oauth/access_token', {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    })
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text()
+      console.error('Access token exchange failed:', errorText)
+      return NextResponse.redirect(`${origin}?error=token_exchange_failed`)
+    }
+
+    const tokenText = await tokenResponse.text()
+    const tokenParams = new URLSearchParams(tokenText)
+    const accessToken = tokenParams.get('oauth_token')
+    const accessTokenSecret = tokenParams.get('oauth_token_secret')
+    const userId = tokenParams.get('user_id')
+    const screenName = tokenParams.get('screen_name')
+
+    if (!accessToken || !accessTokenSecret || !userId) {
+      return NextResponse.redirect(`${origin}?error=invalid_token_response`)
+    }
+
+    // Get user info from Twitter API v1.1 (OAuth 1.0a compatible)
+    const userTimestamp = Math.floor(Date.now() / 1000).toString()
+    const userNonce = crypto.randomBytes(32).toString('hex')
+    
+    const userParams = {
+      oauth_consumer_key: consumerKey,
+      oauth_nonce: userNonce,
+      oauth_signature_method: 'HMAC-SHA1',
+      oauth_timestamp: userTimestamp,
+      oauth_token: accessToken,
+      oauth_version: '1.0'
+    }
+    
+    const userParamString = Object.keys(userParams)
+      .sort()
+      .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(userParams[key as keyof typeof userParams])}`)
+      .join('&')
+    
+    const userSignatureBase = `GET&${encodeURIComponent('https://api.twitter.com/1.1/account/verify_credentials.json')}&${encodeURIComponent(userParamString)}`
+    const userSigningKey = `${encodeURIComponent(consumerSecret)}&${encodeURIComponent(accessTokenSecret)}`
+    const userSignature = crypto.createHmac('sha1', userSigningKey).update(userSignatureBase).digest('base64')
+    
+    const userAuthHeader = `OAuth oauth_consumer_key="${consumerKey}", oauth_nonce="${userNonce}", oauth_signature="${encodeURIComponent(userSignature)}", oauth_signature_method="HMAC-SHA1", oauth_timestamp="${userTimestamp}", oauth_token="${accessToken}", oauth_version="1.0"`
+
+    const userResponse = await fetch('https://api.twitter.com/1.1/account/verify_credentials.json', {
+      headers: {
+        'Authorization': userAuthHeader
+      }
+    })
+
+    if (!userResponse.ok) {
+      console.error('Failed to get user info')
+      return NextResponse.redirect(`${origin}?error=user_info_failed`)
+    }
+
+    const userData = await userResponse.json()
+    const twitterUserId = userData.id_str || userData.id.toString()
+
+    console.log('Twitter user data:', { id: twitterUserId, username: userData.screen_name, name: userData.name })
+
+    console.log('Creating Firebase custom token for user:', twitterUserId)
+    console.log('User data for token:', {
+      id: twitterUserId,
+      username: userData.screen_name,
+      name: userData.name,
+      hasProfileImage: !!userData.profile_image_url_https
+    })
+    
+    // Initialize Firebase Admin SDK
+    const firebase = await initializeFirebaseAdmin()
+    
+    let customToken: string
+    try {
+      // Ensure the user ID is a string and valid
+      const uid = String(twitterUserId)
+      console.log('Using UID for Firebase token:', uid)
+      
+      customToken = await firebase.auth().createCustomToken(uid, {
+        twitter_id: twitterUserId,
+        username: userData.screen_name,
+        name: userData.name,
+        profile_image_url: userData.profile_image_url_https
+      })
+      
+      console.log('Firebase token created successfully')
+      console.log('Token length:', customToken.length)
+      console.log('Token starts with:', customToken.substring(0, 50))
+    } catch (tokenError) {
+      console.error('Firebase token creation failed:', tokenError)
+      console.error('Token error details:', {
+        message: tokenError instanceof Error ? tokenError.message : 'Unknown error',
+        stack: tokenError instanceof Error ? tokenError.stack : undefined,
+        uid: twitterUserId,
+        userData: userData
+      })
+      throw new Error(`Firebase token creation failed: ${tokenError instanceof Error ? tokenError.message : 'Unknown error'}`)
+    }
+
+    // Store user data in Firestore
+    try {
+      const { FieldValue } = await import('firebase-admin/firestore')
+      const db = firebase.firestore()
+      await db.collection('users').doc(twitterUserId).set({
+        twitter_id: twitterUserId,
+        username: userData.screen_name,
+        name: userData.name,
+        profile_image_url: userData.profile_image_url_https,
+        access_token: accessToken,
+        access_token_secret: accessTokenSecret,
+        last_login: FieldValue.serverTimestamp(),
+        created_at: FieldValue.serverTimestamp()
+      }, { merge: true })
+      console.log('✅ User data stored in Firestore')
+    } catch (firestoreError) {
+      console.error('⚠️ Firestore write failed, continuing with auth:', firestoreError)
+      // Continue with authentication even if Firestore write fails
+    }
+
+    // Set Firebase token in cookie for useAuth hook
+    console.log('Setting Firebase token in cookie and redirecting to dashboard')
+    const response = NextResponse.redirect(`${origin}/dashboard`)
+    
+    // Set the Firebase token cookie (accessible to client JS)
+    response.cookies.set('firebase_token', customToken, {
+      httpOnly: false, // Allow client-side access
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24, // 24 hours
+      path: '/' // Ensure cookie is available site-wide
+    })
+    
+    console.log('Cookie set with domain:', origin, 'secure:', process.env.NODE_ENV === 'production')
+
+    // Clear OAuth cookies
+    response.cookies.delete('twitter_oauth_token_secret')
+
+    return response
+
+  } catch (error) {
+    console.error('OAuth callback error:', error)
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      oauthToken,
+      oauthVerifier,
+      hasTokenSecret: !!oauthTokenSecret,
+      consumerKey: !!consumerKey,
+      consumerSecret: !!consumerSecret
+    })
+    // Instead of redirecting to error, redirect to dashboard with debug info
+    const response = NextResponse.redirect(`${origin}/dashboard?debug=auth_failed&error=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`)
+    return response
+  }
+}

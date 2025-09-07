@@ -162,8 +162,9 @@ export async function POST(request: NextRequest) {
       console.log('DEBUG - Profile URL:', profileUrl)
       console.log('DEBUG - Request body:', JSON.stringify(requestBody))
       
-      // Scrapfly API expects parameters as query string with Authorization header
-      const params = new URLSearchParams({
+      // Scrapfly API expects URL-encoded form data, not JSON
+      const formData = new URLSearchParams({
+        key: scrapflyApiKey,
         url: profileUrl,
         retry: 'true',
         country: 'US',
@@ -173,11 +174,12 @@ export async function POST(request: NextRequest) {
         cache: 'false'
       })
 
-      const response = await fetch(`https://api.scrapfly.io/scrape?${params.toString()}`, {
-        method: 'GET',
+      const response = await fetch('https://api.scrapfly.io/scrape', {
+        method: 'POST',
         headers: {
-          'Authorization': `Bearer ${scrapflyApiKey}`
+          'Content-Type': 'application/x-www-form-urlencoded'
         },
+        body: formData,
         signal: controller.signal
       })
 
@@ -204,39 +206,29 @@ export async function POST(request: NextRequest) {
         /@([a-zA-Z0-9_]{1,15})/g,
         /twitter\.com\/([a-zA-Z0-9_]{1,15})/g,
         /x\.com\/([a-zA-Z0-9_]{1,15})/g,
-        /"screen_name":"([a-zA-Z0-9_]{1,15})"/g,
-        /data-testid="UserCell"[^>]*>[^<]*<[^>]*>([a-zA-Z0-9_]{1,15})/g,
-        /href="\/([a-zA-Z0-9_]{1,15})"/g
+        /"screen_name":"([a-zA-Z0-9_]{1,15})"/g
       ]
-
-      const currentUsername = userData?.username?.toLowerCase()
-      console.log('Current user username:', currentUsername)
 
       for (const pattern of usernamePatterns) {
         let match
         while ((match = pattern.exec(htmlContent)) !== null) {
-          const username = match[1]?.toLowerCase()
-          if (username && 
-              username.length > 2 && 
-              username.length <= 15 &&
-              /^[a-zA-Z0-9_]+$/.test(username) &&
-              username !== currentUsername &&
-              !['home', 'search', 'notifications', 'messages', 'bookmarks', 'lists', 'profile', 'more', 'compose', 'explore'].includes(username)) {
-            followers.add(username)
+          const username = match[1]
+          if (username && username !== username.toLowerCase() && username.length > 2) {
+            followers.add(username.toLowerCase())
           }
         }
       }
 
-      // Convert to array and limit results
-      const validFollowers = Array.from(followers).slice(0, 50)
+      // Filter out invalid usernames and the user's own username
+      const validFollowers = Array.from(followers).filter(username => 
+        username && 
+        username.length > 0 && 
+        username.length <= 15 && 
+        /^[a-zA-Z0-9_]+$/.test(username) &&
+        username !== username.toLowerCase()
+      ).slice(0, 50) // Limit to 50 followers for now
+
       console.log(`Extracted ${validFollowers.length} unique followers from HTML content`)
-      console.log('Sample followers:', validFollowers.slice(0, 5))
-      
-      // Debug: Log HTML content sample if no followers found
-      if (validFollowers.length === 0) {
-        console.log('No followers found. HTML content sample (first 500 chars):', htmlContent.substring(0, 500))
-        console.log('HTML content length:', htmlContent.length)
-      }
 
       // Convert to expected format
       const followersData = validFollowers.map(username => ({
