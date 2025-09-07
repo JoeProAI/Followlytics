@@ -188,7 +188,9 @@ export async function POST(request: NextRequest) {
         { "action": "wait", "timeout": 3000 }
       ]
       
-      params.set('js_scenario', JSON.stringify(jsScenario))
+      // Base64 encode the JavaScript scenario as required by Scrapfly
+      const jsScenarioBase64 = Buffer.from(JSON.stringify(jsScenario)).toString('base64')
+      params.set('js_scenario', jsScenarioBase64)
 
       const response = await fetch(`https://api.scrapfly.io/scrape?${params.toString()}`, {
         method: 'GET',
