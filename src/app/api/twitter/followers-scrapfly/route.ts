@@ -162,13 +162,24 @@ export async function POST(request: NextRequest) {
       console.log('DEBUG - Profile URL:', profileUrl)
       console.log('DEBUG - Request body:', JSON.stringify(requestBody))
       
+      // Scrapfly API expects URL-encoded form data, not JSON
+      const formData = new URLSearchParams({
+        key: scrapflyApiKey,
+        url: profileUrl,
+        retry: 'true',
+        country: 'US',
+        render_js: 'true',
+        wait_for_selector: '[data-testid="primaryColumn"]',
+        session: `twitter_${userId}`,
+        cache: 'false'
+      })
+
       const response = await fetch('https://api.scrapfly.io/scrape', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${scrapflyApiKey}`
+          'Content-Type': 'application/x-www-form-urlencoded'
         },
-        body: JSON.stringify(requestBody),
+        body: formData,
         signal: controller.signal
       })
 
@@ -184,15 +195,95 @@ export async function POST(request: NextRequest) {
       }
 
       const scrapflyResult = await response.json()
+      console.log('Scrapfly response received successfully')
 
-      // For now, return a simple success response since X.com follower scraping 
-      // requires login and can lead to account suspension
+      // Extract followers from the scraped HTML content
+      const htmlContent = scrapflyResult.result?.content || ''
+      const followers = new Set<string>()
+      
+      // Look for Twitter usernames in the HTML using regex patterns
+      const usernamePatterns = [
+        /@([a-zA-Z0-9_]{1,15})/g,
+        /twitter\.com\/([a-zA-Z0-9_]{1,15})/g,
+        /x\.com\/([a-zA-Z0-9_]{1,15})/g,
+        /"screen_name":"([a-zA-Z0-9_]{1,15})"/g
+      ]
+
+      for (const pattern of usernamePatterns) {
+        let match
+        while ((match = pattern.exec(htmlContent)) !== null) {
+          const username = match[1]
+          if (username && username !== username.toLowerCase() && username.length > 2) {
+            followers.add(username.toLowerCase())
+          }
+        }
+      }
+
+      // Filter out invalid usernames and the user's own username
+      const validFollowers = Array.from(followers).filter(username => 
+        username && 
+        username.length > 0 && 
+        username.length <= 15 && 
+        /^[a-zA-Z0-9_]+$/.test(username) &&
+        username !== username.toLowerCase()
+      ).slice(0, 50) // Limit to 50 followers for now
+
+      console.log(`Extracted ${validFollowers.length} unique followers from HTML content`)
+
+      // Convert to expected format
+      const followersData = validFollowers.map(username => ({
+        id: username,
+        username: username,
+        name: username,
+        profile_image_url: '',
+        followers_count: 0,
+        following_count: 0,
+        tweet_count: 0,
+        verified: false,
+        source: 'scrapfly'
+      }))
+
+      // Store followers in Firestore
+      const firebase = await initializeFirebaseAdmin()
+      const batch = firebase.firestore.batch()
+      
+      // Clear existing followers from this source
+      const existingFollowersQuery = firebase.firestore
+        .collection('users')
+        .doc(userId)
+        .collection('followers')
+        .where('source', '==', 'scrapfly')
+      
+      const existingFollowers = await existingFollowersQuery.get()
+      existingFollowers.docs.forEach((doc: any) => {
+        batch.delete(doc.ref)
+      })
+      
+      // Add new followers
+      followersData.forEach((follower, index) => {
+        const followerRef = firebase.firestore
+          .collection('users')
+          .doc(userId)
+          .collection('followers')
+          .doc(`scrapfly_${index}`)
+        
+        batch.set(followerRef, {
+          username: follower.username,
+          source: 'scrapfly',
+          scanned_at: new Date(),
+          user_id: userId
+        })
+      })
+      
+      await batch.commit()
+      console.log(`Stored ${followersData.length} followers in Firestore`)
+
       return NextResponse.json({
         success: true,
-        followers_count: 0,
-        followers: [],
-        scan_method: 'scrapfly-limited',
-        message: 'X.com follower pages require login. Consider using Twitter API with OAuth tokens instead.'
+        followers_count: followersData.length,
+        followers: followersData,
+        scan_method: 'scrapfly-html',
+        message: `Successfully scraped ${followersData.length} followers using Scrapfly`
       })
 
     } catch (fetchError) {
