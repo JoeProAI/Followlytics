@@ -13,8 +13,10 @@ async function getFirebaseAdmin() {
   
   try {
     if (adminSDK.apps.length === 0) {
-      const projectId = process.env.FIREBASE_PROJECT_ID
+      // Try multiple environment variable names for Firebase config
+      const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+      
       // Handle private key with proper formatting for Vercel
       let privateKey = process.env.FIREBASE_PRIVATE_KEY
       if (privateKey) {
@@ -22,22 +24,34 @@ async function getFirebaseAdmin() {
         privateKey = privateKey.replace(/^"|"$/g, '').replace(/\\n/g, '\n')
       }
       
-      // Debug logging for Vercel
-      console.log('Firebase config check:', {
-        projectId: !!projectId,
-        clientEmail: !!clientEmail,
-        privateKey: !!privateKey
+      // Detailed debug logging for Vercel
+      console.log('Firebase environment variables:', {
+        FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL ? 'SET' : 'MISSING',
+        FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY ? 'SET' : 'MISSING'
+      })
+      
+      console.log('Firebase config values:', {
+        projectId: projectId,
+        clientEmail: clientEmail ? 'SET' : 'MISSING',
+        privateKey: privateKey ? 'SET' : 'MISSING'
       })
       
       if (!projectId || !clientEmail || !privateKey) {
-        throw new Error(`Missing Firebase config: projectId=${!!projectId}, clientEmail=${!!clientEmail}, privateKey=${!!privateKey}`)
+        throw new Error(`Missing Firebase config: projectId=${projectId || 'MISSING'}, clientEmail=${clientEmail || 'MISSING'}, privateKey=${privateKey ? 'SET' : 'MISSING'}`)
+      }
+      
+      // Validate that projectId is a string
+      if (typeof projectId !== 'string' || projectId.trim() === '') {
+        throw new Error(`Invalid project_id: expected string, got ${typeof projectId}: "${projectId}"`)
       }
       
       adminSDK.initializeApp({
         credential: adminSDK.credential.cert({
-          projectId,
-          clientEmail,
-          privateKey
+          project_id: projectId, // Use project_id instead of projectId
+          client_email: clientEmail, // Use client_email instead of clientEmail
+          private_key: privateKey // Use private_key instead of privateKey
         })
       })
       
