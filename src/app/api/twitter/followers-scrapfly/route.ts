@@ -1,42 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// Initialize Firebase Admin SDK with dynamic import to avoid build issues
+// Initialize Firebase Admin SDK with retry logic for serverless environments
 let adminSDK: any = null
 
 async function getFirebaseAdmin() {
   if (!adminSDK) {
     const admin = await import('firebase-admin')
     adminSDK = admin.default
-    
-    if (!adminSDK.apps.length) {
-      // Debug Firebase environment variables
-      console.log('Firebase env check:', {
-        projectId: process.env.FIREBASE_PROJECT_ID || 'UNDEFINED',
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL || 'UNDEFINED',
-        privateKey: process.env.FIREBASE_PRIVATE_KEY ? 'SET' : 'UNDEFINED',
-        allEnvKeys: Object.keys(process.env).filter(key => key.includes('FIREBASE'))
-      })
+  }
+  
+  // Always check if we need to initialize (handles serverless cold starts)
+  if (!adminSDK.apps.length) {
+    try {
+      const config = {
+        projectId: process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      }
       
-      // Validate required environment variables
-      if (!process.env.FIREBASE_PROJECT_ID) {
-        throw new Error('FIREBASE_PROJECT_ID environment variable is required')
-      }
-      if (!process.env.FIREBASE_CLIENT_EMAIL) {
-        throw new Error('FIREBASE_CLIENT_EMAIL environment variable is required')
-      }
-      if (!process.env.FIREBASE_PRIVATE_KEY) {
-        throw new Error('FIREBASE_PRIVATE_KEY environment variable is required')
+      // Validate config
+      if (!config.projectId || !config.clientEmail || !config.privateKey) {
+        throw new Error(`Missing Firebase config: projectId=${!!config.projectId}, clientEmail=${!!config.clientEmail}, privateKey=${!!config.privateKey}`)
       }
       
       adminSDK.initializeApp({
-        credential: adminSDK.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-        }),
+        credential: adminSDK.credential.cert(config),
       })
+      
+      console.log('Firebase Admin SDK initialized successfully')
+    } catch (error) {
+      console.error('Firebase initialization error:', error)
+      throw error
     }
   }
+  
   return adminSDK
 }
 
