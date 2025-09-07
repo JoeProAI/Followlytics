@@ -1,0 +1,73 @@
+{
+  "name": "Followlytics",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#1DA1F2",
+    "light": "#55ACEE",
+    "dark": "#0F1419"
+  },
+  "topbarLinks": [
+    {
+      "name": "Support",
+      "url": "mailto:support@followlytics.com"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Dashboard",
+    "url": "https://followlytics.vercel.app"
+  },
+  "navigation": [
+    {
+      "group": "Get Started",
+      "pages": [
+        "introduction",
+        "quickstart",
+        "authentication"
+      ]
+    },
+    {
+      "group": "Business Strategy",
+      "pages": [
+        "monetization/overview",
+        "monetization/subscription-tiers",
+        "monetization/pricing-strategy",
+        "monetization/revenue-projections"
+      ]
+    },
+    {
+      "group": "API Integration",
+      "pages": [
+        "api/twitter-enterprise",
+        "api/scrapfly-advanced",
+        "api/grok-ai",
+        "api/usage-optimization"
+      ]
+    },
+    {
+      "group": "Features",
+      "pages": [
+        "features/follower-tracking",
+        "features/analytics-dashboard",
+        "features/ai-insights",
+        "features/real-time-monitoring"
+      ]
+    },
+    {
+      "group": "Implementation",
+      "pages": [
+        "implementation/stripe-integration",
+        "implementation/usage-tracking",
+        "implementation/premium-features",
+        "implementation/scaling-strategy"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "twitter": "https://twitter.com/followlytics",
+    "github": "https://github.com/JoeProAI/Followlytics"
+  }
+}

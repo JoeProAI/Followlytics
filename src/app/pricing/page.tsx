@@ -98,16 +98,16 @@ export default function PricingPage() {
 
           {/* Starter Tier */}
           <Card className="relative border-primary shadow-lg">
-            <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+            <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-blue-500 to-purple-500">
               Most Popular
             </Badge>
             <CardHeader>
               <CardTitle className="text-2xl">Starter</CardTitle>
               <CardDescription>For individual creators</CardDescription>
               <div className="text-4xl font-bold">
-                $19<span className="text-lg font-normal text-gray-500">/mo</span>
+                $29<span className="text-lg font-normal text-gray-500">/mo</span>
               </div>
-              <p className="text-sm text-gray-500">Billed monthly</p>
+              <p className="text-sm text-gray-500">10K API calls • Real-time tracking</p>
             </CardHeader>
             <CardContent className="space-y-4">
               <ul className="space-y-3">

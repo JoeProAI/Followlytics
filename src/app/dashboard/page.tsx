@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import AnalyticsDashboard from '@/components/dashboard/AnalyticsDashboard'
+import SubscriptionStatus from '@/components/dashboard/SubscriptionStatus'
 import { Users, TrendingDown, TrendingUp, Brain, Settings, LogOut, RefreshCw, UserMinus, UserPlus } from "lucide-react"
 
 export default function DashboardPage() {
@@ -281,6 +282,11 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Subscription Status */}
+        <div className="mb-6">
+          <SubscriptionStatus />
+        </div>
 
         {/* Main Dashboard Tabs */}
         <Tabs defaultValue="analytics" className="space-y-6">

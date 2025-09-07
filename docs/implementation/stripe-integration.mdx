@@ -1,0 +1,337 @@
+# Stripe Subscription Integration
+
+## Overview
+
+Complete Stripe integration for subscription management, billing, and payment processing to support the premium monetization strategy.
+
+## Stripe Configuration
+
+### Product & Price Setup
+```javascript
+// Stripe product configuration
+const stripeProducts = {
+  starter: {
+    name: 'Followlytics Starter',
+    price: 2900, // $29.00 in cents
+    interval: 'month',
+    features: ['10K API calls', 'Basic analytics', 'Email support']
+  },
+  professional: {
+    name: 'Followlytics Professional', 
+    price: 9900, // $99.00 in cents
+    interval: 'month',
+    features: ['100K API calls', 'AI insights', 'Priority support']
+  },
+  business: {
+    name: 'Followlytics Business',
+    price: 29900, // $299.00 in cents
+    interval: 'month',
+    features: ['500K API calls', 'Team features', 'Phone support']
+  },
+  enterprise: {
+    name: 'Followlytics Enterprise',
+    price: 99900, // $999.00 in cents
+    interval: 'month',
+    features: ['Unlimited', 'Custom features', 'Dedicated support']
+  }
+};
+```
+
+### Subscription Management API
+```javascript
+// /api/stripe/create-subscription
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+export async function POST(request) {
+  try {
+    const { priceId, customerId, userId } = await request.json();
+    
+    // Create subscription
+    const subscription = await stripe.subscriptions.create({
+      customer: customerId,
+      items: [{ price: priceId }],
+      payment_behavior: 'default_incomplete',
+      payment_settings: { save_default_payment_method: 'on_subscription' },
+      expand: ['latest_invoice.payment_intent'],
+      metadata: { userId }
+    });
+    
+    // Update user in Firestore
+    await updateUserSubscription(userId, {
+      stripeSubscriptionId: subscription.id,
+      status: subscription.status,
+      currentPeriodEnd: subscription.current_period_end,
+      tier: getTierFromPriceId(priceId)
+    });
+    
+    return NextResponse.json({
+      subscriptionId: subscription.id,
+      clientSecret: subscription.latest_invoice.payment_intent.client_secret
+    });
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+}
+```
+
+## Usage Tracking System
+
+### API Call Monitoring
+```javascript
+// Middleware for API usage tracking
+export async function trackAPIUsage(userId, endpoint, cost = 1) {
+  const today = new Date().toISOString().split('T')[0];
+  const usageRef = db.collection('usage').doc(`${userId}_${today}`);
+  
+  await usageRef.set({
+    userId,
+    date: today,
+    calls: admin.firestore.FieldValue.increment(cost),
+    endpoints: {
+      [endpoint]: admin.firestore.FieldValue.increment(cost)
+    }
+  }, { merge: true });
+  
+  // Check limits
+  const usage = await usageRef.get();
+  const userDoc = await db.collection('users').doc(userId).get();
+  const tier = userDoc.data()?.subscription?.tier || 'starter';
+  
+  const limits = {
+    starter: 10000,
+    professional: 100000,
+    business: 500000,
+    enterprise: Infinity
+  };
+  
+  if (usage.data()?.calls > limits[tier]) {
+    throw new Error('API limit exceeded. Please upgrade your plan.');
+  }
+}
+```
+
+### Billing Integration
+```javascript
+// Usage-based billing for overages
+async function calculateOverageCharges(userId, period) {
+  const usage = await getUsageForPeriod(userId, period);
+  const subscription = await getUserSubscription(userId);
+  
+  const tierLimits = {
+    starter: 10000,
+    professional: 100000,
+    business: 500000
+  };
+  
+  const limit = tierLimits[subscription.tier];
+  if (usage.totalCalls > limit) {
+    const overage = usage.totalCalls - limit;
+    const overageRate = 0.001; // $0.001 per call
+    const overageCharge = overage * overageRate * 100; // Convert to cents
+    
+    // Create invoice item for overage
+    await stripe.invoiceItems.create({
+      customer: subscription.stripeCustomerId,
+      amount: overageCharge,
+      currency: 'usd',
+      description: `API overage: ${overage} calls`
+    });
+  }
+}
+```
+
+## Subscription Lifecycle Management
+
+### Webhook Handling
+```javascript
+// /api/stripe/webhooks
+export async function POST(request) {
+  const sig = request.headers.get('stripe-signature');
+  const body = await request.text();
+  
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+  }
+  
+  switch (event.type) {
+    case 'customer.subscription.created':
+      await handleSubscriptionCreated(event.data.object);
+      break;
+    case 'customer.subscription.updated':
+      await handleSubscriptionUpdated(event.data.object);
+      break;
+    case 'customer.subscription.deleted':
+      await handleSubscriptionCanceled(event.data.object);
+      break;
+    case 'invoice.payment_succeeded':
+      await handlePaymentSucceeded(event.data.object);
+      break;
+    case 'invoice.payment_failed':
+      await handlePaymentFailed(event.data.object);
+      break;
+  }
+  
+  return NextResponse.json({ received: true });
+}
+
+async function handleSubscriptionCreated(subscription) {
+  const userId = subscription.metadata.userId;
+  
+  await db.collection('users').doc(userId).update({
+    'subscription.status': 'active',
+    'subscription.stripeSubscriptionId': subscription.id,
+    'subscription.currentPeriodEnd': subscription.current_period_end,
+    'subscription.tier': getTierFromPriceId(subscription.items.data[0].price.id)
+  });
+  
+  // Send welcome email
+  await sendWelcomeEmail(userId);
+}
+```
+
+## Customer Portal Integration
+
+### Self-Service Management
+```javascript
+// /api/stripe/create-portal-session
+export async function POST(request) {
+  try {
+    const { customerId } = await request.json();
+    
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
+    });
+    
+    return NextResponse.json({ url: portalSession.url });
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+}
+```
+
+### Upgrade/Downgrade Flow
+```javascript
+// Subscription tier changes
+async function changeSubscriptionTier(userId, newTier) {
+  const user = await db.collection('users').doc(userId).get();
+  const subscription = user.data().subscription;
+  
+  const newPriceId = getPriceIdForTier(newTier);
+  
+  // Update Stripe subscription
+  await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
+    items: [{
+      id: subscription.stripeItemId,
+      price: newPriceId,
+    }],
+    proration_behavior: 'create_prorations'
+  });
+  
+  // Update Firestore
+  await db.collection('users').doc(userId).update({
+    'subscription.tier': newTier,
+    'subscription.updatedAt': admin.firestore.FieldValue.serverTimestamp()
+  });
+  
+  // Reset usage limits
+  await resetUsageLimits(userId);
+}
+```
+
+## Revenue Analytics
+
+### Subscription Metrics Dashboard
+```javascript
+// Revenue analytics API
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const period = searchParams.get('period') || '30d';
+  
+  const metrics = await calculateRevenueMetrics(period);
+  
+  return NextResponse.json({
+    mrr: metrics.monthlyRecurringRevenue,
+    arr: metrics.annualRecurringRevenue,
+    churn_rate: metrics.churnRate,
+    ltv: metrics.lifetimeValue,
+    cac: metrics.customerAcquisitionCost,
+    subscribers_by_tier: metrics.subscribersByTier,
+    revenue_by_tier: metrics.revenueByTier
+  });
+}
+
+async function calculateRevenueMetrics(period) {
+  const subscriptions = await stripe.subscriptions.list({
+    status: 'active',
+    limit: 100
+  });
+  
+  const mrr = subscriptions.data.reduce((total, sub) => {
+    return total + (sub.items.data[0].price.unit_amount / 100);
+  }, 0);
+  
+  return {
+    monthlyRecurringRevenue: mrr,
+    annualRecurringRevenue: mrr * 12,
+    activeSubscribers: subscriptions.data.length,
+    // ... other metrics
+  };
+}
+```
+
+## Implementation Checklist
+
+### Week 1: Core Integration
+- [ ] Set up Stripe account and API keys
+- [ ] Create products and prices in Stripe
+- [ ] Implement subscription creation API
+- [ ] Build checkout flow UI
+- [ ] Set up webhook endpoints
+
+### Week 2: Usage Tracking
+- [ ] Implement API usage middleware
+- [ ] Build usage dashboard
+- [ ] Create overage billing system
+- [ ] Add usage alerts and notifications
+- [ ] Test tier enforcement
+
+### Week 3: Customer Management
+- [ ] Integrate customer portal
+- [ ] Build upgrade/downgrade flows
+- [ ] Implement subscription management UI
+- [ ] Add payment method updates
+- [ ] Create cancellation flow
+
+### Week 4: Analytics & Optimization
+- [ ] Build revenue analytics dashboard
+- [ ] Implement cohort analysis
+- [ ] Add churn prediction
+- [ ] Create retention campaigns
+- [ ] Optimize conversion funnels
+
+## Security & Compliance
+
+### PCI Compliance
+- Use Stripe Elements for card collection
+- Never store payment information
+- Implement proper webhook signature verification
+- Use HTTPS for all payment-related endpoints
+
+### Data Protection
+```javascript
+// Secure customer data handling
+function sanitizeCustomerData(customer) {
+  return {
+    id: customer.id,
+    email: customer.email,
+    name: customer.name,
+    // Never expose payment methods or sensitive data
+  };
+}
+```
