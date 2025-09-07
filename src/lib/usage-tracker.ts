@@ -6,25 +6,50 @@ export async function trackAPIUsage(userId: string, endpoint: string, cost: numb
     const { getFirestore, FieldValue } = await import('firebase-admin/firestore')
     
     if (getApps().length === 0) {
-      const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
-      const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
-      let privateKey = process.env.FIREBASE_PRIVATE_KEY
+      // Try using service account key first (if available)
+      const serviceAccountKey = process.env.FIREBASE_ADMIN_SDK_KEY
       
-      if (privateKey) {
-        privateKey = privateKey.replace(/^"|"$/g, '').replace(/\\n/g, '\n')
-      }
-      
-      if (!projectId || !clientEmail || !privateKey) {
-        throw new Error(`Missing Firebase config in usage tracker: projectId=${projectId || 'MISSING'}, clientEmail=${clientEmail || 'MISSING'}, privateKey=${privateKey ? 'SET' : 'MISSING'}`)
-      }
-      
-      initializeApp({
-        credential: cert({
-          projectId: projectId,
-          clientEmail: clientEmail,
-          privateKey: privateKey
+      if (serviceAccountKey) {
+        try {
+          const serviceAccount = JSON.parse(serviceAccountKey)
+          initializeApp({
+            credential: cert(serviceAccount)
+          })
+        } catch (jsonError) {
+          console.error('Failed to parse service account JSON:', jsonError)
+          throw new Error('Invalid Firebase service account JSON format')
+        }
+      } else {
+        // Fallback to individual environment variables
+        const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+        const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+        let privateKey = process.env.FIREBASE_PRIVATE_KEY
+        
+        if (privateKey) {
+          // Enhanced private key processing
+          privateKey = privateKey
+            .replace(/^["']|["']$/g, '') // Remove outer quotes
+            .replace(/\\n/g, '\n') // Convert escaped newlines
+            .trim()
+          
+          // Validate PEM format
+          if (!privateKey.includes('-----BEGIN PRIVATE KEY-----') || !privateKey.includes('-----END PRIVATE KEY-----')) {
+            throw new Error('Invalid private key format - must be PEM format')
+          }
+        }
+        
+        if (!projectId || !clientEmail || !privateKey) {
+          throw new Error(`Missing Firebase config: projectId=${projectId || 'MISSING'}, clientEmail=${clientEmail || 'MISSING'}, privateKey=${privateKey ? 'SET' : 'MISSING'}`)
+        }
+        
+        initializeApp({
+          credential: cert({
+            projectId: projectId,
+            clientEmail: clientEmail,
+            privateKey: privateKey
+          })
         })
-      })
+      }
     }
     
     const db = getFirestore()
