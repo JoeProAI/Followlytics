@@ -1,15 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
-import admin from 'firebase-admin'
 
-// Initialize Firebase Admin SDK if not already initialized
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    }),
-  })
+// Initialize Firebase Admin SDK with dynamic import to avoid build issues
+let adminSDK: any = null
+
+async function getFirebaseAdmin() {
+  if (!adminSDK) {
+    const admin = await import('firebase-admin')
+    adminSDK = admin.default
+    
+    if (!adminSDK.apps.length) {
+      adminSDK.initializeApp({
+        credential: adminSDK.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        }),
+      })
+    }
+  }
+  return adminSDK
 }
 
 export async function POST(request: NextRequest) {
@@ -32,7 +41,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user data from Firestore
-    const userDoc = await admin.firestore().collection('users').doc(userId).get()
+    const adminSDK = await getFirebaseAdmin()
+    const userDoc = await adminSDK.firestore().collection('users').doc(userId).get()
     if (!userDoc.exists) {
       return NextResponse.json({ error: 'User not found in database. Please log in again.', code: 'USER_NOT_FOUND' }, { status: 404 })
     }
@@ -108,8 +118,8 @@ export async function POST(request: NextRequest) {
     console.log(`Parsed ${followers.length} followers from Scrapfly`)
 
     // Store followers in Firestore
-    const batch = admin.firestore().batch()
-    const followersCollection = admin.firestore().collection('users').doc(userId).collection('followers')
+    const batch = adminSDK.firestore().batch()
+    const followersCollection = adminSDK.firestore().collection('users').doc(userId).collection('followers')
 
     // Clear existing followers
     const existingFollowers = await followersCollection.limit(500).get()
