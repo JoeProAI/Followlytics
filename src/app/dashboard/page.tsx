@@ -4,14 +4,19 @@ import { useAuth } from '@/hooks/useAuth'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Progress } from '@/components/ui/progress'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Users, TrendingUp, UserMinus, Activity, RefreshCw, Download, Search, Filter, TrendingDown, Brain, Settings, LogOut, UserPlus } from 'lucide-react'
+import TwitterArchiveImport from '@/components/TwitterArchiveImport'
+import OctoparseIntegration from '@/components/OctoparseIntegration'
+import ServiceTierSelector from '@/components/ServiceTierSelector'
+import BrowserExtensionGuide from '@/components/BrowserExtensionGuide'
+import ApiKeyManager from '@/components/ApiKeyManager'
 import AnalyticsDashboard from '@/components/dashboard/AnalyticsDashboard'
 import SubscriptionStatus from '@/components/dashboard/SubscriptionStatus'
 import FollowersList from '@/components/dashboard/FollowersList'
-import { Users, TrendingDown, TrendingUp, Brain, Settings, LogOut, RefreshCw, UserMinus, UserPlus } from "lucide-react"
 
 export default function DashboardPage() {
   const { user, loading, logout, isAuthenticated } = useAuth()
@@ -76,8 +81,8 @@ export default function DashboardPage() {
       setError(null)
       setScanProgress(null)
       
-      console.log('Making request to /api/twitter/followers-nodejs')
-      const response = await fetch('/api/twitter/followers-nodejs', {
+      console.log('Making request to /api/twitter/followers-api')
+      const response = await fetch('/api/twitter/followers-api', {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -225,33 +230,35 @@ export default function DashboardPage() {
                 Track your Twitter followers and discover who unfollowed you
               </p>
             </div>
-            <div className="flex items-center space-x-4">
-              <Button 
-                onClick={handleScanFollowers} 
-                disabled={scanLoading}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {scanLoading ? (
-                  <>
-                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    {scanProgress ? `Scanning... ${scanProgress.processed}/${scanProgress.total}` : 'Starting...'}
-                  </>
-                ) : (
-                  <>
-                    <Users className="mr-2 h-4 w-4" />
-                    Scan Followers
-                  </>
-                )}
-              </Button>
-              <Button 
-                onClick={logout} 
-                variant="outline"
-                className="border-gray-300"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
-              </Button>
+            <div className="space-y-6 mb-6">
+              <div className="flex items-center gap-4">
+                <Button 
+                  onClick={handleScanFollowers}
+                  disabled={scanLoading}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${scanLoading ? 'animate-spin' : ''}`} />
+                  {scanLoading ? 'Scanning...' : 'Scan Followers'}
+                </Button>
+                
+                <Button variant="outline" className="flex items-center gap-2">
+                  <Download className="h-4 w-4" />
+                  Export CSV
+                </Button>
+              </div>
+              
+              <ApiKeyManager />
+              
+              <BrowserExtensionGuide />
             </div>
+            <Button 
+              onClick={logout}
+              variant="outline"
+              className="border-gray-300"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </Button>
           </div>
         </div>
 

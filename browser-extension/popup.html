@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 350px;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .logo {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 10px;
+      background: linear-gradient(135deg, #1DA1F2, #0d8bd9);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 24px;
+      font-weight: bold;
+    }
+    .title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin: 0;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: #666;
+      margin: 5px 0 0 0;
+    }
+    .status {
+      padding: 12px;
+      border-radius: 8px;
+      margin: 15px 0;
+      font-size: 14px;
+    }
+    .status.setup {
+      background: #fef3c7;
+      border: 1px solid #f59e0b;
+      color: #92400e;
+    }
+    .status.ready {
+      background: #d1fae5;
+      border: 1px solid #10b981;
+      color: #065f46;
+    }
+    .status.scanning {
+      background: #dbeafe;
+      border: 1px solid #3b82f6;
+      color: #1e40af;
+    }
+    .status.error {
+      background: #fee2e2;
+      border: 1px solid #ef4444;
+      color: #991b1b;
+    }
+    .button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin: 8px 0;
+      transition: all 0.2s;
+    }
+    .button.primary {
+      background: #1DA1F2;
+      color: white;
+    }
+    .button.primary:hover {
+      background: #0d8bd9;
+    }
+    .button.secondary {
+      background: #f3f4f6;
+      color: #374151;
+      border: 1px solid #d1d5db;
+    }
+    .button.secondary:hover {
+      background: #e5e7eb;
+    }
+    .button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .progress {
+      margin: 15px 0;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e5e7eb;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #1DA1F2;
+      transition: width 0.3s;
+    }
+    .progress-text {
+      font-size: 12px;
+      color: #666;
+      margin-top: 5px;
+      text-align: center;
+    }
+    .setup-steps {
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .setup-steps ol {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+    .setup-steps li {
+      margin: 5px 0;
+    }
+    .api-key-input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+      margin: 8px 0;
+      box-sizing: border-box;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">F</div>
+    <h1 class="title">Followlytics</h1>
+    <p class="subtitle">Twitter Follower Tracker</p>
+  </div>
+
+  <!-- Setup Screen -->
+  <div id="setupScreen">
+    <div class="status setup">
+      <strong>Setup Required</strong><br>
+      Connect to your Followlytics account
+    </div>
+    
+    <div class="setup-steps">
+      <p><strong>Quick Setup:</strong></p>
+      <ol>
+        <li>Go to your Followlytics dashboard</li>
+        <li>Copy your API key from Settings</li>
+        <li>Paste it below and click Connect</li>
+      </ol>
+    </div>
+
+    <input type="password" id="apiKeyInput" class="api-key-input" placeholder="Paste your Followlytics API key">
+    <button id="connectBtn" class="button primary">Connect to Followlytics</button>
+    <button id="openDashboardBtn" class="button secondary">Open Dashboard</button>
+  </div>
+
+  <!-- Ready Screen -->
+  <div id="readyScreen" class="hidden">
+    <div class="status ready">
+      <strong>Ready to Scan!</strong><br>
+      Visit any Twitter followers page and click Start
+    </div>
+
+    <button id="startScanBtn" class="button primary">Start Follower Scan</button>
+    <button id="viewDashboardBtn" class="button secondary">View Dashboard</button>
+    
+    <div class="setup-steps">
+      <p><strong>How to use:</strong></p>
+      <ol>
+        <li>Go to any Twitter profile</li>
+        <li>Click "Followers" to open followers page</li>
+        <li>Click "Start Follower Scan" above</li>
+        <li>Extension will scroll and collect followers</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- Scanning Screen -->
+  <div id="scanningScreen" class="hidden">
+    <div class="status scanning">
+      <strong>Scanning Followers...</strong><br>
+      <span id="scanStatus">Initializing...</span>
+    </div>
+
+    <div class="progress">
+      <div class="progress-bar">
+        <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+      </div>
+      <div class="progress-text">
+        <span id="followersFound">0</span> followers found
+      </div>
+    </div>
+
+    <button id="stopScanBtn" class="button secondary">Stop Scan</button>
+  </div>
+
+  <!-- Error Screen -->
+  <div id="errorScreen" class="hidden">
+    <div class="status error">
+      <strong>Error</strong><br>
+      <span id="errorMessage">Something went wrong</span>
+    </div>
+
+    <button id="retryBtn" class="button primary">Try Again</button>
+    <button id="resetBtn" class="button secondary">Reset Extension</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
