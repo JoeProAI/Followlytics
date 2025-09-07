@@ -9,14 +9,7 @@ async function getFirebaseAdmin() {
     adminSDK = admin.default
     
     if (!adminSDK.apps.length) {
-      // Debug environment variables
-      console.log('Firebase env vars:', {
-        projectId: process.env.FIREBASE_PROJECT_ID ? 'SET' : 'MISSING',
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL ? 'SET' : 'MISSING',
-        privateKey: process.env.FIREBASE_PRIVATE_KEY ? 'SET' : 'MISSING',
-        projectIdValue: process.env.FIREBASE_PROJECT_ID,
-        clientEmailValue: process.env.FIREBASE_CLIENT_EMAIL
-      })
+      // Firebase Admin SDK initialization
       
       adminSDK.initializeApp({
         credential: adminSDK.credential.cert({
