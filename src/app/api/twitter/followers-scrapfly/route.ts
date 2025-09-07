@@ -162,9 +162,8 @@ export async function POST(request: NextRequest) {
       console.log('DEBUG - Profile URL:', profileUrl)
       console.log('DEBUG - Request body:', JSON.stringify(requestBody))
       
-      // Scrapfly API expects URL-encoded form data, not JSON
+      // Scrapfly API expects URL-encoded form data with Authorization header
       const formData = new URLSearchParams({
-        key: scrapflyApiKey,
         url: profileUrl,
         retry: 'true',
         country: 'US',
@@ -177,7 +176,8 @@ export async function POST(request: NextRequest) {
       const response = await fetch('https://api.scrapfly.io/scrape', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Bearer ${scrapflyApiKey}`
         },
         body: formData,
         signal: controller.signal
