@@ -39,7 +39,13 @@ export async function trackAPIUsage(userId: string, endpoint: string, cost: numb
             .trim()
           
           // Validate PEM format
-          if (!privateKey.includes('-----BEGIN PRIVATE KEY-----') || !privateKey.includes('-----END PRIVATE KEY-----')) {
+          // More flexible PEM validation - check for key boundaries after processing
+          const hasBeginMarker = privateKey.includes('-----BEGIN PRIVATE KEY-----') || privateKey.includes('-----BEGIN RSA PRIVATE KEY-----')
+          const hasEndMarker = privateKey.includes('-----END PRIVATE KEY-----') || privateKey.includes('-----END RSA PRIVATE KEY-----')
+          
+          if (!hasBeginMarker || !hasEndMarker) {
+            console.log('Private key validation failed. Key preview:', privateKey.substring(0, 50) + '...')
+            console.log('Has begin marker:', hasBeginMarker, 'Has end marker:', hasEndMarker)
             throw new Error('Invalid private key format - must be PEM format')
           }
         }
