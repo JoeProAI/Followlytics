@@ -181,9 +181,16 @@ export async function POST(request: NextRequest) {
       
       console.log('DEBUG - Using session name:', sessionName)
 
-      // Use Scrapfly's built-in auto-scroll parameter instead of complex JavaScript scenario
-      params.set('auto_scroll', 'true')
-      params.set('auto_scroll_limit', '10')
+      // Add JavaScript scenario for infinite scroll to load all followers
+      const jsScenario = [
+        { "action": "wait", "timeout": 3000 },
+        { "action": "scroll", "selector": "body", "count": 25, "delay": 1500 },
+        { "action": "wait", "timeout": 3000 }
+      ]
+      
+      // Base64 encode the JavaScript scenario as required by Scrapfly
+      const jsScenarioBase64 = Buffer.from(JSON.stringify(jsScenario)).toString('base64')
+      params.set('js_scenario', jsScenarioBase64)
 
       const response = await fetch(`https://api.scrapfly.io/scrape?${params.toString()}`, {
         method: 'GET',
@@ -214,12 +221,13 @@ export async function POST(request: NextRequest) {
       
       console.log(`Found ${xhrCalls.length} XHR calls`)
       
-      // Look for follower-related GraphQL endpoints
+      // Look for follower-related GraphQL endpoints (exclude Following to avoid confusion)
       const followerCalls = xhrCalls.filter((call: any) => 
         call.url && (
-          call.url.includes('Followers') ||
+          (call.url.includes('Followers') && !call.url.includes('Following')) ||
           call.url.includes('UserBy') ||
-          call.url.includes('graphql') && call.response_body
+          (call.url.includes('graphql') && call.response_body && 
+           (call.url.toLowerCase().includes('followers') || call.url.includes('UserBy')))
         )
       )
       
