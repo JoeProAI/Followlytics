@@ -149,11 +149,18 @@ try:
         print(json.dumps({"error": f"Request failed: {str(e)}"}), file=sys.stderr)
         sys.exit(1)
     
-    # If we didn't get many followers, try alternative approach
-    if len(followers) < 10:
-        # Try searching for mentions/replies to the user
-        search_url = f'https://twitter.com/search?q=to%3A${username}&src=typed_query'
+    # Always try multiple approaches to get comprehensive follower data
+    
+    # Approach 2: Search for mentions/replies to the user
+    search_queries = [
+        f'to%3A${username}',  # Direct mentions
+        f'%40${username}',    # @username mentions
+        f'${username}%20OR%20%40${username}'  # Combined search
+    ]
+    
+    for query in search_queries:
         try:
+            search_url = f'https://twitter.com/search?q={query}&src=typed_query&f=user'
             response = requests.get(search_url, headers=headers, timeout=30)
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -168,11 +175,74 @@ try:
                         len(username_lower) >= 3):
                         seen_users.add(username_lower)
                         followers.append(username_lower)
+                
+                # Also look for user profile links
+                profile_matches = re.findall(r'twitter\\.com/([a-zA-Z0-9_]{3,15})', text_content)
+                for match in profile_matches:
+                    username_lower = match.lower()
+                    if (username_lower not in seen_users and 
+                        username_lower != '${username}'.lower() and
+                        len(username_lower) >= 3):
+                        seen_users.add(username_lower)
+                        followers.append(username_lower)
+            
+            # Add delay between requests to avoid rate limiting
+            time.sleep(2)
         except:
-            pass  # Ignore errors in fallback approach
+            continue  # Try next query
     
-    # Remove duplicates and limit results
-    unique_followers = list(set(followers))[:500]
+    # Approach 3: Try to get followers from user's recent tweets (people who interact)
+    try:
+        tweets_url = f'https://twitter.com/${username}'
+        response = requests.get(tweets_url, headers=headers, timeout=30)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            text_content = soup.get_text()
+            
+            # Look for interaction patterns (replies, mentions in tweets)
+            interaction_matches = re.findall(r'@([a-zA-Z0-9_]{3,15})', text_content)
+            for match in interaction_matches:
+                username_lower = match.lower()
+                if (username_lower not in seen_users and 
+                    username_lower != '${username}'.lower() and
+                    len(username_lower) >= 3):
+                    seen_users.add(username_lower)
+                    followers.append(username_lower)
+    except:
+        pass
+    
+    # Approach 4: Try alternative Twitter URLs and mobile version
+    alternative_urls = [
+        f'https://mobile.twitter.com/${username}/followers',
+        f'https://x.com/${username}/followers',
+        f'https://mobile.x.com/${username}/followers'
+    ]
+    
+    for alt_url in alternative_urls:
+        try:
+            response = requests.get(alt_url, headers=headers, timeout=30)
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+                text_content = soup.get_text()
+                
+                # Extract usernames using all patterns
+                for pattern in username_patterns:
+                    matches = re.findall(pattern, text_content)
+                    for match in matches:
+                        username_lower = match.lower()
+                        if (username_lower not in seen_users and 
+                            username_lower != '${username}'.lower() and
+                            len(username_lower) >= 3 and
+                            len(username_lower) <= 15):
+                            seen_users.add(username_lower)
+                            followers.append(username_lower)
+            
+            time.sleep(1)  # Rate limiting
+        except:
+            continue
+    
+    # Remove duplicates and return all followers (no limit)
+    unique_followers = list(set(followers))
     print(json.dumps(unique_followers))
     
 except Exception as e:
@@ -224,11 +294,11 @@ except Exception as e:
       reject(new Error(`Twint execution failed: ${error.message}`))
     })
     
-    // Set timeout for the process
+    // Set timeout for the process (increased for comprehensive scraping)
     setTimeout(() => {
       twintProcess.kill('SIGTERM')
-      reject(new Error('Twint process timed out after 90 seconds'))
-    }, 90000)
+      reject(new Error('Twint process timed out after 180 seconds'))
+    }, 180000)
   })
 }
 
@@ -301,13 +371,13 @@ export async function POST(request: NextRequest) {
       if (followers.length === 0) {
         return NextResponse.json({
           error: 'No followers found',
-          details: 'Twint did not return any follower data. This could be due to account privacy settings or rate limiting.',
+          details: 'Web scraping did not return any follower data. This could be due to account privacy settings, rate limiting, or Twitter\'s anti-bot measures.',
           service: 'twint'
         }, { status: 404 })
       }
 
-      // Convert to expected format
-      const followersData = followers.slice(0, 500).map((followerUsername, index) => ({
+      // Convert to expected format (no limit on followers)
+      const followersData = followers.map((followerUsername, index) => ({
         id: `twint_${index}`,
         username: followerUsername,
         name: followerUsername,
