@@ -175,7 +175,8 @@ export async function POST(request: NextRequest) {
         render_js: 'true',
         wait_for_selector: '[data-testid="primaryColumn"]',
         session: sessionName,
-        cache: 'false'
+        cache: 'false',
+        xhr_call: 'true'
       })
       
       console.log('DEBUG - Using session name:', sessionName)
@@ -202,47 +203,111 @@ export async function POST(request: NextRequest) {
       const scrapflyResult = await response.json()
       console.log('Scrapfly response received successfully')
 
-      // Extract followers from the scraped HTML content
-      const htmlContent = scrapflyResult.result?.content || ''
+      // Extract followers from XHR calls captured by Scrapfly
+      const xhrCalls = scrapflyResult.result?.browser_data?.xhr_call || []
       const followers = new Set<string>()
       
-      // Look for Twitter usernames in the HTML using regex patterns
-      const usernamePatterns = [
-        /@([a-zA-Z0-9_]{1,15})/g,
-        /twitter\.com\/([a-zA-Z0-9_]{1,15})/g,
-        /x\.com\/([a-zA-Z0-9_]{1,15})/g,
-        /"screen_name":"([a-zA-Z0-9_]{1,15})"/g,
-        /data-testid="UserCell"[^>]*>[^<]*<[^>]*>([a-zA-Z0-9_]{1,15})/g,
-        /href="\/([a-zA-Z0-9_]{1,15})"/g
-      ]
+      console.log(`Found ${xhrCalls.length} XHR calls`)
+      
+      // Look for follower-related GraphQL endpoints
+      const followerCalls = xhrCalls.filter((call: any) => 
+        call.url && (
+          call.url.includes('Followers') ||
+          call.url.includes('UserBy') ||
+          call.url.includes('graphql') && call.response_body
+        )
+      )
+      
+      console.log(`Found ${followerCalls.length} potential follower API calls`)
+      
+      for (const call of followerCalls) {
+        try {
+          if (call.response_body) {
+            const data = typeof call.response_body === 'string' 
+              ? JSON.parse(call.response_body) 
+              : call.response_body
+            
+            // Extract followers from various GraphQL response structures
+            const extractFollowersFromData = (obj: any, path: string[] = []): void => {
+              if (obj && typeof obj === 'object') {
+                // Look for screen_name or username fields
+                if (obj.screen_name && typeof obj.screen_name === 'string') {
+                  const username = obj.screen_name.toLowerCase()
+                  if (username.length > 2 && username.length <= 15 && 
+                      /^[a-zA-Z0-9_]+$/.test(username) &&
+                      username !== userData?.username?.toLowerCase()) {
+                    followers.add(username)
+                    console.log(`Found follower: ${username}`)
+                  }
+                }
+                
+                // Recursively search nested objects and arrays
+                if (Array.isArray(obj)) {
+                  obj.forEach((item, index) => extractFollowersFromData(item, [...path, index.toString()]))
+                } else {
+                  Object.keys(obj).forEach(key => {
+                    if (key === 'legacy' || key === 'result' || key === 'user' || key === 'users' || key === 'entries') {
+                      extractFollowersFromData(obj[key], [...path, key])
+                    }
+                  })
+                }
+              }
+            }
+            
+            extractFollowersFromData(data)
+          }
+        } catch (error) {
+          console.error('Error parsing XHR response:', error)
+        }
+      }
 
-      const currentUsername = userData?.username?.toLowerCase()
-      console.log('Current user username:', currentUsername)
-
-      for (const pattern of usernamePatterns) {
-        let match
-        while ((match = pattern.exec(htmlContent)) !== null) {
-          const username = match[1]?.toLowerCase()
-          if (username && 
-              username.length > 2 && 
-              username.length <= 15 &&
-              /^[a-zA-Z0-9_]+$/.test(username) &&
-              username !== currentUsername &&
-              !['home', 'search', 'notifications', 'messages', 'bookmarks', 'lists', 'profile', 'more', 'compose', 'explore'].includes(username)) {
-            followers.add(username)
+      // If no followers found in XHR, fall back to HTML parsing with better patterns
+      if (followers.size === 0) {
+        console.log('No followers found in XHR calls, falling back to HTML parsing')
+        const htmlContent = scrapflyResult.result?.content || ''
+        
+        // More specific patterns for actual Twitter usernames in HTML
+        const htmlPatterns = [
+          /"screen_name":"([a-zA-Z0-9_]{1,15})"/g,
+          /data-screen-name="([a-zA-Z0-9_]{1,15})"/g,
+          /@([a-zA-Z0-9_]{3,15})(?=\s|$|[^a-zA-Z0-9_])/g
+        ]
+        
+        const currentUsername = userData?.username?.toLowerCase()
+        const excludeTerms = ['media', 'font', 'keyframes', 'layer', 'import', 'charset', 'namespace', 'document', 'supports', 'page', 'counter', 'using', 'imprint', 'articles', 'privacy', 'tos', 'twitter', 'login', 'resources', 'rules']
+        
+        for (const pattern of htmlPatterns) {
+          let match
+          while ((match = pattern.exec(htmlContent)) !== null) {
+            const username = match[1]?.toLowerCase()
+            if (username && 
+                username.length >= 3 && 
+                username.length <= 15 &&
+                /^[a-zA-Z0-9_]+$/.test(username) &&
+                username !== currentUsername &&
+                !excludeTerms.includes(username) &&
+                !username.startsWith('_') &&
+                !/^\d+$/.test(username)) {
+              followers.add(username)
+            }
           }
         }
       }
 
       // Convert to array and limit results
       const validFollowers = Array.from(followers).slice(0, 200)
-      console.log(`Extracted ${validFollowers.length} unique followers from HTML content`)
-      console.log('Sample followers:', validFollowers.slice(0, 5))
+      console.log(`Extracted ${validFollowers.length} unique followers`)
+      console.log('Sample followers:', validFollowers.slice(0, 10))
       
-      // Debug: Log HTML content sample if no followers found
+      // Debug logging
       if (validFollowers.length === 0) {
-        console.log('No followers found. HTML content sample (first 500 chars):', htmlContent.substring(0, 500))
+        console.log('No followers found. XHR calls:', xhrCalls.length)
+        if (xhrCalls.length > 0) {
+          console.log('Sample XHR URLs:', xhrCalls.slice(0, 3).map((call: any) => call.url))
+        }
+        const htmlContent = scrapflyResult.result?.content || ''
         console.log('HTML content length:', htmlContent.length)
+        console.log('HTML sample:', htmlContent.substring(0, 500))
       }
 
       // Convert to expected format
