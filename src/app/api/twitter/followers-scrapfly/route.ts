@@ -244,11 +244,12 @@ export async function POST(request: NextRequest) {
       }))
 
       // Store followers in Firestore
-      const firebase = await initializeFirebaseAdmin()
-      const batch = firebase.firestore.batch()
+      const firebase = await getFirebaseAdmin()
+      const db = firebase.firestore()
+      const batch = db.batch()
       
       // Clear existing followers from this source
-      const existingFollowersQuery = firebase.firestore
+      const existingFollowersQuery = db
         .collection('users')
         .doc(userId)
         .collection('followers')
@@ -261,7 +262,7 @@ export async function POST(request: NextRequest) {
       
       // Add new followers
       followersData.forEach((follower, index) => {
-        const followerRef = firebase.firestore
+        const followerRef = db
           .collection('users')
           .doc(userId)
           .collection('followers')
