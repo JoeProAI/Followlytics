@@ -110,14 +110,28 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user data from Firestore
+    console.log('Initializing Firebase for user:', userId)
     const firebase = await getFirebaseAdmin()
+    console.log('Firebase initialized, fetching user document')
+    
     const userDoc = await firebase.firestore().collection('users').doc(userId).get()
+    console.log('User document exists:', userDoc.exists)
+    
     if (!userDoc.exists) {
+      console.log('User document not found for ID:', userId)
       return NextResponse.json({ error: 'User not found in database. Please log in again.', code: 'USER_NOT_FOUND' }, { status: 404 })
     }
 
     const userData = userDoc.data()
+    console.log('User data retrieved:', { 
+      hasData: !!userData, 
+      username: userData?.username, 
+      hasAccessToken: !!userData?.access_token,
+      allKeys: userData ? Object.keys(userData) : []
+    })
+    
     if (!userData || !userData.username) {
+      console.log('Missing username in user data:', userData)
       return NextResponse.json({ error: 'Twitter username not found. Please log in again.', code: 'MISSING_USERNAME' }, { status: 401 })
     }
 
