@@ -145,6 +145,22 @@ export async function POST(request: NextRequest) {
 
     try {
       const profileUrl = `https://x.com/${username}/followers`
+      const requestBody = {
+        url: profileUrl,
+        retry: true,
+        country: 'US',
+        render_js: true,
+        wait_for_selector: '[data-testid="primaryColumn"]',
+        session: `twitter_${userId}`,
+        cache: false,
+        browser_data: {
+          xhr_call: true
+        }
+      }
+      
+      console.log('DEBUG - Username:', username)
+      console.log('DEBUG - Profile URL:', profileUrl)
+      console.log('DEBUG - Request body:', JSON.stringify(requestBody))
       
       const response = await fetch('https://api.scrapfly.io/scrape', {
         method: 'POST',
@@ -152,18 +168,7 @@ export async function POST(request: NextRequest) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${scrapflyApiKey}`
         },
-        body: JSON.stringify({
-          url: profileUrl,
-          retry: true,
-          country: 'US',
-          render_js: true,
-          wait_for_selector: '[data-testid="primaryColumn"]',
-          session: `twitter_${userId}`,
-          cache: false,
-          browser_data: {
-            xhr_call: true
-          }
-        }),
+        body: JSON.stringify(requestBody),
         signal: controller.signal
       })
 
