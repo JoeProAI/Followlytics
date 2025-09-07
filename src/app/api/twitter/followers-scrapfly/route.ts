@@ -76,7 +76,7 @@ async function getFirebaseAdmin() {
 }
 
 export async function POST(request: NextRequest) {
-  console.log('=== FOLLOWERS SCRAPFLY ENDPOINT CALLED ===')
+  console.log('=== FOLLOWERS SCRAPFLY ENDPOINT CALLED - VERSION 2.0 ===')
   try {
     // Get user from Firebase token
     const cookieStore = cookies()
