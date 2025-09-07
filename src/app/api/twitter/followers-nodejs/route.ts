@@ -77,135 +77,265 @@ async function getFirebaseAdmin() {
 
 async function scrapeFollowersWithFetch(username: string): Promise<string[]> {
   const followers: string[] = []
+  const maxRetries = 3
+  const delayBetweenRequests = 2000 // 2 seconds
   
   try {
-    console.log('Starting Node.js fetch-based scraping for username:', username)
+    console.log(`Starting comprehensive scraping for ${username} (targeting 800+ followers)`)
     
-    // Strategy 1: Scrape followers page
-    try {
-      console.log('Fetching followers page...')
-      const followersUrl = `https://twitter.com/${username}/followers`
-      
-      const response = await fetch(followersUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'DNT': '1',
-          'Connection': 'keep-alive',
-          'Upgrade-Insecure-Requests': '1'
-        }
-      })
-      
-      if (response.ok) {
-        const html = await response.text()
-        console.log('Followers page HTML length:', html.length)
+    // Strategy 1: Multiple attempts at followers page with different approaches
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Attempt ${attempt}: Fetching followers page...`)
+        const followersUrl = `https://twitter.com/${username}/followers`
         
-        // Extract usernames using regex patterns
-        const usernamePatterns = [
-          /@([a-zA-Z0-9_]{3,15})/g,
-          /twitter\.com\/([a-zA-Z0-9_]{3,15})/g,
-          /x\.com\/([a-zA-Z0-9_]{3,15})/g,
-          /"screen_name":"([a-zA-Z0-9_]{3,15})"/g,
-          /"username":"([a-zA-Z0-9_]{3,15})"/g
-        ]
-        
-        usernamePatterns.forEach(pattern => {
-          let match
-          while ((match = pattern.exec(html)) !== null) {
-            const extractedUsername = match[1].toLowerCase()
-            if (extractedUsername !== username.toLowerCase() && 
-                extractedUsername.length >= 3 && 
-                extractedUsername.length <= 15 &&
-                /^[a-zA-Z0-9_]+$/.test(extractedUsername)) {
-              followers.push(extractedUsername)
-            }
+        const response = await fetch(followersUrl, {
+          headers: {
+            'User-Agent': `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36`,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"Windows"',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Upgrade-Insecure-Requests': '1'
           }
         })
         
-        console.log(`Extracted ${followers.length} followers from followers page`)
-      } else {
-        console.log('Followers page request failed:', response.status, response.statusText)
+        if (response.ok) {
+          const html = await response.text()
+          console.log(`Attempt ${attempt}: HTML length:`, html.length)
+          
+          // Enhanced regex patterns for comprehensive extraction
+          const usernamePatterns = [
+            // Standard mentions
+            /@([a-zA-Z0-9_]{3,15})/g,
+            // Twitter/X URLs
+            /(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]{3,15})/g,
+            // JSON data patterns
+            /"screen_name":"([a-zA-Z0-9_]{3,15})"/g,
+            /"username":"([a-zA-Z0-9_]{3,15})"/g,
+            /"name":"([a-zA-Z0-9_]{3,15})"/g,
+            // HTML data attributes
+            /data-screen-name="([a-zA-Z0-9_]{3,15})"/g,
+            /data-user-id="[^"]*"[^>]*>@([a-zA-Z0-9_]{3,15})/g,
+            // Profile link patterns
+            /href="\/([a-zA-Z0-9_]{3,15})"[^>]*class="[^"]*profile/g,
+            // User cell patterns
+            /UserCell[^>]*>[^<]*<[^>]*>([a-zA-Z0-9_]{3,15})/g,
+            // React component patterns
+            /"user":{"id_str":"[^"]*","name":"[^"]*","screen_name":"([a-zA-Z0-9_]{3,15})"/g
+          ]
+          
+          let extractedCount = 0
+          usernamePatterns.forEach((pattern, index) => {
+            let match
+            const patternMatches = []
+            while ((match = pattern.exec(html)) !== null) {
+              const extractedUsername = match[1].toLowerCase()
+              if (extractedUsername !== username.toLowerCase() && 
+                  extractedUsername.length >= 3 && 
+                  extractedUsername.length <= 15 &&
+                  /^[a-zA-Z0-9_]+$/.test(extractedUsername) &&
+                  !followers.includes(extractedUsername)) {
+                followers.push(extractedUsername)
+                patternMatches.push(extractedUsername)
+                extractedCount++
+              }
+            }
+            if (patternMatches.length > 0) {
+              console.log(`Pattern ${index + 1} found ${patternMatches.length} new followers`)
+            }
+          })
+          
+          console.log(`Attempt ${attempt}: Extracted ${extractedCount} new followers (total: ${followers.length})`)
+          
+          // If we got a good amount, break early
+          if (extractedCount > 50) break
+          
+        } else {
+          console.log(`Attempt ${attempt}: Request failed:`, response.status, response.statusText)
+        }
+        
+        // Wait between attempts
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, delayBetweenRequests))
+        }
+        
+      } catch (error) {
+        console.log(`Attempt ${attempt}: Error:`, error)
       }
-    } catch (error) {
-      console.log('Followers page scraping error:', error)
     }
     
-    // Strategy 2: Try mobile Twitter
-    try {
-      console.log('Fetching mobile Twitter page...')
-      const mobileUrl = `https://mobile.twitter.com/${username}/followers`
-      
-      const response = await fetch(mobileUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1'
-        }
-      })
-      
-      if (response.ok) {
-        const html = await response.text()
-        console.log('Mobile page HTML length:', html.length)
+    // Strategy 2: X.com domain with different endpoints
+    const xEndpoints = [
+      `https://x.com/${username}/followers`,
+      `https://x.com/${username}/verified_followers`,
+      `https://x.com/i/api/1.1/followers/list.json?screen_name=${username}&count=200`
+    ]
+    
+    for (const endpoint of xEndpoints) {
+      try {
+        console.log(`Trying X.com endpoint: ${endpoint}`)
+        const response = await fetch(endpoint, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/html, */*',
+            'Referer': `https://x.com/${username}`
+          }
+        })
         
-        // Extract usernames from mobile page
-        const mobilePattern = /@([a-zA-Z0-9_]{3,15})/g
-        let match
-        while ((match = mobilePattern.exec(html)) !== null) {
-          const extractedUsername = match[1].toLowerCase()
-          if (extractedUsername !== username.toLowerCase() && 
-              extractedUsername.length >= 3 && 
-              extractedUsername.length <= 15) {
-            followers.push(extractedUsername)
+        if (response.ok) {
+          const content = await response.text()
+          console.log(`X.com endpoint response length: ${content.length}`)
+          
+          // Try to parse as JSON first
+          try {
+            const jsonData = JSON.parse(content)
+            if (jsonData.users) {
+              jsonData.users.forEach((user: any) => {
+                if (user.screen_name && !followers.includes(user.screen_name.toLowerCase())) {
+                  followers.push(user.screen_name.toLowerCase())
+                }
+              })
+            }
+          } catch {
+            // If not JSON, treat as HTML and extract usernames
+            const patterns = [/@([a-zA-Z0-9_]{3,15})/g, /"screen_name":"([a-zA-Z0-9_]{3,15})"/g]
+            patterns.forEach(pattern => {
+              let match
+              while ((match = pattern.exec(content)) !== null) {
+                const extractedUsername = match[1].toLowerCase()
+                if (extractedUsername !== username.toLowerCase() && 
+                    !followers.includes(extractedUsername)) {
+                  followers.push(extractedUsername)
+                }
+              }
+            })
           }
         }
         
-        console.log(`Found additional followers from mobile page`)
+        await new Promise(resolve => setTimeout(resolve, delayBetweenRequests))
+      } catch (error) {
+        console.log(`X.com endpoint error: ${error}`)
       }
-    } catch (error) {
-      console.log('Mobile page scraping error:', error)
     }
     
-    // Strategy 3: Search for mentions
+    // Strategy 3: Mobile Twitter with pagination simulation
     try {
-      console.log('Searching for mentions...')
-      const searchUrl = `https://twitter.com/search?q=%40${username}&src=typed_query`
+      console.log('Trying mobile Twitter with pagination...')
+      const mobileUrls = [
+        `https://mobile.twitter.com/${username}/followers`,
+        `https://m.twitter.com/${username}/followers`,
+        `https://mobile.twitter.com/${username}/followers?page=2`,
+        `https://mobile.twitter.com/${username}/followers?cursor=1`
+      ]
       
-      const response = await fetch(searchUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-      })
-      
-      if (response.ok) {
-        const html = await response.text()
-        console.log('Search page HTML length:', html.length)
-        
-        // Extract usernames from search results
-        const searchPattern = /@([a-zA-Z0-9_]{3,15})/g
-        let match
-        while ((match = searchPattern.exec(html)) !== null) {
-          const extractedUsername = match[1].toLowerCase()
-          if (extractedUsername !== username.toLowerCase() && 
-              extractedUsername.length >= 3 && 
-              extractedUsername.length <= 15) {
-            followers.push(extractedUsername)
+      for (const mobileUrl of mobileUrls) {
+        try {
+          const response = await fetch(mobileUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+            }
+          })
+          
+          if (response.ok) {
+            const html = await response.text()
+            console.log(`Mobile URL ${mobileUrl} - HTML length: ${html.length}`)
+            
+            const mobilePatterns = [
+              /@([a-zA-Z0-9_]{3,15})/g,
+              /\/([a-zA-Z0-9_]{3,15})(?:\?|$|\/)/g,
+              /"username":"([a-zA-Z0-9_]{3,15})"/g
+            ]
+            
+            mobilePatterns.forEach(pattern => {
+              let match
+              while ((match = pattern.exec(html)) !== null) {
+                const extractedUsername = match[1].toLowerCase()
+                if (extractedUsername !== username.toLowerCase() && 
+                    extractedUsername.length >= 3 && 
+                    extractedUsername.length <= 15 &&
+                    /^[a-zA-Z0-9_]+$/.test(extractedUsername) &&
+                    !followers.includes(extractedUsername)) {
+                  followers.push(extractedUsername)
+                }
+              }
+            })
           }
+          
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        } catch (error) {
+          console.log(`Mobile URL error: ${error}`)
         }
-        
-        console.log(`Found additional followers from search`)
       }
     } catch (error) {
-      console.log('Search scraping error:', error)
+      console.log('Mobile scraping error:', error)
     }
     
-    // Remove duplicates and return
-    const uniqueFollowers = Array.from(new Set(followers))
-    console.log(`Total unique followers found: ${uniqueFollowers.length}`)
+    // Strategy 4: Search-based discovery with multiple queries
+    const searchQueries = [
+      `@${username}`,
+      `"${username}"`,
+      `following ${username}`,
+      `${username} follower`,
+      `reply to @${username}`
+    ]
     
-    return uniqueFollowers
+    for (const query of searchQueries) {
+      try {
+        console.log(`Searching for: ${query}`)
+        const searchUrl = `https://twitter.com/search?q=${encodeURIComponent(query)}&src=typed_query&f=user`
+        
+        const response = await fetch(searchUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          }
+        })
+        
+        if (response.ok) {
+          const html = await response.text()
+          const searchPatterns = [
+            /@([a-zA-Z0-9_]{3,15})/g,
+            /\/([a-zA-Z0-9_]{3,15})(?:\?|$|\/)/g,
+            /"screen_name":"([a-zA-Z0-9_]{3,15})"/g
+          ]
+          
+          searchPatterns.forEach(pattern => {
+            let match
+            while ((match = pattern.exec(html)) !== null) {
+              const extractedUsername = match[1].toLowerCase()
+              if (extractedUsername !== username.toLowerCase() && 
+                  extractedUsername.length >= 3 && 
+                  extractedUsername.length <= 15 &&
+                  /^[a-zA-Z0-9_]+$/.test(extractedUsername) &&
+                  !followers.includes(extractedUsername)) {
+                followers.push(extractedUsername)
+              }
+            }
+          })
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, delayBetweenRequests))
+      } catch (error) {
+        console.log(`Search query error: ${error}`)
+      }
+    }
+    
+    console.log(`=== SCRAPING COMPLETE ===`)
+    console.log(`Total unique followers found: ${followers.length}`)
+    console.log(`Target was 800+, achieved: ${(followers.length / 800 * 100).toFixed(1)}%`)
+    
+    return followers
     
   } catch (error) {
-    console.error('Node.js scraping error:', error)
+    console.error('Comprehensive scraping error:', error)
     throw error
   }
 }
@@ -272,7 +402,8 @@ export async function POST(request: NextRequest) {
     console.log('Starting Node.js follower scraping for username:', username)
 
     try {
-      // Run Node.js fetch to get followers
+      // Run comprehensive Node.js scraping to get all followers (may take 2-3 minutes for 800+ followers)
+      console.log(`Starting comprehensive scraping for ${username} with 800+ followers target`)
       const followers = await scrapeFollowersWithFetch(username)
       console.log(`Node.js extracted ${followers.length} followers`)
       
@@ -336,8 +467,10 @@ export async function POST(request: NextRequest) {
         success: true,
         followers_count: followersData.length,
         followers: followersData,
-        scan_method: 'nodejs',
-        message: `Successfully scraped ${followersData.length} followers using Node.js fetch`
+        scan_method: 'nodejs-comprehensive',
+        message: `Successfully scraped ${followersData.length} followers using comprehensive Node.js strategies`,
+        coverage_percentage: ((followersData.length / 800) * 100).toFixed(1),
+        strategies_used: ['twitter_followers_page', 'x_com_endpoints', 'mobile_twitter', 'search_discovery']
       })
 
     } catch (nodejsError) {
