@@ -163,15 +163,22 @@ export async function POST(request: NextRequest) {
       console.log('DEBUG - Request body:', JSON.stringify(requestBody))
       
       // Scrapfly API expects parameters as query string with Authorization header
+      // Create unique session name to avoid concurrent access errors
+      const timestamp = Date.now()
+      const randomSuffix = Math.random().toString(36).substring(2, 8)
+      const sessionName = `twitter_${userId}_${timestamp}_${randomSuffix}`
+      
       const params = new URLSearchParams({
         url: profileUrl,
         retry: 'true',
         country: 'US',
         render_js: 'true',
         wait_for_selector: '[data-testid="primaryColumn"]',
-        session: `twitter_${userId}`,
+        session: sessionName,
         cache: 'false'
       })
+      
+      console.log('DEBUG - Using session name:', sessionName)
 
       const response = await fetch(`https://api.scrapfly.io/scrape?${params.toString()}`, {
         method: 'GET',
