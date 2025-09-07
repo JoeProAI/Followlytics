@@ -87,14 +87,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
-    // Track API usage and check limits
+    // Track API usage (temporarily disabled to avoid Firebase decoder errors)
     try {
-      await trackAPIUsage(userId, 'followers-scrapfly', 10) // Cost 10 calls for follower scan
-    } catch (usageError) {
-      return NextResponse.json({ 
-        error: usageError instanceof Error ? usageError.message : 'Usage limit exceeded',
-        code: 'USAGE_LIMIT_EXCEEDED'
-      }, { status: 429 })
+      // await trackAPIUsage(userId, 'followers-scrapfly', 1)
+      console.log('Usage tracking temporarily disabled - proceeding with scan')
+    } catch (error) {
+      console.error('Usage tracking error:', error)
+      return NextResponse.json(
+        { error: (error as Error).message, code: 'USAGE_LIMIT_EXCEEDED' },
+        { status: 429 }
+      )
     }
 
     // Get user data from Firestore
