@@ -11,15 +11,21 @@ export async function trackAPIUsage(userId: string, endpoint: string, cost: numb
       
       if (serviceAccountKey) {
         try {
+          console.log('Attempting to parse service account JSON, length:', serviceAccountKey.length)
           const serviceAccount = JSON.parse(serviceAccountKey)
+          console.log('Service account parsed successfully, project_id:', serviceAccount.project_id)
           initializeApp({
             credential: cert(serviceAccount)
           })
         } catch (jsonError) {
           console.error('Failed to parse service account JSON:', jsonError)
-          throw new Error('Invalid Firebase service account JSON format')
+          console.log('Service account key preview:', serviceAccountKey.substring(0, 100) + '...')
+          // Fall through to individual environment variables instead of throwing
         }
-      } else {
+      }
+      
+      // Use individual environment variables (either as fallback or primary)
+      if (getApps().length === 0) {
         // Fallback to individual environment variables
         const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
         const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
