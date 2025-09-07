@@ -141,24 +141,28 @@ export async function POST(request: NextRequest) {
         throw new Error('Invalid profile URL - username is missing')
       }
       
+      const requestBody = {
+        url: profileUrl,
+        retry: true,
+        country: 'US',
+        render_js: true,
+        wait_for_selector: '[data-testid="primaryColumn"]',
+        session: `twitter_${userId}`,
+        cache: false,
+        browser_data: {
+          xhr_call: true // Enable XHR request capture
+        }
+      }
+      
+      console.log('Scrapfly request body:', JSON.stringify(requestBody, null, 2))
+      
       const response = await fetch('https://api.scrapfly.io/scrape', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${scrapflyApiKey}`
         },
-        body: JSON.stringify({
-          url: profileUrl,
-          retry: true,
-          country: 'US',
-          render_js: true,
-          wait_for_selector: '[data-testid="primaryColumn"]',
-          session: `twitter_${userId}`,
-          cache: false,
-          browser_data: {
-            xhr_call: true // Enable XHR request capture
-          }
-        }),
+        body: JSON.stringify(requestBody),
         signal: controller.signal
       })
 
