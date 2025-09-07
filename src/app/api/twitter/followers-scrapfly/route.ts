@@ -181,10 +181,20 @@ export async function POST(request: NextRequest) {
       
       console.log('DEBUG - Using session name:', sessionName)
 
+      // Add JavaScript scenario for infinite scroll to load all followers
+      const jsScenario = [
+        { "action": "wait", "timeout": 3000 },
+        { "action": "scroll", "selector": "body", "count": 25, "delay": 1500 },
+        { "action": "wait", "timeout": 3000 }
+      ]
+      
+      params.set('js_scenario', JSON.stringify(jsScenario))
+
       const response = await fetch(`https://api.scrapfly.io/scrape?${params.toString()}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${scrapflyApiKey}`
+          'Authorization': `Bearer ${scrapflyApiKey}`,
+          'Content-Type': 'application/json'
         },
         signal: controller.signal
       })
