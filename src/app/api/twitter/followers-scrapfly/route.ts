@@ -6,63 +6,73 @@ import { trackAPIUsage } from '@/lib/usage-tracker'
 let adminSDK: any = null
 
 async function getFirebaseAdmin() {
-  if (!adminSDK) {
-    const admin = await import('firebase-admin')
-    adminSDK = admin.default
-  }
-  
   try {
-    if (adminSDK.apps.length === 0) {
-      // Try multiple environment variable names for Firebase config
-      const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
-      const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+    const { getApps, initializeApp, cert } = await import('firebase-admin/app')
+    const { getFirestore } = await import('firebase-admin/firestore')
+    
+    if (getApps().length === 0) {
+      // Try using service account key first (if available)
+      const serviceAccountKey = process.env.FIREBASE_ADMIN_SDK_KEY
       
-      // Handle private key with proper formatting for Vercel
-      let privateKey = process.env.FIREBASE_PRIVATE_KEY
-      if (privateKey) {
-        // Remove quotes if present and replace escaped newlines
-        privateKey = privateKey.replace(/^"|"$/g, '').replace(/\\n/g, '\n')
+      if (serviceAccountKey) {
+        try {
+          console.log('Attempting to parse service account JSON, length:', serviceAccountKey.length)
+          const serviceAccount = JSON.parse(serviceAccountKey)
+          console.log('Service account parsed successfully, project_id:', serviceAccount.project_id)
+          initializeApp({
+            credential: cert(serviceAccount)
+          })
+        } catch (jsonError) {
+          console.error('Failed to parse service account JSON:', jsonError)
+          console.log('Service account key preview:', serviceAccountKey.substring(0, 100) + '...')
+          // Fall through to individual environment variables instead of throwing
+        }
       }
       
-      // Detailed debug logging for Vercel
-      console.log('Firebase environment variables:', {
-        FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
-        NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL ? 'SET' : 'MISSING',
-        FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY ? 'SET' : 'MISSING'
-      })
-      
-      console.log('Firebase config values:', {
-        projectId: projectId,
-        clientEmail: clientEmail ? 'SET' : 'MISSING',
-        privateKey: privateKey ? 'SET' : 'MISSING'
-      })
-      
-      if (!projectId || !clientEmail || !privateKey) {
-        throw new Error(`Missing Firebase config: projectId=${projectId || 'MISSING'}, clientEmail=${clientEmail || 'MISSING'}, privateKey=${privateKey ? 'SET' : 'MISSING'}`)
-      }
-      
-      // Validate that projectId is a string
-      if (typeof projectId !== 'string' || projectId.trim() === '') {
-        throw new Error(`Invalid project_id: expected string, got ${typeof projectId}: "${projectId}"`)
-      }
-      
-      adminSDK.initializeApp({
-        credential: adminSDK.credential.cert({
-          project_id: projectId, // Use project_id instead of projectId
-          client_email: clientEmail, // Use client_email instead of clientEmail
-          private_key: privateKey // Use private_key instead of privateKey
+      // Use individual environment variables (either as fallback or primary)
+      if (getApps().length === 0) {
+        // Fallback to individual environment variables
+        const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+        const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+        let privateKey = process.env.FIREBASE_PRIVATE_KEY
+        
+        if (privateKey) {
+          // Enhanced private key processing
+          privateKey = privateKey
+            .replace(/^["']|["']$/g, '') // Remove outer quotes
+            .replace(/\\n/g, '\n') // Convert escaped newlines
+            .trim()
+          
+          // More flexible PEM validation - check for key boundaries after processing
+          const hasBeginMarker = privateKey.includes('-----BEGIN PRIVATE KEY-----') || privateKey.includes('-----BEGIN RSA PRIVATE KEY-----')
+          const hasEndMarker = privateKey.includes('-----END PRIVATE KEY-----') || privateKey.includes('-----END RSA PRIVATE KEY-----')
+          
+          if (!hasBeginMarker || !hasEndMarker) {
+            console.log('Private key validation failed. Key preview:', privateKey.substring(0, 50) + '...')
+            console.log('Has begin marker:', hasBeginMarker, 'Has end marker:', hasEndMarker)
+            throw new Error('Invalid private key format - must be PEM format')
+          }
+        }
+        
+        if (!projectId || !clientEmail || !privateKey) {
+          throw new Error(`Missing Firebase config: projectId=${projectId || 'MISSING'}, clientEmail=${clientEmail || 'MISSING'}, privateKey=${privateKey ? 'SET' : 'MISSING'}`)
+        }
+        
+        initializeApp({
+          credential: cert({
+            projectId: projectId,
+            clientEmail: clientEmail,
+            privateKey: privateKey
+          })
         })
-      })
-      
-      console.log('Firebase Admin SDK initialized successfully')
+      }
     }
+    
+    return { firestore: getFirestore }
   } catch (error) {
-    console.error('Firebase initialization error:', error)
+    console.error('Firebase Admin initialization error:', error)
     throw error
   }
-  
-  return adminSDK
 }
 
 export async function POST(request: NextRequest) {
@@ -87,10 +97,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
-    // Track API usage (temporarily disabled to avoid Firebase decoder errors)
+    // Track API usage
     try {
-      // await trackAPIUsage(userId, 'followers-scrapfly', 1)
-      console.log('Usage tracking temporarily disabled - proceeding with scan')
+      await trackAPIUsage(userId, 'followers-scrapfly', 1)
+      console.log('Usage tracking completed successfully')
     } catch (error) {
       console.error('Usage tracking error:', error)
       return NextResponse.json(
@@ -99,94 +109,132 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get user data from Firestore (temporarily disabled to avoid decoder errors)
-    // const adminSDK = await getFirebaseAdmin()
-    // const userDoc = await adminSDK.firestore().collection('users').doc(userId).get()
-    // if (!userDoc.exists) {
-    //   return NextResponse.json({ error: 'User not found in database. Please log in again.', code: 'USER_NOT_FOUND' }, { status: 404 })
-    // }
-
-    // const userData = userDoc.data()
-    const userData = { 
-      username: 'JoeProAI', // Hardcoded for testing
-      access_token: process.env.TWITTER_ACCESS_TOKEN,
-      access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET
+    // Get user data from Firestore
+    const firebase = await getFirebaseAdmin()
+    const userDoc = await firebase.firestore().collection('users').doc(userId).get()
+    if (!userDoc.exists) {
+      return NextResponse.json({ error: 'User not found in database. Please log in again.', code: 'USER_NOT_FOUND' }, { status: 404 })
     }
+
+    const userData = userDoc.data()
     if (!userData || !userData.username) {
       return NextResponse.json({ error: 'Twitter username not found. Please log in again.', code: 'MISSING_USERNAME' }, { status: 401 })
     }
 
     console.log(`Starting Scrapfly follower scan for @${userData.username}`)
 
-    // Use Scrapfly to scrape Twitter followers with timeout optimization
+    // Use Scrapfly to scrape Twitter followers using XHR capture technique
     const scrapflyApiKey = process.env.SCRAPFLY_API_KEY
     if (!scrapflyApiKey) {
       return NextResponse.json({ error: 'Scrapfly API key not configured' }, { status: 500 })
     }
 
-    const targetUrl = `https://x.com/${userData.username}/followers`
-    const scrapflyUrl = `https://api.scrapfly.io/scrape`
-    
-    const params = new URLSearchParams({
-      'key': scrapflyApiKey,
-      'url': targetUrl,
-      'render_js': 'true',
-      'country': 'US',
-      'asp': 'true', // Anti-scraping protection
-      'format': 'json',
-      'wait': '3000' // Wait 3 seconds for content to load
-    })
-
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 9000) // 9 second abort
+    const timeoutId = setTimeout(() => controller.abort(), 25000) // 25 second timeout for XHR capture
 
     try {
-      const response = await fetch(`${scrapflyUrl}?${params.toString()}`, {
-        method: 'GET',
+      const profileUrl = `https://x.com/${userData.username}/followers`
+      
+      const response = await fetch('https://api.scrapfly.io/scrape', {
+        method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${scrapflyApiKey}`
         },
+        body: JSON.stringify({
+          url: profileUrl,
+          retry: true,
+          country: 'US',
+          render_js: true,
+          wait_for_selector: '[data-testid="primaryColumn"]',
+          session: `twitter_${userId}`,
+          cache: false,
+          browser_data: {
+            xhr_call: true // Enable XHR request capture
+          }
+        }),
         signal: controller.signal
       })
-      
+
+      clearTimeout(timeoutId)
+
       if (!response.ok) {
         const errorText = await response.text()
         console.error('Scrapfly API error:', response.status, errorText)
         return NextResponse.json({ 
-          error: 'Failed to scrape followers',
-          details: errorText,
-          service: 'scrapfly'
-        }, { status: response.status })
+          error: `Scrapfly API error: ${response.status}`, 
+          details: errorText 
+        }, { status: 500 })
       }
 
-      const data = await response.json()
-      console.log('Scrapfly response received')
+      const scrapflyResult = await response.json()
+      console.log('Scrapfly response received, extracting followers from XHR calls...')
 
-      // Parse HTML content to extract follower data
-      const htmlContent = data.result?.content || ''
+      // Extract followers from captured XHR requests (following Scrapfly documentation)
+      const xhrCalls = scrapflyResult.result?.browser_data?.xhr_call || []
+      const followers = new Set<string>()
       
-      // Enhanced regex patterns for X.com follower extraction
-      const followerPatterns = [
-        /@[\w]+/g, // Basic @username pattern
-        /data-testid="UserCell"[^>]*>[\s\S]*?@([\w]+)/g, // X.com user cell pattern
-        /"screen_name":"([\w]+)"/g // JSON data pattern
-      ]
+      // Look for UserBy or Followers API calls in XHR requests
+      const followerCalls = xhrCalls.filter((xhr: any) => 
+        xhr.url && (
+          xhr.url.includes('UserBy') || 
+          xhr.url.includes('Followers') ||
+          xhr.url.includes('following') ||
+          xhr.url.includes('followers')
+        )
+      )
+
+      console.log(`Found ${followerCalls.length} relevant XHR calls`)
+
+      for (const xhr of followerCalls) {
+        if (!xhr.response?.body) continue
+        
+        try {
+          const data = JSON.parse(xhr.response.body)
+          
+          // Extract followers from various API response structures
+          const extractFollowers = (obj: any) => {
+            if (Array.isArray(obj)) {
+              obj.forEach(extractFollowers)
+            } else if (obj && typeof obj === 'object') {
+              // Look for user objects with screen_name or username
+              if (obj.screen_name && typeof obj.screen_name === 'string') {
+                followers.add(obj.screen_name.toLowerCase())
+              }
+              if (obj.username && typeof obj.username === 'string') {
+                followers.add(obj.username.toLowerCase())
+              }
+              if (obj.legacy?.screen_name && typeof obj.legacy.screen_name === 'string') {
+                followers.add(obj.legacy.screen_name.toLowerCase())
+              }
+              
+              // Recursively search nested objects
+              Object.values(obj).forEach(extractFollowers)
+            }
+          }
+          
+          extractFollowers(data)
+        } catch (parseError) {
+          console.log('Failed to parse XHR response:', parseError)
+        }
+      }
+
+      // Filter out invalid usernames and limit results
+      const validFollowers = Array.from(followers).filter(username => 
+        username && 
+        username.length > 0 && 
+        username.length <= 15 && 
+        /^[a-zA-Z0-9_]+$/.test(username) &&
+        username !== userData.username.toLowerCase()
+      ).slice(0, 100)
       
-      let allMatches: string[] = []
-      followerPatterns.forEach(pattern => {
-        const matches = htmlContent.match(pattern) || []
-        allMatches = allMatches.concat(matches)
-      })
-      
-      const uniqueFollowers = Array.from(new Set(allMatches))
-        .map(match => match.replace(/[@"]/g, '').replace(/.*@/, ''))
-        .filter(username => username && username.length > 0)
-        .slice(0, 50) // Limit to 50 for faster processing
-      
-      const followers = uniqueFollowers.map((username: string, index: number) => ({
-        id: `scraped_${index}`,
-        name: username,
+      console.log(`Extracted ${validFollowers.length} unique followers from XHR data`)
+
+      // Convert to expected format
+      const followersData = validFollowers.map(username => ({
+        id: username,
         username: username,
+        name: username,
         profile_image_url: '',
         followers_count: 0,
         following_count: 0,
@@ -195,48 +243,46 @@ export async function POST(request: NextRequest) {
         source: 'scrapfly'
       }))
 
-      console.log(`Parsed ${followers.length} followers from Scrapfly`)
-
-      // Store followers in Firestore (temporarily disabled to avoid decoder errors)
-      // const batch = adminSDK.firestore().batch()
+      // Store followers in Firestore
+      const batch = firebase.firestore().batch()
       
-      // // Clear existing followers from this source
-      // const existingFollowersQuery = adminSDK.firestore()
-      //   .collection('users')
-      //   .doc(userId)
-      //   .collection('followers')
-      //   .where('source', '==', 'scrapfly')
+      // Clear existing followers from this source
+      const existingFollowersQuery = firebase.firestore()
+        .collection('users')
+        .doc(userId)
+        .collection('followers')
+        .where('source', '==', 'scrapfly')
       
-      // const existingFollowers = await existingFollowersQuery.get()
-      // existingFollowers.docs.forEach(doc => {
-      //   batch.delete(doc.ref)
-      // })
+      const existingFollowers = await existingFollowersQuery.get()
+      existingFollowers.docs.forEach(doc => {
+        batch.delete(doc.ref)
+      })
       
-      // // Add new followers
-      // followers.forEach((follower, index) => {
-      //   const followerRef = adminSDK.firestore()
-      //     .collection('users')
-      //     .doc(userId)
-      //     .collection('followers')
-      //     .doc(`scrapfly_${index}`)
+      // Add new followers
+      followersData.forEach((follower, index) => {
+        const followerRef = firebase.firestore()
+          .collection('users')
+          .doc(userId)
+          .collection('followers')
+          .doc(`scrapfly_${index}`)
+        
+        batch.set(followerRef, {
+          username: follower.username,
+          source: 'scrapfly',
+          scanned_at: new Date(),
+          user_id: userId
+        })
+      })
       
-      //   batch.set(followerRef, {
-      //     username: follower,
-      //     source: 'scrapfly',
-      //     scanned_at: new Date(),
-      //     user_id: userId
-      //   })
-      // })
-      
-      // await batch.commit()
-      console.log(`Found ${followers.length} followers (Firestore storage temporarily disabled)`)
+      await batch.commit()
+      console.log(`Stored ${followersData.length} followers in Firestore`)
 
       return NextResponse.json({
         success: true,
-        followers_count: followers.length,
-        followers: followers.slice(0, 10), // Return first 10 for preview
-        scan_method: 'scrapfly',
-        message: `Successfully scraped ${followers.length} followers using Scrapfly`
+        followers_count: followersData.length,
+        followers: followersData.slice(0, 10), // Return first 10 for preview
+        scan_method: 'scrapfly-xhr',
+        message: `Successfully scraped ${followersData.length} followers using Scrapfly XHR capture`
       })
 
     } catch (fetchError) {
