@@ -1,26 +1,76 @@
 import { NextRequest, NextResponse } from 'next/server'
-import * as admin from 'firebase-admin'
 import crypto from 'crypto'
 
-// Initialize Firebase Admin SDK
-if (!admin.apps.length) {
-  const privateKey = process.env.FIREBASE_ADMIN_SDK_KEY?.replace(/\\n/g, '\n')
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
-  const projectId = 'followlytics-cd4e1' // Hardcode to ensure consistency
-  
-  if (!privateKey || !clientEmail) {
-    throw new Error('Missing Firebase Admin SDK environment variables')
+// Firebase Admin SDK initialization function
+async function initializeFirebaseAdmin() {
+  try {
+    const { getApps, initializeApp, cert } = await import('firebase-admin/app')
+    const { getAuth } = await import('firebase-admin/auth')
+    const { getFirestore } = await import('firebase-admin/firestore')
+    
+    if (getApps().length === 0) {
+      // Try using service account key first (if available)
+      const serviceAccountKey = process.env.FIREBASE_ADMIN_SDK_KEY
+      
+      if (serviceAccountKey) {
+        try {
+          console.log('Attempting to parse service account JSON, length:', serviceAccountKey.length)
+          const serviceAccount = JSON.parse(serviceAccountKey)
+          console.log('Service account parsed successfully, project_id:', serviceAccount.project_id)
+          initializeApp({
+            credential: cert(serviceAccount)
+          })
+        } catch (jsonError) {
+          console.error('Failed to parse service account JSON:', jsonError)
+          console.log('Service account key preview:', serviceAccountKey.substring(0, 100) + '...')
+          // Fall through to individual environment variables instead of throwing
+        }
+      }
+      
+      // Use individual environment variables (either as fallback or primary)
+      if (getApps().length === 0) {
+        // Fallback to individual environment variables
+        const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+        const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+        let privateKey = process.env.FIREBASE_PRIVATE_KEY
+        
+        if (privateKey) {
+          // Enhanced private key processing
+          privateKey = privateKey
+            .replace(/^["']|["']$/g, '') // Remove outer quotes
+            .replace(/\\n/g, '\n') // Convert escaped newlines
+            .trim()
+          
+          // More flexible PEM validation - check for key boundaries after processing
+          const hasBeginMarker = privateKey.includes('-----BEGIN PRIVATE KEY-----') || privateKey.includes('-----BEGIN RSA PRIVATE KEY-----')
+          const hasEndMarker = privateKey.includes('-----END PRIVATE KEY-----') || privateKey.includes('-----END RSA PRIVATE KEY-----')
+          
+          if (!hasBeginMarker || !hasEndMarker) {
+            console.log('Private key validation failed. Key preview:', privateKey.substring(0, 50) + '...')
+            console.log('Has begin marker:', hasBeginMarker, 'Has end marker:', hasEndMarker)
+            throw new Error('Invalid private key format - must be PEM format')
+          }
+        }
+        
+        if (!projectId || !clientEmail || !privateKey) {
+          throw new Error(`Missing Firebase config: projectId=${projectId || 'MISSING'}, clientEmail=${clientEmail || 'MISSING'}, privateKey=${privateKey ? 'SET' : 'MISSING'}`)
+        }
+        
+        initializeApp({
+          credential: cert({
+            projectId: projectId,
+            clientEmail: clientEmail,
+            privateKey: privateKey
+          })
+        })
+      }
+    }
+    
+    return { auth: getAuth, firestore: getFirestore }
+  } catch (error) {
+    console.error('Firebase Admin initialization error:', error)
+    throw error
   }
-
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: projectId,
-      clientEmail: clientEmail,
-      privateKey: privateKey,
-    }),
-  })
-  
-  console.log('Firebase Admin SDK initialized with project:', projectId)
 }
 
 export const dynamic = 'force-dynamic'
@@ -163,13 +213,16 @@ export async function GET(request: NextRequest) {
       hasProfileImage: !!userData.profile_image_url_https
     })
     
+    // Initialize Firebase Admin SDK
+    const firebase = await initializeFirebaseAdmin()
+    
     let customToken: string
     try {
       // Ensure the user ID is a string and valid
       const uid = String(twitterUserId)
       console.log('Using UID for Firebase token:', uid)
       
-      customToken = await admin.auth().createCustomToken(uid, {
+      customToken = await firebase.auth().createCustomToken(uid, {
         twitter_id: twitterUserId,
         username: userData.screen_name,
         name: userData.name,
@@ -190,9 +243,10 @@ export async function GET(request: NextRequest) {
       throw new Error(`Firebase token creation failed: ${tokenError instanceof Error ? tokenError.message : 'Unknown error'}`)
     }
 
-    // Store user data in Firestore (temporarily skip to fix auth)
+    // Store user data in Firestore
     try {
-      const db = admin.firestore()
+      const { FieldValue } = await import('firebase-admin/firestore')
+      const db = firebase.firestore()
       await db.collection('users').doc(twitterUserId).set({
         twitter_id: twitterUserId,
         username: userData.screen_name,
@@ -200,8 +254,8 @@ export async function GET(request: NextRequest) {
         profile_image_url: userData.profile_image_url_https,
         access_token: accessToken,
         access_token_secret: accessTokenSecret,
-        last_login: admin.firestore.FieldValue.serverTimestamp(),
-        created_at: admin.firestore.FieldValue.serverTimestamp()
+        last_login: FieldValue.serverTimestamp(),
+        created_at: FieldValue.serverTimestamp()
       }, { merge: true })
       console.log('✅ User data stored in Firestore')
     } catch (firestoreError) {
