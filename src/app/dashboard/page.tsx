@@ -14,6 +14,7 @@ import OctoparseIntegration from '@/components/OctoparseIntegration'
 import ServiceTierSelector from '@/components/ServiceTierSelector'
 import BrowserExtensionGuide from '@/components/BrowserExtensionGuide'
 import ApiKeyManager from '@/components/ApiKeyManager'
+import ExtensionDownload from '@/components/ExtensionDownload'
 import AnalyticsDashboard from '@/components/dashboard/AnalyticsDashboard'
 import SubscriptionStatus from '@/components/dashboard/SubscriptionStatus'
 import FollowersList from '@/components/dashboard/FollowersList'
@@ -248,6 +249,8 @@ export default function DashboardPage() {
               </div>
               
               <ApiKeyManager />
+              
+              <ExtensionDownload />
               
               <BrowserExtensionGuide />
             </div>
