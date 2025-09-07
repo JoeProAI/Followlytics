@@ -2,20 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import * as admin from 'firebase-admin'
 
 // Initialize Firebase Admin if not already initialized
-if (!admin.apps.length) {
-  const privateKey = process.env.FIREBASE_ADMIN_SDK_KEY?.replace(/\\n/g, '\n')
-  
-  if (!privateKey) {
-    throw new Error('Firebase Admin SDK private key is not configured')
+let firebaseInitialized = false
+try {
+  if (!admin.apps.length) {
+    const privateKey = process.env.FIREBASE_ADMIN_SDK_KEY?.replace(/\\n/g, '\n')
+    
+    if (privateKey) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "followlytics-cd4e1",
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL || "firebase-adminsdk-fbsvc@followlytics-cd4e1.iam.gserviceaccount.com",
+          privateKey: privateKey,
+        }),
+      })
+      firebaseInitialized = true
+    }
+  } else {
+    firebaseInitialized = true
   }
-
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "followlytics-cd4e1",
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL || "firebase-adminsdk-fbsvc@followlytics-cd4e1.iam.gserviceaccount.com",
-      privateKey: privateKey,
-    }),
-  })
+} catch (error) {
+  console.log('Firebase initialization skipped during build:', error)
 }
 
 export const dynamic = 'force-dynamic'

@@ -3,8 +3,9 @@ import * as admin from 'firebase-admin'
 import crypto from 'crypto'
 
 // Initialize Firebase Admin if not already initialized
-if (!admin.apps.length) {
-  try {
+let firebaseInitialized = false
+try {
+  if (!admin.apps.length) {
     console.log('🔥 Initializing Firebase Admin SDK...')
     const privateKey = process.env.FIREBASE_ADMIN_SDK_KEY?.replace(/\\n/g, '\n')
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
@@ -16,25 +17,23 @@ if (!admin.apps.length) {
       projectId: projectId
     })
     
-    if (!privateKey || !clientEmail) {
-      throw new Error('Firebase Admin SDK credentials not configured')
+    if (privateKey && clientEmail) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: projectId,
+          clientEmail: clientEmail,
+          privateKey: privateKey,
+        }),
+      })
+      firebaseInitialized = true
+      console.log('✅ Firebase Admin SDK initialized successfully')
     }
-
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: projectId,
-        clientEmail: clientEmail,
-        privateKey: privateKey,
-      }),
-    })
-    
-    console.log('✅ Firebase Admin SDK initialized successfully')
-  } catch (initError) {
-    console.error('❌ Firebase Admin SDK initialization failed:', initError)
-    throw initError
+  } else {
+    firebaseInitialized = true
+    console.log('♻️ Firebase Admin SDK already initialized')
   }
-} else {
-  console.log('♻️ Firebase Admin SDK already initialized')
+} catch (initError) {
+  console.log('Firebase initialization skipped during build:', initError)
 }
 
 function createOAuthSignature(

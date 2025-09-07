@@ -76,8 +76,8 @@ export default function DashboardPage() {
       setError(null)
       setScanProgress(null)
       
-      console.log('Making request to /api/twitter/followers-twint')
-      const response = await fetch('/api/twitter/followers-twint', {
+      console.log('Making request to /api/twitter/followers-nodejs')
+      const response = await fetch('/api/twitter/followers-nodejs', {
         method: 'POST',
         credentials: 'include',
         headers: {
