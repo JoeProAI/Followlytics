@@ -86,8 +86,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}?error=access_denied`)
   }
 
-  console.log('OAuth callback received:', { oauthToken, oauthVerifier })
-  console.log('Creating Firebase custom token for user')
 
   if (!oauthToken || !oauthVerifier) {
     return NextResponse.redirect(`${origin}?error=missing_params`)
@@ -205,14 +203,6 @@ export async function GET(request: NextRequest) {
 
     console.log('Twitter user data:', { id: twitterUserId, username: userData.screen_name, name: userData.name })
 
-    console.log('Creating Firebase custom token for user:', twitterUserId)
-    console.log('User data for token:', {
-      id: twitterUserId,
-      username: userData.screen_name,
-      name: userData.name,
-      hasProfileImage: !!userData.profile_image_url_https
-    })
-    
     // Initialize Firebase Admin SDK
     const firebase = await initializeFirebaseAdmin()
     
@@ -220,7 +210,6 @@ export async function GET(request: NextRequest) {
     try {
       // Ensure the user ID is a string and valid
       const uid = String(twitterUserId)
-      console.log('Using UID for Firebase token:', uid)
       
       customToken = await firebase.auth().createCustomToken(uid, {
         twitter_id: twitterUserId,
@@ -229,17 +218,8 @@ export async function GET(request: NextRequest) {
         profile_image_url: userData.profile_image_url_https
       })
       
-      console.log('Firebase token created successfully')
-      console.log('Token length:', customToken.length)
-      console.log('Token starts with:', customToken.substring(0, 50))
     } catch (tokenError) {
       console.error('Firebase token creation failed:', tokenError)
-      console.error('Token error details:', {
-        message: tokenError instanceof Error ? tokenError.message : 'Unknown error',
-        stack: tokenError instanceof Error ? tokenError.stack : undefined,
-        uid: twitterUserId,
-        userData: userData
-      })
       throw new Error(`Firebase token creation failed: ${tokenError instanceof Error ? tokenError.message : 'Unknown error'}`)
     }
 
@@ -264,7 +244,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Set Firebase token in cookie for useAuth hook
-    console.log('Setting Firebase token in cookie and redirecting to dashboard')
     const response = NextResponse.redirect(`${origin}/dashboard`)
     
     // Set the Firebase token cookie (accessible to client JS)

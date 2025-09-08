@@ -33,37 +33,22 @@ export function useAuth() {
 
     // Check for custom token in cookie on mount
     const checkCustomToken = async () => {
-      console.log('All cookies:', document.cookie)
       const token = document.cookie
         .split('; ')
         .find(row => row.startsWith('firebase_token='))
         ?.split('=')[1]
-
-      console.log('Checking for firebase token:', !!token)
       
       if (token && !auth.currentUser) {
         try {
-          console.log('Signing in with custom token')
-          console.log('Token length:', token.length)
-          console.log('Token starts with:', token.substring(0, 50))
-          
           const result = await signInWithCustomToken(auth, decodeURIComponent(token))
-          console.log('Successfully signed in with custom token:', result.user)
           // Don't clear the cookie immediately - keep it for API calls
         } catch (error) {
-          console.error('Error signing in with custom token:', error)
-          console.error('Token that failed:', token.substring(0, 100) + '...')
-          console.error('Error details:', {
-            code: (error as any)?.code,
-            message: (error as any)?.message,
-            stack: (error as any)?.stack
-          })
+          console.error('Error signing in with custom token')
           // Clear invalid token
           document.cookie = 'firebase_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
           setLoading(false)
         }
       } else if (!token && !auth.currentUser) {
-        console.log('No firebase token found in cookies')
         setLoading(false)
       }
     }
