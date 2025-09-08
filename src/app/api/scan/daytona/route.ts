@@ -64,8 +64,7 @@ export async function POST(request: NextRequest) {
 
     const daytona = new Daytona({
       apiKey: apiKey,
-      apiUrl: apiUrl,
-      target: 'us'
+      apiUrl: apiUrl
     })
 
     // Determine account size and estimates
@@ -89,7 +88,7 @@ export async function POST(request: NextRequest) {
     let sandbox
     try {
       sandbox = await daytona.create({
-        language: 'python',
+        snapshot: 'python',
         envVars: {
           TARGET_USERNAME: username,
           ESTIMATED_FOLLOWERS: estimated_followers.toString(),
