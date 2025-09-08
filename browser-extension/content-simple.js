@@ -60,10 +60,12 @@ async function startScan() {
     // Find followers with batch uploads
     await collectFollowersWithBatching(totalCount);
     
+    // Mark as complete and stop scanning
+    isScanning = false;
     sendComplete();
   } catch (error) {
-    sendError(error.message);
     isScanning = false;
+    sendError(error.message);
   }
 }
 
@@ -109,17 +111,13 @@ function getTotalFollowerCount() {
 
 async function collectFollowersWithBatching(totalCount) {
   let scrollCount = 0;
-  let lastCount = 0;
-  let stagnant = 0;
+  let lastUploadedCount = 0;
+  let noNewFollowersCount = 0;
   let batchCount = 0;
   const batchSize = 100;
+  let previousFollowerCount = 0;
   
-  while (isScanning && scrollCount < 200 && stagnant < 5) {
-    // Stop if we've reached the total count
-    if (totalCount && followers.length >= totalCount) {
-      sendProgress(`Scan complete! Found all ${followers.length} followers.`, 100);
-      break;
-    }
+  while (isScanning && scrollCount < 100) {
     // Get current followers on screen
     const elements = document.querySelectorAll('[data-testid="UserCell"], [data-testid="cellInnerDiv"]');
     
@@ -139,60 +137,64 @@ async function collectFollowersWithBatching(totalCount) {
       } catch (e) {}
     });
     
-    // Upload in batches to prevent memory issues and failures
-    if (followers.length >= batchSize && followers.length > lastCount) {
-      try {
-        batchCount++;
-        sendProgress(`Uploading batch ${batchCount} (${followers.length} followers)...`, 
-                    totalCount ? Math.min((followers.length / totalCount) * 90, 90) : Math.min(scrollCount * 1.5, 90));
-        
-        await uploadFollowersBatch(followers.slice(lastCount), batchCount);
-        lastCount = followers.length;
-        stagnant = 0;
-        
-        // Small delay after upload
-        await sleep(1000);
-      } catch (error) {
-        console.error('Batch upload failed:', error);
-        // Continue scanning even if upload fails
-      }
+    // Check if we found new followers this scroll
+    if (followers.length === previousFollowerCount) {
+      noNewFollowersCount++;
+    } else {
+      noNewFollowersCount = 0;
+      previousFollowerCount = followers.length;
     }
     
-    // Check progress - if no new followers found, increment stagnant counter
-    if (followers.length === lastCount) {
-      stagnant++;
-      // If we're stagnant and have found most followers, stop early
-      if (stagnant >= 3 && totalCount && followers.length >= totalCount * 0.95) {
-        sendProgress(`Scan complete! Found ${followers.length} of ${totalCount} followers.`, 100);
-        break;
+    // Upload in batches
+    if (followers.length >= lastUploadedCount + batchSize) {
+      try {
+        batchCount++;
+        const batchToUpload = followers.slice(lastUploadedCount);
+        sendProgress(`Uploading batch ${batchCount} (${batchToUpload.length} new followers)...`, 
+                    totalCount ? Math.min((followers.length / totalCount) * 85, 85) : Math.min(scrollCount * 2, 85));
+        
+        await uploadFollowersBatch(batchToUpload, batchCount);
+        lastUploadedCount = followers.length;
+        
+        await sleep(500);
+      } catch (error) {
+        console.error('Batch upload failed:', error);
       }
-    } else {
-      stagnant = 0;
     }
     
     const progress = totalCount ? 
-      Math.min((followers.length / totalCount) * 90, 90) : 
-      Math.min(scrollCount * 1.5, 90);
+      Math.min((followers.length / totalCount) * 85, 85) : 
+      Math.min(scrollCount * 2, 85);
     
     sendProgress(`Found ${followers.length}${totalCount ? `/${totalCount}` : ''} followers...`, progress);
     
-    // Stop scrolling if we've likely reached the end
-    if (stagnant >= 5 || (totalCount && followers.length >= totalCount)) {
+    // Stop conditions
+    if (totalCount && followers.length >= totalCount) {
+      sendProgress(`Reached target! Found all ${followers.length} followers.`, 90);
       break;
     }
     
-    // Scroll down with variable speed
-    window.scrollBy(0, window.innerHeight * 0.8);
-    await sleep(1500 + Math.random() * 1000); // 1.5-2.5 second delay
+    if (noNewFollowersCount >= 5) {
+      sendProgress(`No new followers found. Completing scan with ${followers.length} followers.`, 90);
+      break;
+    }
+    
+    // Scroll down
+    window.scrollBy(0, window.innerHeight);
+    await sleep(2000);
     scrollCount++;
   }
   
   // Upload any remaining followers
-  if (followers.length > lastCount) {
+  if (followers.length > lastUploadedCount) {
     batchCount++;
-    sendProgress(`Uploading final batch (${followers.length} total)...`, 95);
-    await uploadFollowersBatch(followers.slice(lastCount), batchCount);
+    const finalBatch = followers.slice(lastUploadedCount);
+    sendProgress(`Uploading final batch (${finalBatch.length} remaining followers)...`, 95);
+    await uploadFollowersBatch(finalBatch, batchCount);
   }
+  
+  // Final completion message
+  sendProgress(`Scan complete! Successfully uploaded ${followers.length} followers to dashboard.`, 100);
 }
 
 async function uploadFollowersBatch(batchFollowers, batchNumber) {

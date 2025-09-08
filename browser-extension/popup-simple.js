@@ -137,9 +137,18 @@ chrome.runtime.onMessage.addListener((message) => {
     if (message.progress) {
       document.getElementById('progressFill').style.width = `${message.progress}%`;
     }
+    
+    // If progress is 100%, automatically complete
+    if (message.progress >= 100) {
+      setTimeout(() => {
+        isScanning = false;
+        alert(`Scan complete! Found ${message.followersFound} followers. Check your dashboard to view them.`);
+        updateUI();
+      }, 1000);
+    }
   } else if (message.action === 'scanComplete') {
     isScanning = false;
-    alert(`Scan complete! Found ${message.totalFollowers} followers`);
+    alert(`Scan complete! Found ${message.totalFollowers} followers. All data has been uploaded to your dashboard.`);
     updateUI();
   } else if (message.action === 'scanError') {
     isScanning = false;

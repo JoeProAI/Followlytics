@@ -103,25 +103,54 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Also support cookie-based auth for dashboard
+// Support session-based auth for dashboard
 export async function POST(request: NextRequest) {
   try {
     const admin = await getFirebaseAdmin()
     const db = admin.firestore()
     
-    // Try to get user ID from session cookie or other auth method
-    // For now, we'll use a simple approach - in production you'd use proper session management
+    // Get the request body to check for user info
+    const body = await request.json().catch(() => ({}))
+    
+    // Try to get user from Firebase Auth token in cookies
     const cookies = request.headers.get('cookie') || ''
+    const sessionCookie = cookies.split(';').find(c => c.trim().startsWith('session='))
     
-    // Extract user ID from cookies or implement proper session management
-    // This is a simplified version - you should implement proper auth
+    if (sessionCookie) {
+      try {
+        const sessionToken = sessionCookie.split('=')[1]
+        const decodedToken = await admin.auth().verifySessionCookie(sessionToken)
+        const userId = decodedToken.uid
+        
+        // Get followers for this user
+        const followersRef = db.collection('users').doc(userId).collection('followers')
+        const followersSnapshot = await followersRef.orderBy('scraped_at', 'desc').get()
+        
+        const followers: any[] = []
+        followersSnapshot.forEach((doc: any) => {
+          followers.push({
+            id: doc.id,
+            ...doc.data()
+          })
+        })
+        
+        return NextResponse.json({
+          success: true,
+          followers: followers,
+          total_followers: followers.length
+        })
+        
+      } catch (authError) {
+        console.error('Auth error:', authError)
+      }
+    }
     
-    // For now, return empty array if no proper auth
+    // Return empty if no auth
     return NextResponse.json({
       success: true,
       followers: [],
       total_followers: 0,
-      message: 'Use extension to scan followers'
+      message: 'No followers found - use extension to scan'
     })
     
   } catch (error) {
