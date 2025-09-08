@@ -11,17 +11,23 @@ class TwitterFollowerScraper {
     this.stagnantScrolls = 0;
     this.maxStagnantScrolls = 5;
     
+    console.log('TwitterFollowerScraper initialized');
     this.init();
   }
 
   init() {
+    console.log('TwitterFollowerScraper init() called');
+    
     // Listen for messages from popup
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      console.log('Content script received message:', message);
       this.handleMessage(message);
+      sendResponse({ received: true });
     });
 
     // Extract username from URL
     this.extractUsername();
+    console.log('Current username extracted:', this.currentUsername);
   }
 
   extractUsername() {
@@ -294,6 +300,26 @@ class TwitterFollowerScraper {
 }
 
 // Initialize scraper when content script loads
+console.log('Followlytics extension content script loaded on:', window.location.href);
+
+// Check if we're on a followers page
 if (window.location.href.includes('/followers')) {
+  console.log('On followers page, initializing scraper...');
   new TwitterFollowerScraper();
+} else {
+  console.log('Not on followers page, content script waiting...');
 }
+
+// Also listen for URL changes (SPA navigation)
+let lastUrl = location.href;
+new MutationObserver(() => {
+  const url = location.href;
+  if (url !== lastUrl) {
+    lastUrl = url;
+    console.log('URL changed to:', url);
+    if (url.includes('/followers')) {
+      console.log('Navigated to followers page, initializing scraper...');
+      new TwitterFollowerScraper();
+    }
+  }
+}).observe(document, { subtree: true, childList: true });

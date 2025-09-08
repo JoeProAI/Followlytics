@@ -88,11 +88,18 @@ class FollowlyticsExtension {
     this.followersFound = 0;
     this.updateUI();
 
-    // Send message to content script to start scanning
-    chrome.tabs.sendMessage(tab.id, {
-      action: 'startScan',
-      apiKey: this.apiKey
-    });
+    try {
+      // Send message to content script to start scanning
+      await chrome.tabs.sendMessage(tab.id, {
+        action: 'startScan',
+        apiKey: this.apiKey
+      });
+    } catch (error) {
+      console.error('Failed to send message to content script:', error);
+      this.showError('Extension not ready. Please refresh the page and try again.');
+      this.isScanning = false;
+      this.updateUI();
+    }
   }
 
   stopScan() {
