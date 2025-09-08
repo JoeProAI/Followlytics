@@ -62,8 +62,26 @@ export async function POST(request: NextRequest) {
     const admin = await getFirebaseAdmin()
     const db = admin.firestore()
 
-    // TODO: Get actual user ID from API key validation
-    const userId = 'extension_user'
+    // Validate API key and get user ID
+    const apiKeysRef = db.collection('api_keys').where('key', '==', apiKey).limit(1)
+    const apiKeySnapshot = await apiKeysRef.get()
+    
+    if (apiKeySnapshot.empty) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid API key' 
+      }, { status: 401 })
+    }
+    
+    const apiKeyDoc = apiKeySnapshot.docs[0]
+    const userId = apiKeyDoc.data().user_id
+    
+    if (!userId) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'API key not associated with user' 
+      }, { status: 401 })
+    }
     
     // Batch write followers to Firestore
     const batch = db.batch()

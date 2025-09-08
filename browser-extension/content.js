@@ -219,11 +219,15 @@ class TwitterFollowerScraper {
     this.sendProgress('Uploading followers to Followlytics...', 95);
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
       const response = await fetch('https://followlytics.vercel.app/api/extension/upload', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Accept': 'application/json'
         },
         body: JSON.stringify({
           username: this.currentUsername,
@@ -234,19 +238,28 @@ class TwitterFollowerScraper {
             scan_duration: Date.now(),
             user_agent: navigator.userAgent
           }
-        })
+        }),
+        signal: controller.signal
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Upload failed: ${response.status} ${response.statusText}. ${errorText}`);
       }
 
       const result = await response.json();
       if (!result.success) {
-        throw new Error(result.error || 'Upload failed');
+        throw new Error(result.error || result.details || 'Upload failed');
       }
 
+      this.sendProgress(`Upload complete! ${result.followers_imported} followers saved.`, 100);
+
     } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new Error('Upload timed out. Please try again.');
+      }
       throw new Error(`Failed to upload followers: ${error.message}`);
     }
   }
