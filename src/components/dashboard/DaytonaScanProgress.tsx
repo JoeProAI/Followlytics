@@ -13,8 +13,8 @@ interface DaytonaScanProgressProps {
     username: string
     status: string
     account_size: string
-    estimated_duration: number
-    estimated_cost: number
+    estimated_duration: string | number
+    estimated_cost: string | number
     progress: number
     results?: {
       followers?: any[]
@@ -141,7 +141,7 @@ export default function DaytonaScanProgress({ scanProgress, onComplete }: Dayton
             <Zap className="h-4 w-4 text-blue-500" />
             <div>
               <div className="text-xs text-gray-500">Est. Duration</div>
-              <div className="font-medium">{scanProgress.estimated_duration}m</div>
+              <div className="font-medium">{scanProgress.estimated_duration}</div>
             </div>
           </div>
           
@@ -149,7 +149,11 @@ export default function DaytonaScanProgress({ scanProgress, onComplete }: Dayton
             <DollarSign className="h-4 w-4 text-green-500" />
             <div>
               <div className="text-xs text-gray-500">Est. Cost</div>
-              <div className="font-medium">${scanProgress.estimated_cost?.toFixed(2)}</div>
+              <div className="font-medium">
+                {typeof scanProgress.estimated_cost === 'number' 
+                  ? `$${scanProgress.estimated_cost.toFixed(2)}` 
+                  : scanProgress.estimated_cost}
+              </div>
             </div>
           </div>
           
@@ -212,7 +216,10 @@ export default function DaytonaScanProgress({ scanProgress, onComplete }: Dayton
               <div>
                 <span className="text-gray-500">Cost per Follower:</span>
                 <span className="font-medium ml-2">
-                  ${((scanProgress.estimated_cost || 0) / (scanProgress.results.total_followers || 1)).toFixed(4)}
+                  ${(
+                    (typeof scanProgress.estimated_cost === 'number' ? scanProgress.estimated_cost : 0) / 
+                    (scanProgress.results.total_followers || 1)
+                  ).toFixed(4)}
                 </span>
               </div>
             </div>
