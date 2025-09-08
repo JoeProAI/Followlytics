@@ -51,11 +51,14 @@ async function startScan() {
     window.scrollTo(0, 0);
     await sleep(2000);
     
-    // Find followers
-    await collectFollowers();
+    // Get total follower count
+    const totalCount = getTotalFollowerCount();
+    if (totalCount) {
+      sendProgress(`Found ${totalCount} total followers. Starting scan...`, 5);
+    }
     
-    // Upload
-    await uploadFollowers();
+    // Find followers with batch uploads
+    await collectFollowersWithBatching(totalCount);
     
     sendComplete();
   } catch (error) {
@@ -64,12 +67,54 @@ async function startScan() {
   }
 }
 
-async function collectFollowers() {
+function getTotalFollowerCount() {
+  try {
+    // Look for follower count in various places Twitter displays it
+    const selectors = [
+      'a[href*="/followers"] span',
+      '[data-testid="UserName"] + div span',
+      'div[dir="ltr"] span[data-testid="app-text-transition-container"]',
+      'span:contains("Followers")',
+      'div:contains("followers")'
+    ];
+    
+    for (const selector of selectors) {
+      const elements = document.querySelectorAll(selector);
+      for (const element of elements) {
+        const text = element.textContent;
+        if (text && /[\d,]+/.test(text)) {
+          const match = text.match(/([\d,]+)/);
+          if (match) {
+            const count = parseInt(match[1].replace(/,/g, ''));
+            if (count > 0 && count < 1000000) { // Reasonable follower count
+              return count;
+            }
+          }
+        }
+      }
+    }
+    
+    // Try to find it in the URL or page title
+    const url = window.location.href;
+    const match = url.match(/followers.*?(\d+)/);
+    if (match) {
+      return parseInt(match[1]);
+    }
+    
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function collectFollowersWithBatching(totalCount) {
   let scrollCount = 0;
   let lastCount = 0;
   let stagnant = 0;
+  let batchCount = 0;
+  const batchSize = 100;
   
-  while (isScanning && scrollCount < 50 && stagnant < 3) {
+  while (isScanning && scrollCount < 200 && stagnant < 5) {
     // Get current followers on screen
     const elements = document.querySelectorAll('[data-testid="UserCell"], [data-testid="cellInnerDiv"]');
     
@@ -89,29 +134,56 @@ async function collectFollowers() {
       } catch (e) {}
     });
     
+    // Upload in batches to prevent memory issues and failures
+    if (followers.length >= batchSize && followers.length > lastCount) {
+      try {
+        batchCount++;
+        sendProgress(`Uploading batch ${batchCount} (${followers.length} followers)...`, 
+                    totalCount ? Math.min((followers.length / totalCount) * 90, 90) : Math.min(scrollCount * 1.5, 90));
+        
+        await uploadFollowersBatch(followers.slice(lastCount), batchCount);
+        lastCount = followers.length;
+        stagnant = 0;
+        
+        // Small delay after upload
+        await sleep(1000);
+      } catch (error) {
+        console.error('Batch upload failed:', error);
+        // Continue scanning even if upload fails
+      }
+    }
+    
     // Check progress
     if (followers.length === lastCount) {
       stagnant++;
     } else {
       stagnant = 0;
-      lastCount = followers.length;
     }
     
-    sendProgress(`Found ${followers.length} followers...`, Math.min(scrollCount * 2, 90));
+    const progress = totalCount ? 
+      Math.min((followers.length / totalCount) * 90, 90) : 
+      Math.min(scrollCount * 1.5, 90);
     
-    // Scroll down
-    window.scrollBy(0, window.innerHeight);
-    await sleep(2000);
+    sendProgress(`Found ${followers.length}${totalCount ? `/${totalCount}` : ''} followers...`, progress);
+    
+    // Scroll down with variable speed
+    window.scrollBy(0, window.innerHeight * 0.8);
+    await sleep(1500 + Math.random() * 1000); // 1.5-2.5 second delay
     scrollCount++;
+  }
+  
+  // Upload any remaining followers
+  if (followers.length > lastCount) {
+    batchCount++;
+    sendProgress(`Uploading final batch (${followers.length} total)...`, 95);
+    await uploadFollowersBatch(followers.slice(lastCount), batchCount);
   }
 }
 
-async function uploadFollowers() {
-  if (followers.length === 0) {
-    throw new Error('No followers found');
+async function uploadFollowersBatch(batchFollowers, batchNumber) {
+  if (batchFollowers.length === 0) {
+    return;
   }
-  
-  sendProgress('Uploading...', 95);
   
   const url = window.location.href;
   const match = url.match(/(?:twitter\.com|x\.com)\/([^\/]+)\/followers/);
@@ -125,22 +197,27 @@ async function uploadFollowers() {
     },
     body: JSON.stringify({
       username: username,
-      followers: followers,
+      followers: batchFollowers,
       scan_metadata: {
-        total_followers: followers.length,
-        scan_date: new Date().toISOString()
+        batch_number: batchNumber,
+        batch_size: batchFollowers.length,
+        total_in_batch: batchFollowers.length,
+        scan_date: new Date().toISOString(),
+        is_batch: true
       }
     })
   });
   
   if (!response.ok) {
-    throw new Error('Upload failed');
+    throw new Error(`Batch ${batchNumber} upload failed: ${response.status}`);
   }
   
   const result = await response.json();
   if (!result.success) {
-    throw new Error(result.error || 'Upload failed');
+    throw new Error(`Batch ${batchNumber} failed: ${result.error || 'Upload failed'}`);
   }
+  
+  console.log(`Batch ${batchNumber} uploaded successfully: ${batchFollowers.length} followers`);
 }
 
 function sleep(ms) {
