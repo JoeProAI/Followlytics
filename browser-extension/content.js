@@ -53,9 +53,12 @@ class TwitterFollowerScraper {
     this.stagnantScrolls = 0;
     this.lastFollowerCount = 0;
 
-    this.sendProgress('Starting scan...', 0);
+    this.sendProgress('Initializing scan...', 0);
 
     try {
+      // Wait a moment for page to settle
+      await this.sleep(2000);
+      
       // Wait for page to load
       await this.waitForFollowersToLoad();
       
@@ -68,6 +71,7 @@ class TwitterFollowerScraper {
       this.sendComplete();
     } catch (error) {
       this.sendError(error.message);
+      this.isScanning = false;
     }
   }
 
@@ -78,14 +82,34 @@ class TwitterFollowerScraper {
 
   async waitForFollowersToLoad() {
     return new Promise((resolve, reject) => {
+      let attempts = 0;
+      const maxAttempts = 15;
+      
       const checkForFollowers = () => {
-        const followerElements = document.querySelectorAll('[data-testid="UserCell"]');
+        // Try multiple selectors for Twitter follower elements
+        const selectors = [
+          '[data-testid="UserCell"]',
+          '[data-testid="cellInnerDiv"]',
+          'article[data-testid="tweet"]',
+          '[role="button"][aria-label*="Follow"]',
+          'div[data-testid="User-Name"]'
+        ];
+        
+        let followerElements = [];
+        for (const selector of selectors) {
+          followerElements = document.querySelectorAll(selector);
+          if (followerElements.length > 0) break;
+        }
+        
+        this.sendProgress(`Checking for followers... (attempt ${attempts + 1})`, 5);
+        
         if (followerElements.length > 0) {
+          this.sendProgress('Followers found! Starting scan...', 10);
           resolve();
-        } else if (this.scrollCount > 10) {
-          reject(new Error('No followers found. Make sure you\'re on a followers page.'));
+        } else if (attempts >= maxAttempts) {
+          reject(new Error('No followers found after 15 attempts. Please refresh the page and try again.'));
         } else {
-          this.scrollCount++;
+          attempts++;
           setTimeout(checkForFollowers, 1000);
         }
       };
@@ -125,20 +149,44 @@ class TwitterFollowerScraper {
   }
 
   collectVisibleFollowers() {
-    const followerElements = document.querySelectorAll('[data-testid="UserCell"]');
+    // Try multiple selectors to find follower elements
+    const selectors = [
+      '[data-testid="UserCell"]',
+      '[data-testid="cellInnerDiv"]',
+      'div[data-testid="User-Name"]'
+    ];
+    
+    let followerElements = [];
+    for (const selector of selectors) {
+      followerElements = document.querySelectorAll(selector);
+      if (followerElements.length > 0) break;
+    }
     
     followerElements.forEach(element => {
       try {
-        const usernameElement = element.querySelector('[data-testid="User-Name"] a');
-        const displayNameElement = element.querySelector('[data-testid="User-Name"] span span');
-        const bioElement = element.querySelector('[data-testid="User-Description"]');
-        const avatarElement = element.querySelector('img[alt][src]');
+        // Try multiple ways to find username link
+        let usernameElement = element.querySelector('[data-testid="User-Name"] a') ||
+                             element.querySelector('a[href*="/"]') ||
+                             element.querySelector('a[role="link"]');
         
-        if (usernameElement && usernameElement.href) {
+        // Try multiple ways to find display name
+        let displayNameElement = element.querySelector('[data-testid="User-Name"] span span') ||
+                                element.querySelector('span[dir="ltr"]') ||
+                                element.querySelector('.css-901oao');
+        
+        // Try multiple ways to find bio
+        let bioElement = element.querySelector('[data-testid="User-Description"]') ||
+                        element.querySelector('div[dir="ltr"][lang]');
+        
+        // Try multiple ways to find avatar
+        let avatarElement = element.querySelector('img[alt][src]') ||
+                           element.querySelector('img[src*="profile_images"]');
+        
+        if (usernameElement && usernameElement.href && usernameElement.href.includes('/')) {
           const username = usernameElement.href.split('/').pop();
           
-          // Skip if we already have this follower
-          if (this.followers.some(f => f.username === username)) {
+          // Skip if we already have this follower or invalid username
+          if (this.followers.some(f => f.username === username) || !username) {
             return;
           }
 
@@ -152,8 +200,8 @@ class TwitterFollowerScraper {
             source: 'browser_extension'
           };
 
-          // Validate username format
-          if (username.match(/^[a-zA-Z0-9_]{1,15}$/)) {
+          // Validate username format (Twitter usernames are 1-15 chars, alphanumeric + underscore)
+          if (username.match(/^[a-zA-Z0-9_]{1,15}$/) && !username.includes('http')) {
             this.followers.push(follower);
           }
         }
