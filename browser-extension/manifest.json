@@ -22,7 +22,7 @@
         "https://twitter.com/*/followers",
         "https://x.com/*/followers"
       ],
-      "js": ["content.js"],
+      "js": ["content-simple.js"],
       "run_at": "document_idle"
     }
   ],
