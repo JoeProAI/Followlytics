@@ -6,9 +6,9 @@ import { Download, Chrome, Shield, Zap } from 'lucide-react'
 
 export default function ExtensionDownload() {
   const handleDownload = () => {
-    // Create download link for the extension zip
+    // Use the API endpoint to download the extension
     const link = document.createElement('a')
-    link.href = '/followlytics-extension.zip'
+    link.href = '/api/download/extension'
     link.download = 'followlytics-extension.zip'
     document.body.appendChild(link)
     link.click()
