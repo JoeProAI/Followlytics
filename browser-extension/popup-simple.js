@@ -71,12 +71,12 @@ async function startScan() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   
   if (!tab.url.includes('twitter.com') && !tab.url.includes('x.com')) {
-    showError('Please go to Twitter first');
+    showError('Please go to X (twitter.com or x.com) first');
     return;
   }
   
   if (!tab.url.includes('/followers')) {
-    showError('Please go to a followers page');
+    showError('Please go to a followers page on X');
     return;
   }
   

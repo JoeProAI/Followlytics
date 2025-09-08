@@ -159,6 +159,9 @@ async function collectFollowersWithBatching(totalCount) {
         await sleep(500);
       } catch (error) {
         console.error('Batch upload failed:', error);
+        // Continue scanning even if batch upload fails
+        sendProgress(`Batch upload failed, continuing scan... (${followers.length} followers found)`, 
+                    totalCount ? Math.min((followers.length / totalCount) * 85, 85) : Math.min(scrollCount * 2, 85));
       }
     }
     
@@ -185,16 +188,37 @@ async function collectFollowersWithBatching(totalCount) {
     scrollCount++;
   }
   
-  // Upload any remaining followers
+  // Upload any remaining followers with retry logic
   if (followers.length > lastUploadedCount) {
     batchCount++;
     const finalBatch = followers.slice(lastUploadedCount);
     sendProgress(`Uploading final batch (${finalBatch.length} remaining followers)...`, 95);
-    await uploadFollowersBatch(finalBatch, batchCount);
+    
+    try {
+      await uploadFollowersBatch(finalBatch, batchCount);
+      sendProgress(`Scan complete! Successfully uploaded ${followers.length} followers to dashboard.`, 100);
+    } catch (error) {
+      console.error('Final batch upload failed:', error);
+      // Try to upload the final batch in smaller chunks
+      const chunkSize = 25;
+      let uploaded = 0;
+      
+      for (let i = 0; i < finalBatch.length; i += chunkSize) {
+        const chunk = finalBatch.slice(i, i + chunkSize);
+        try {
+          await uploadFollowersBatch(chunk, `${batchCount}-${Math.floor(i/chunkSize) + 1}`);
+          uploaded += chunk.length;
+          sendProgress(`Uploaded ${lastUploadedCount + uploaded}/${followers.length} followers...`, 95 + (uploaded/finalBatch.length * 5));
+        } catch (chunkError) {
+          console.error(`Failed to upload chunk ${Math.floor(i/chunkSize) + 1}:`, chunkError);
+        }
+      }
+      
+      sendProgress(`Scan complete! Uploaded ${lastUploadedCount + uploaded}/${followers.length} followers to dashboard.`, 100);
+    }
+  } else {
+    sendProgress(`Scan complete! Successfully uploaded ${followers.length} followers to dashboard.`, 100);
   }
-  
-  // Final completion message
-  sendProgress(`Scan complete! Successfully uploaded ${followers.length} followers to dashboard.`, 100);
 }
 
 async function uploadFollowersBatch(batchFollowers, batchNumber) {
@@ -206,35 +230,58 @@ async function uploadFollowersBatch(batchFollowers, batchNumber) {
   const match = url.match(/(?:twitter\.com|x\.com)\/([^\/]+)\/followers/);
   const username = match ? match[1] : 'unknown';
   
-  const response = await fetch('https://followlytics.vercel.app/api/extension/upload', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      username: username,
-      followers: batchFollowers,
-      scan_metadata: {
-        batch_number: batchNumber,
-        batch_size: batchFollowers.length,
-        total_in_batch: batchFollowers.length,
-        scan_date: new Date().toISOString(),
-        is_batch: true
+  // Retry logic for failed uploads
+  let retries = 3;
+  let lastError = null;
+  
+  while (retries > 0) {
+    try {
+      const response = await fetch('https://followlytics.vercel.app/api/extension/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          username: username,
+          followers: batchFollowers,
+          scan_metadata: {
+            batch_number: batchNumber,
+            batch_size: batchFollowers.length,
+            total_in_batch: batchFollowers.length,
+            scan_date: new Date().toISOString(),
+            is_batch: true
+          }
+        }),
+        timeout: 30000 // 30 second timeout
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-    })
-  });
-  
-  if (!response.ok) {
-    throw new Error(`Batch ${batchNumber} upload failed: ${response.status}`);
+      
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Upload failed');
+      }
+      
+      console.log(`Batch ${batchNumber} uploaded successfully: ${batchFollowers.length} followers`);
+      return; // Success, exit retry loop
+      
+    } catch (error) {
+      lastError = error;
+      retries--;
+      console.error(`Batch ${batchNumber} upload attempt failed:`, error.message);
+      
+      if (retries > 0) {
+        console.log(`Retrying batch ${batchNumber} in 2 seconds... (${retries} attempts left)`);
+        await sleep(2000);
+      }
+    }
   }
   
-  const result = await response.json();
-  if (!result.success) {
-    throw new Error(`Batch ${batchNumber} failed: ${result.error || 'Upload failed'}`);
-  }
-  
-  console.log(`Batch ${batchNumber} uploaded successfully: ${batchFollowers.length} followers`);
+  // If all retries failed, throw the last error
+  throw new Error(`Batch ${batchNumber} failed after 3 attempts: ${lastError.message}`);
 }
 
 function sleep(ms) {
@@ -243,5 +290,5 @@ function sleep(ms) {
 
 // Initialize only on followers pages
 if (window.location.href.includes('/followers')) {
-  console.log('Followlytics extension loaded');
+  console.log('Followlytics X Follower Tracker extension loaded');
 }

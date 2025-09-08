@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Followlytics - Twitter Follower Tracker",
+  "name": "Followlytics X Follower Tracker",
   "version": "1.0.0",
-  "description": "Track your Twitter followers and unfollowers with one click",
+  "description": "Track your X (Twitter) followers and unfollowers with Followlytics",
   "permissions": [
     "activeTab",
     "storage"
@@ -14,7 +14,7 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Followlytics Follower Tracker"
+    "default_title": "Followlytics X Follower Tracker"
   },
   "content_scripts": [
     {
