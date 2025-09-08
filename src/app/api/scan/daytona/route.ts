@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     // Check for required Daytona credentials
     const apiKey = process.env.DAYTONA_API_KEY
     const orgId = process.env.DAYTONA_ORG_ID
-    const apiUrl = process.env.DAYTONA_API_URL || 'https://api.daytona.io'
+    const apiUrl = process.env.DAYTONA_API_URL || 'https://app.daytona.io/api'
     
     console.log('Daytona environment check:', {
       hasApiKey: !!apiKey,
@@ -58,13 +58,14 @@ export async function POST(request: NextRequest) {
     // Initialize Daytona SDK
     console.log('Initializing Daytona SDK with config:', {
       apiUrl,
-      target: 'us',
+      target: orgId,
       hasApiKey: !!apiKey
     })
 
     const daytona = new Daytona({
       apiKey: apiKey,
-      apiUrl: apiUrl
+      apiUrl: apiUrl,
+      target: orgId
     })
 
     // Determine account size and estimates
