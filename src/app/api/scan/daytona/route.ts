@@ -12,44 +12,30 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Get Daytona coordinator URL from environment
-    const coordinatorUrl = process.env.DAYTONA_COORDINATOR_URL || 'http://localhost:8000'
-
-    // Submit to unified Daytona coordinator
-    const response = await fetch(`${coordinatorUrl}/scan/submit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        username,
-        estimated_followers,
-        priority,
-        user_id: user_id || 'web_user',
-        webhook_url: `${process.env.NEXT_PUBLIC_BASE_URL}/api/webhooks/scan-complete`
-      })
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      return NextResponse.json({ 
-        error: 'Failed to submit scan to Daytona',
-        details: errorData 
-      }, { status: 500 })
-    }
-
-    const scanData = await response.json()
+    // For now, return a mock response since Daytona coordinator isn't deployed yet
+    // TODO: Replace with actual Daytona coordinator when available
+    const mockJobId = `daytona_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    // Simulate account size estimation
+    const accountSize = estimated_followers > 100000 ? 'large' : 
+                       estimated_followers > 10000 ? 'medium' : 'small'
+    
+    const estimatedDuration = estimated_followers > 100000 ? '2-4 hours' :
+                             estimated_followers > 10000 ? '30-60 minutes' : '5-15 minutes'
+    
+    const estimatedCost = estimated_followers > 100000 ? '$5-10' :
+                         estimated_followers > 10000 ? '$1-3' : '$0.50-1'
 
     return NextResponse.json({
       success: true,
-      job_id: scanData.job_id,
-      username: scanData.username,
-      account_size: scanData.account_size,
-      estimated_duration: scanData.estimated_duration,
-      estimated_cost: scanData.estimated_cost,
-      queue_position: scanData.queue_position,
-      status: scanData.status,
-      message: `Scan submitted successfully! Optimized for ${scanData.account_size} account.`
+      job_id: mockJobId,
+      username: username,
+      account_size: accountSize,
+      estimated_duration: estimatedDuration,
+      estimated_cost: estimatedCost,
+      queue_position: Math.floor(Math.random() * 5) + 1,
+      status: 'queued',
+      message: `Scan submitted successfully! Optimized for ${accountSize} account. (Mock response - Daytona coordinator pending deployment)`
     })
 
   } catch (error) {
@@ -73,27 +59,23 @@ export async function GET(request: NextRequest) {
       }, { status: 400 })
     }
 
-    const coordinatorUrl = process.env.DAYTONA_COORDINATOR_URL || 'http://localhost:8000'
-
-    const response = await fetch(`${coordinatorUrl}/scan/${jobId}/status`)
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        return NextResponse.json({ 
-          error: 'Job not found' 
-        }, { status: 404 })
-      }
-      
-      return NextResponse.json({ 
-        error: 'Failed to get job status' 
-      }, { status: 500 })
-    }
-
-    const statusData = await response.json()
+    // Mock status response since coordinator isn't deployed yet
+    // TODO: Replace with actual Daytona coordinator when available
+    const mockStatuses = ['queued', 'running', 'completed', 'failed']
+    const randomStatus = mockStatuses[Math.floor(Math.random() * mockStatuses.length)]
+    
+    const mockProgress = randomStatus === 'completed' ? 100 :
+                        randomStatus === 'running' ? Math.floor(Math.random() * 80) + 10 :
+                        randomStatus === 'failed' ? 0 : 0
 
     return NextResponse.json({
       success: true,
-      ...statusData
+      job_id: jobId,
+      status: randomStatus,
+      progress: mockProgress,
+      followers_found: randomStatus === 'completed' ? Math.floor(Math.random() * 50000) + 1000 : 0,
+      estimated_completion: randomStatus === 'running' ? '15 minutes' : null,
+      message: `Mock status for job ${jobId} - Daytona coordinator pending deployment`
     })
 
   } catch (error) {
