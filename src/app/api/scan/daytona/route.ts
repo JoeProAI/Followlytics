@@ -31,6 +31,15 @@ export async function POST(request: NextRequest) {
     // Check for required Daytona credentials
     const apiKey = process.env.DAYTONA_API_KEY
     const orgId = process.env.DAYTONA_ORG_ID
+    const apiUrl = process.env.DAYTONA_API_URL || 'https://api.daytona.io'
+    
+    console.log('Daytona environment check:', {
+      hasApiKey: !!apiKey,
+      hasOrgId: !!orgId,
+      apiUrl,
+      apiKeyLength: apiKey?.length,
+      orgIdPrefix: orgId?.substring(0, 10)
+    })
     
     if (!apiKey || !orgId) {
       return NextResponse.json({ 
@@ -38,14 +47,24 @@ export async function POST(request: NextRequest) {
         missing: {
           api_key: !apiKey,
           org_id: !orgId
+        },
+        debug: {
+          env_keys: Object.keys(process.env).filter(k => k.includes('DAYTONA')),
+          node_env: process.env.NODE_ENV
         }
       }, { status: 503 })
     }
 
     // Initialize Daytona SDK
+    console.log('Initializing Daytona SDK with config:', {
+      apiUrl,
+      target: 'us',
+      hasApiKey: !!apiKey
+    })
+
     const daytona = new Daytona({
       apiKey: apiKey,
-      apiUrl: process.env.DAYTONA_API_URL || 'https://api.daytona.io',
+      apiUrl: apiUrl,
       target: 'us'
     })
 
@@ -60,20 +79,53 @@ export async function POST(request: NextRequest) {
                          estimated_followers > 10000 ? '$1-3' : '$0.50-1'
 
     // Create a Daytona sandbox for the scan
-    const sandbox = await daytona.create({
+    console.log('Creating Daytona sandbox with params:', {
       language: 'python',
-      envVars: {
-        TARGET_USERNAME: username,
-        ESTIMATED_FOLLOWERS: estimated_followers.toString(),
-        SCAN_PRIORITY: priority,
-        USER_ID: user_id || 'web_user'
-      },
-      labels: {
-        'scan-type': 'follower-scan',
-        'target-username': username,
-        'account-size': accountSize
-      }
+      username,
+      accountSize,
+      estimated_followers
     })
+
+    let sandbox
+    try {
+      sandbox = await daytona.create({
+        language: 'python',
+        envVars: {
+          TARGET_USERNAME: username,
+          ESTIMATED_FOLLOWERS: estimated_followers.toString(),
+          SCAN_PRIORITY: priority,
+          USER_ID: user_id || 'web_user'
+        },
+        labels: {
+          'scan-type': 'follower-scan',
+          'target-username': username,
+          'account-size': accountSize
+        }
+      })
+      
+      console.log('Sandbox created successfully:', {
+        id: sandbox.id,
+        state: sandbox.state
+      })
+    } catch (sandboxError) {
+      console.error('Sandbox creation failed:', {
+        error: sandboxError,
+        message: sandboxError instanceof Error ? sandboxError.message : 'Unknown error',
+        stack: sandboxError instanceof Error ? sandboxError.stack : undefined
+      })
+      
+      return NextResponse.json({ 
+        error: 'Failed to create Daytona sandbox',
+        details: sandboxError instanceof Error ? sandboxError.message : 'Unknown sandbox creation error',
+        debug_info: {
+          hasApiKey: !!apiKey,
+          hasOrgId: !!orgId,
+          apiUrl,
+          username,
+          accountSize
+        }
+      }, { status: 500 })
+    }
 
     const jobId = `daytona_${Date.now()}_${sandbox.id.slice(-8)}`
 
