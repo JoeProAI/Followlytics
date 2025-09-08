@@ -56,7 +56,11 @@ class TwitterFollowerScraper {
   }
 
   async startScanning() {
-    if (this.isScanning) return;
+    console.log('startScanning called, isScanning:', this.isScanning);
+    if (this.isScanning) {
+      console.log('Already scanning, returning early');
+      return;
+    }
     
     this.isScanning = true;
     this.followers = [];
@@ -64,25 +68,32 @@ class TwitterFollowerScraper {
     this.stagnantScrolls = 0;
     this.lastFollowerCount = 0;
 
+    console.log('Starting scan process...');
     this.sendProgress('Initializing scan...', 0);
 
     try {
       // Scroll to top of page first
+      console.log('Scrolling to top...');
       this.sendProgress('Scrolling to top of followers list...', 5);
       window.scrollTo(0, 0);
       await this.sleep(2000);
       
       // Wait for page to load
+      console.log('Waiting for followers to load...');
       await this.waitForFollowersToLoad();
       
       // Start scrolling and collecting followers
+      console.log('Starting scroll and collect...');
       await this.scrollAndCollect();
       
       // Upload followers to Followlytics
+      console.log('Uploading followers...');
       await this.uploadFollowers();
       
+      console.log('Scan completed successfully');
       this.sendComplete();
     } catch (error) {
+      console.error('Scan error:', error);
       this.sendError(error.message);
       this.isScanning = false;
     }

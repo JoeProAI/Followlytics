@@ -17,25 +17,78 @@ class FollowlyticsExtension {
   }
 
   setupEventListeners() {
+    console.log('Setting up event listeners...');
+    
     // Setup screen
-    document.getElementById('connectBtn').addEventListener('click', () => this.connectAccount());
-    document.getElementById('openDashboardBtn').addEventListener('click', () => this.openDashboard());
+    const connectBtn = document.getElementById('connectBtn');
+    const openDashboardBtn = document.getElementById('openDashboardBtn');
+    
+    if (connectBtn) {
+      connectBtn.addEventListener('click', () => {
+        console.log('Connect button clicked');
+        this.connectAccount();
+      });
+    }
+    
+    if (openDashboardBtn) {
+      openDashboardBtn.addEventListener('click', () => {
+        console.log('Open dashboard button clicked');
+        this.openDashboard();
+      });
+    }
 
     // Ready screen
-    document.getElementById('startScanBtn').addEventListener('click', () => this.startScan());
-    document.getElementById('viewDashboardBtn').addEventListener('click', () => this.openDashboard());
+    const startScanBtn = document.getElementById('startScanBtn');
+    const viewDashboardBtn = document.getElementById('viewDashboardBtn');
+    
+    if (startScanBtn) {
+      startScanBtn.addEventListener('click', () => {
+        console.log('Start scan button clicked');
+        this.startScan();
+      });
+    }
+    
+    if (viewDashboardBtn) {
+      viewDashboardBtn.addEventListener('click', () => {
+        console.log('View dashboard button clicked');
+        this.openDashboard();
+      });
+    }
 
     // Scanning screen
-    document.getElementById('stopScanBtn').addEventListener('click', () => this.stopScan());
+    const stopScanBtn = document.getElementById('stopScanBtn');
+    if (stopScanBtn) {
+      stopScanBtn.addEventListener('click', () => {
+        console.log('Stop scan button clicked');
+        this.stopScan();
+      });
+    }
 
     // Error screen
-    document.getElementById('retryBtn').addEventListener('click', () => this.updateUI());
-    document.getElementById('resetBtn').addEventListener('click', () => this.resetExtension());
+    const retryBtn = document.getElementById('retryBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    
+    if (retryBtn) {
+      retryBtn.addEventListener('click', () => {
+        console.log('Retry button clicked');
+        this.updateUI();
+      });
+    }
+    
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        console.log('Reset button clicked');
+        this.resetExtension();
+      });
+    }
 
     // Listen for messages from content script
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      console.log('Popup received message:', message);
       this.handleMessage(message);
     });
+    
+    console.log('Event listeners setup complete');
   }
 
   async connectAccount() {
@@ -148,16 +201,21 @@ class FollowlyticsExtension {
   }
 
   updateUI() {
+    console.log('updateUI called - apiKey:', this.apiKey ? 'present' : 'missing', 'isScanning:', this.isScanning);
+    
     // Hide all screens
     document.querySelectorAll('#setupScreen, #readyScreen, #scanningScreen, #errorScreen').forEach(screen => {
       screen.classList.add('hidden');
     });
 
     if (!this.apiKey) {
+      console.log('Showing setup screen');
       document.getElementById('setupScreen').classList.remove('hidden');
     } else if (this.isScanning) {
+      console.log('Showing scanning screen');
       document.getElementById('scanningScreen').classList.remove('hidden');
     } else {
+      console.log('Showing ready screen');
       document.getElementById('readyScreen').classList.remove('hidden');
     }
   }
