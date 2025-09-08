@@ -67,7 +67,9 @@ class TwitterFollowerScraper {
     this.sendProgress('Initializing scan...', 0);
 
     try {
-      // Wait a moment for page to settle
+      // Scroll to top of page first
+      this.sendProgress('Scrolling to top of followers list...', 5);
+      window.scrollTo(0, 0);
       await this.sleep(2000);
       
       // Wait for page to load
@@ -229,47 +231,77 @@ class TwitterFollowerScraper {
 
     this.sendProgress('Uploading followers to Followlytics...', 95);
 
+    // Split followers into smaller batches to avoid large payload issues
+    const batchSize = 100;
+    const batches = [];
+    for (let i = 0; i < this.followers.length; i += batchSize) {
+      batches.push(this.followers.slice(i, i + batchSize));
+    }
+
+    let totalUploaded = 0;
+
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i];
+        this.sendProgress(`Uploading batch ${i + 1}/${batches.length}...`, 95 + (i / batches.length) * 5);
 
-      const response = await fetch('https://followlytics.vercel.app/api/extension/upload', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          username: this.currentUsername,
-          followers: this.followers,
-          scan_metadata: {
-            total_followers: this.followers.length,
-            scroll_count: this.scrollCount,
-            scan_duration: Date.now(),
-            user_agent: navigator.userAgent
-          }
-        }),
-        signal: controller.signal
-      });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout per batch
 
-      clearTimeout(timeoutId);
+        const response = await fetch('https://followlytics.vercel.app/api/extension/upload', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache'
+          },
+          body: JSON.stringify({
+            username: this.currentUsername,
+            followers: batch,
+            scan_metadata: {
+              total_followers: this.followers.length,
+              batch_number: i + 1,
+              total_batches: batches.length,
+              scroll_count: this.scrollCount,
+              scan_duration: Date.now(),
+              user_agent: navigator.userAgent
+            }
+          }),
+          signal: controller.signal
+        });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Upload failed: ${response.status} ${response.statusText}. ${errorText}`);
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Upload failed response:', response.status, response.statusText, errorText);
+          throw new Error(`Upload failed: ${response.status} ${response.statusText}. ${errorText}`);
+        }
+
+        const result = await response.json();
+        if (!result.success) {
+          console.error('Upload failed result:', result);
+          throw new Error(result.error || result.details || 'Upload failed');
+        }
+
+        totalUploaded += result.followers_imported || batch.length;
+        
+        // Small delay between batches
+        if (i < batches.length - 1) {
+          await this.sleep(1000);
+        }
       }
 
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.error || result.details || 'Upload failed');
-      }
-
-      this.sendProgress(`Upload complete! ${result.followers_imported} followers saved.`, 100);
+      this.sendProgress(`Upload complete! ${totalUploaded} followers saved.`, 100);
 
     } catch (error) {
+      console.error('Upload error details:', error);
       if (error.name === 'AbortError') {
         throw new Error('Upload timed out. Please try again.');
+      }
+      if (error.message.includes('Failed to fetch')) {
+        throw new Error('Network error. Please check your internet connection and try again.');
       }
       throw new Error(`Failed to upload followers: ${error.message}`);
     }
