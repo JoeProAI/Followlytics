@@ -1,0 +1,101 @@
+---
+title: "Quick Start"
+description: "Get started with Followlytics in under 5 minutes"
+---
+
+# Quick Start Guide
+
+Get Followlytics running and track your first unfollowers in under 5 minutes.
+
+## Step 1: Install the Browser Extension
+
+<Steps>
+  <Step title="Download Extension">
+    Visit the [Followlytics Dashboard](https://followlytics.vercel.app) and click "Download Extension"
+  </Step>
+  <Step title="Install in Chrome">
+    - Open Chrome Extensions (chrome://extensions/)
+    - Enable "Developer mode" 
+    - Click "Load unpacked" and select the downloaded folder
+  </Step>
+  <Step title="Get API Key">
+    Generate your API key from the dashboard's API Keys section
+  </Step>
+</Steps>
+
+## Step 2: Run Your First Scan
+
+<Tabs>
+  <Tab title="Small Account (0-10K)">
+    1. Navigate to your X followers page
+    2. Click the Followlytics extension icon
+    3. Enter your API key
+    4. Click "Start Scan"
+    5. Wait 5-15 minutes for completion
+  </Tab>
+  <Tab title="Large Account (10K+)">
+    Consider upgrading to [Enterprise](/enterprise/overview) for:
+    - Faster processing (50x speed improvement)
+    - Higher reliability (99.9% success rate)
+    - No browser crashes or timeouts
+  </Tab>
+</Tabs>
+
+## Step 3: View Your Analytics
+
+Once scanning completes, visit your dashboard to see:
+
+<CardGroup cols={2}>
+  <Card title="Follower Overview" icon="users">
+    Total followers, growth trends, and key metrics
+  </Card>
+  <Card title="Unfollower Detection" icon="user-minus">
+    See who unfollowed you with timestamps
+  </Card>
+  <Card title="Engagement Analytics" icon="chart-line">
+    Follower quality and engagement insights
+  </Card>
+  <Card title="Data Export" icon="download">
+    Export your data in CSV or JSON format
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Extension not loading?">
+    - Ensure you're on x.com/[username]/followers
+    - Check that Developer mode is enabled
+    - Refresh the page and try again
+  </Accordion>
+  
+  <Accordion title="Scan failing or timing out?">
+    - For accounts with 10K+ followers, consider [Enterprise](/enterprise/overview)
+    - Check your internet connection
+    - Ensure X is not rate limiting your account
+  </Accordion>
+  
+  <Accordion title="No data in dashboard?">
+    - Verify your API key is correct
+    - Check the browser console for errors
+    - Ensure the scan completed successfully
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="API Integration" icon="code" href="/api/authentication">
+    Integrate Followlytics data into your applications
+  </Card>
+  <Card title="Enterprise Features" icon="building" href="/enterprise/overview">
+    Scale to millions of followers with Daytona
+  </Card>
+  <Card title="Advanced Analytics" icon="chart-bar" href="/guides/data-analysis">
+    Deep dive into your follower insights
+  </Card>
+</CardGroup>
+
+<Note>
+For accounts with 25K+ followers, we highly recommend [Followlytics Enterprise](/enterprise/overview) for guaranteed reliability and 50x faster processing.
+</Note>

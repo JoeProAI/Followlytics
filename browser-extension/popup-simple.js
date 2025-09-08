@@ -129,23 +129,17 @@ function showError(message) {
 }
 
 // Listen for messages from content script
-chrome.runtime.onMessage.addListener((message) => {
-  if (message.action === 'scanProgress') {
-    document.getElementById('followersFound').textContent = message.followersFound || 0;
-    document.getElementById('scanStatus').textContent = message.status || 'Scanning...';
-    
-    if (message.progress) {
-      document.getElementById('progressFill').style.width = `${message.progress}%`;
-    }
-    
-    // If progress is 100%, automatically complete
-    if (message.progress >= 100) {
-      setTimeout(() => {
-        isScanning = false;
-        alert(`Scan complete! Found ${message.followersFound} followers. Check your dashboard to view them.`);
-        updateUI();
-      }, 1000);
-    }
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'progress') {
+    updateProgress(message.text, message.percentage);
+  } else if (message.action === 'complete') {
+    updateProgress('Scan complete!', 100);
+    // Show completion alert after a short delay
+    setTimeout(() => {
+      alert('Scan completed successfully! Check your dashboard to view the results.');
+    }, 1000);
+  } else if (message.action === 'uploadFailed') {
+    handleUploadFailure(message.followersCount, message.error);
   } else if (message.action === 'scanComplete') {
     isScanning = false;
     alert(`Scan complete! Found ${message.totalFollowers} followers. All data has been uploaded to your dashboard.`);
@@ -155,3 +149,68 @@ chrome.runtime.onMessage.addListener((message) => {
     showError(message.error);
   }
 });
+
+function handleUploadFailure(followersCount, error) {
+  const statusDiv = document.getElementById('status');
+  statusDiv.innerHTML = `
+    <div style="color: #ff6b6b; margin-bottom: 10px;">
+      <strong>Upload Failed</strong><br>
+      Scanned ${followersCount} followers but upload failed.<br>
+      Error: ${error}
+    </div>
+    <div style="margin-bottom: 10px;">
+      <button id="retryUpload" style="background: #1da1f2; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+        Retry Upload
+      </button>
+      <button id="viewLocal" style="background: #657786; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+        View Saved Data
+      </button>
+    </div>
+    <div style="font-size: 12px; color: #657786;">
+      Data saved locally. You can retry upload or check dashboard for manual import.
+    </div>
+  `;
+  
+  document.getElementById('retryUpload').addEventListener('click', retryUpload);
+  document.getElementById('viewLocal').addEventListener('click', viewLocalData);
+}
+
+async function retryUpload() {
+  const statusDiv = document.getElementById('status');
+  statusDiv.innerHTML = '<div>Retrying upload...</div>';
+  
+  try {
+    // Get the current tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    // Send message to content script to retry upload
+    chrome.tabs.sendMessage(tab.id, { action: 'retryUpload' });
+    
+  } catch (error) {
+    statusDiv.innerHTML = `<div style="color: #ff6b6b;">Retry failed: ${error.message}</div>`;
+  }
+}
+
+async function viewLocalData() {
+  try {
+    const data = await chrome.storage.local.get();
+    const scanKeys = Object.keys(data).filter(key => key.startsWith('followlytics_scan_'));
+    
+    if (scanKeys.length === 0) {
+      alert('No saved scan data found.');
+      return;
+    }
+    
+    let message = 'Saved scan data:\n\n';
+    scanKeys.forEach(key => {
+      const scanData = data[key];
+      message += `• ${scanData.username}: ${scanData.followers.length} followers (${new Date(scanData.timestamp).toLocaleString()})\n`;
+    });
+    
+    message += '\nYou can manually import this data through the dashboard.';
+    alert(message);
+    
+  } catch (error) {
+    alert('Failed to load saved data: ' + error.message);
+  }
+}

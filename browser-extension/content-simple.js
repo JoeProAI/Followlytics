@@ -7,13 +7,26 @@ let apiKey = null;
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'startScan') {
     apiKey = message.apiKey;
-    startScan();
-    sendResponse({success: true});
+    startScanning();
+    sendResponse({ success: true });
   } else if (message.action === 'stopScan') {
-    isScanning = false;
-    sendResponse({success: true});
+    stopScanning();
+    sendResponse({ success: true });
+  } else if (message.action === 'retryUpload') {
+    retryFailedUpload();
+    sendResponse({ success: true });
   }
 });
+
+async function retryFailedUpload() {
+  try {
+    sendProgress('Retrying upload...', 98);
+    await attemptUpload();
+  } catch (error) {
+    console.error('Retry upload failed:', error);
+    sendProgress(`Retry failed: ${error.message}`, 100);
+  }
+}
 
 function sendProgress(status, progress) {
   chrome.runtime.sendMessage({
@@ -111,10 +124,7 @@ function getTotalFollowerCount() {
 
 async function collectFollowersWithBatching(totalCount) {
   let scrollCount = 0;
-  let lastUploadedCount = 0;
   let noNewFollowersCount = 0;
-  let batchCount = 0;
-  const batchSize = 100;
   let previousFollowerCount = 0;
   
   while (isScanning && scrollCount < 100) {
@@ -145,40 +155,20 @@ async function collectFollowersWithBatching(totalCount) {
       previousFollowerCount = followers.length;
     }
     
-    // Upload in batches
-    if (followers.length >= lastUploadedCount + batchSize) {
-      try {
-        batchCount++;
-        const batchToUpload = followers.slice(lastUploadedCount);
-        sendProgress(`Uploading batch ${batchCount} (${batchToUpload.length} new followers)...`, 
-                    totalCount ? Math.min((followers.length / totalCount) * 85, 85) : Math.min(scrollCount * 2, 85));
-        
-        await uploadFollowersBatch(batchToUpload, batchCount);
-        lastUploadedCount = followers.length;
-        
-        await sleep(500);
-      } catch (error) {
-        console.error('Batch upload failed:', error);
-        // Continue scanning even if batch upload fails
-        sendProgress(`Batch upload failed, continuing scan... (${followers.length} followers found)`, 
-                    totalCount ? Math.min((followers.length / totalCount) * 85, 85) : Math.min(scrollCount * 2, 85));
-      }
-    }
-    
     const progress = totalCount ? 
-      Math.min((followers.length / totalCount) * 85, 85) : 
-      Math.min(scrollCount * 2, 85);
+      Math.min((followers.length / totalCount) * 90, 90) : 
+      Math.min(scrollCount * 2, 90);
     
     sendProgress(`Found ${followers.length}${totalCount ? `/${totalCount}` : ''} followers...`, progress);
     
     // Stop conditions
     if (totalCount && followers.length >= totalCount) {
-      sendProgress(`Reached target! Found all ${followers.length} followers.`, 90);
+      sendProgress(`Reached target! Found all ${followers.length} followers.`, 95);
       break;
     }
     
     if (noNewFollowersCount >= 5) {
-      sendProgress(`No new followers found. Completing scan with ${followers.length} followers.`, 90);
+      sendProgress(`No new followers found. Completing scan with ${followers.length} followers.`, 95);
       break;
     }
     
@@ -188,37 +178,107 @@ async function collectFollowersWithBatching(totalCount) {
     scrollCount++;
   }
   
-  // Upload any remaining followers with retry logic
-  if (followers.length > lastUploadedCount) {
-    batchCount++;
-    const finalBatch = followers.slice(lastUploadedCount);
-    sendProgress(`Uploading final batch (${finalBatch.length} remaining followers)...`, 95);
+  // Save data locally and try upload
+  await saveFollowersLocally();
+  await attemptUpload();
+}
+
+async function saveFollowersLocally() {
+  try {
+    const url = window.location.href;
+    const match = url.match(/(?:twitter\.com|x\.com)\/([^\/]+)\/followers/);
+    const username = match ? match[1] : 'unknown';
     
-    try {
-      await uploadFollowersBatch(finalBatch, batchCount);
-      sendProgress(`Scan complete! Successfully uploaded ${followers.length} followers to dashboard.`, 100);
-    } catch (error) {
-      console.error('Final batch upload failed:', error);
-      // Try to upload the final batch in smaller chunks
-      const chunkSize = 25;
-      let uploaded = 0;
-      
-      for (let i = 0; i < finalBatch.length; i += chunkSize) {
-        const chunk = finalBatch.slice(i, i + chunkSize);
-        try {
-          await uploadFollowersBatch(chunk, `${batchCount}-${Math.floor(i/chunkSize) + 1}`);
-          uploaded += chunk.length;
-          sendProgress(`Uploaded ${lastUploadedCount + uploaded}/${followers.length} followers...`, 95 + (uploaded/finalBatch.length * 5));
-        } catch (chunkError) {
-          console.error(`Failed to upload chunk ${Math.floor(i/chunkSize) + 1}:`, chunkError);
-        }
-      }
-      
-      sendProgress(`Scan complete! Uploaded ${lastUploadedCount + uploaded}/${followers.length} followers to dashboard.`, 100);
-    }
-  } else {
-    sendProgress(`Scan complete! Successfully uploaded ${followers.length} followers to dashboard.`, 100);
+    const scanData = {
+      username: username,
+      followers: followers,
+      scan_metadata: {
+        total_followers: followers.length,
+        scan_date: new Date().toISOString(),
+        scan_url: url
+      },
+      timestamp: Date.now()
+    };
+    
+    // Save to browser storage
+    await chrome.storage.local.set({
+      [`followlytics_scan_${username}_${Date.now()}`]: scanData
+    });
+    
+    console.log(`Saved ${followers.length} followers locally for ${username}`);
+    sendProgress(`Saved ${followers.length} followers locally. Attempting upload...`, 96);
+  } catch (error) {
+    console.error('Failed to save locally:', error);
   }
+}
+
+async function attemptUpload() {
+  try {
+    sendProgress(`Attempting to upload ${followers.length} followers...`, 98);
+    
+    // Try a simple test upload first
+    const testResponse = await fetch('https://followlytics.vercel.app/api/extension/validate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      }
+    });
+    
+    if (!testResponse.ok) {
+      throw new Error(`API validation failed: ${testResponse.status}`);
+    }
+    
+    // If validation works, try uploading in one batch
+    await uploadAllFollowers();
+    sendProgress(`Success! Uploaded ${followers.length} followers to dashboard.`, 100);
+    
+  } catch (error) {
+    console.error('Upload failed:', error);
+    sendProgress(`Scan complete! ${followers.length} followers saved locally. Upload failed - check dashboard for manual upload option.`, 100);
+    
+    // Send message to popup about failed upload
+    chrome.runtime.sendMessage({
+      action: 'uploadFailed',
+      followersCount: followers.length,
+      error: error.message
+    });
+  }
+}
+
+async function uploadAllFollowers() {
+  const url = window.location.href;
+  const match = url.match(/(?:twitter\.com|x\.com)\/([^\/]+)\/followers/);
+  const username = match ? match[1] : 'unknown';
+  
+  const response = await fetch('https://followlytics.vercel.app/api/extension/upload', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      username: username,
+      followers: followers,
+      scan_metadata: {
+        total_followers: followers.length,
+        scan_date: new Date().toISOString(),
+        scan_url: url
+      }
+    })
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Upload failed: ${response.status} - ${errorText}`);
+  }
+  
+  const result = await response.json();
+  if (!result.success) {
+    throw new Error(result.error || 'Upload failed');
+  }
+  
+  console.log(`Successfully uploaded ${followers.length} followers`);
 }
 
 async function uploadFollowersBatch(batchFollowers, batchNumber) {

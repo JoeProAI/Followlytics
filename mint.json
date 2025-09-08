@@ -1,0 +1,120 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Followlytics",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#1DA1F2",
+    "light": "#55ACEE",
+    "dark": "#0C7ABF",
+    "anchors": {
+      "from": "#1DA1F2",
+      "to": "#0C7ABF"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "Dashboard",
+      "url": "https://followlytics.vercel.app"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Get Started",
+    "url": "https://followlytics.vercel.app/auth"
+  },
+  "tabs": [
+    {
+      "name": "API Reference",
+      "url": "api"
+    },
+    {
+      "name": "Enterprise",
+      "url": "enterprise"
+    },
+    {
+      "name": "Guides",
+      "url": "guides"
+    }
+  ],
+  "anchors": [
+    {
+      "name": "GitHub",
+      "icon": "github",
+      "url": "https://github.com/followlytics"
+    },
+    {
+      "name": "Support",
+      "icon": "slack",
+      "url": "mailto:support@followlytics.com"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Get Started",
+      "pages": [
+        "introduction",
+        "quickstart",
+        "installation"
+      ]
+    },
+    {
+      "group": "Core Features",
+      "pages": [
+        "features/browser-extension",
+        "features/dashboard-analytics",
+        "features/unfollower-detection",
+        "features/data-export"
+      ]
+    },
+    {
+      "group": "API Documentation",
+      "pages": [
+        "api/authentication",
+        "api/followers",
+        "api/analytics",
+        "api/webhooks"
+      ]
+    },
+    {
+      "group": "Enterprise",
+      "pages": [
+        "enterprise/overview",
+        "enterprise/daytona-architecture",
+        "enterprise/massive-scale-scanning",
+        "enterprise/cost-optimization",
+        "enterprise/deployment"
+      ]
+    },
+    {
+      "group": "Integration Guides",
+      "pages": [
+        "guides/browser-extension-setup",
+        "guides/api-integration",
+        "guides/data-analysis",
+        "guides/automation"
+      ]
+    },
+    {
+      "group": "Advanced",
+      "pages": [
+        "advanced/rate-limiting",
+        "advanced/data-privacy",
+        "advanced/troubleshooting",
+        "advanced/performance-optimization"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "twitter": "https://twitter.com/followlytics",
+    "github": "https://github.com/followlytics",
+    "linkedin": "https://linkedin.com/company/followlytics"
+  },
+  "analytics": {
+    "gtm": {
+      "tagId": "GTM-XXXXXXX"
+    }
+  }
+}

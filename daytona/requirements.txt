@@ -1,0 +1,32 @@
+# Followlytics Enterprise Daytona Dependencies
+# Core async HTTP and web framework
+aiohttp==3.9.1
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+python-multipart==0.0.6
+
+# Redis for job queue and caching
+aioredis==2.0.1
+
+# Web scraping and browser automation
+playwright==1.40.0
+selenium==4.15.2
+beautifulsoup4==4.12.2
+lxml==4.9.3
+requests==2.31.0
+
+# Data processing and utilities
+pandas==2.1.4
+numpy==1.24.4
+python-dateutil==2.8.2
+
+# Logging and monitoring
+structlog==23.2.0
+prometheus-client==0.19.0
+
+# Development and testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+flake8==6.1.0
