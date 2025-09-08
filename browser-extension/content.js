@@ -39,14 +39,19 @@ class TwitterFollowerScraper {
   }
 
   handleMessage(message) {
+    console.log('handleMessage called with:', message);
     switch (message.action) {
       case 'startScan':
+        console.log('Starting scan with API key:', message.apiKey ? 'present' : 'missing');
         this.apiKey = message.apiKey;
         this.startScanning();
         break;
       case 'stopScan':
+        console.log('Stopping scan');
         this.stopScanning();
         break;
+      default:
+        console.log('Unknown message action:', message.action);
     }
   }
 
@@ -302,10 +307,23 @@ class TwitterFollowerScraper {
 // Initialize scraper when content script loads
 console.log('Followlytics extension content script loaded on:', window.location.href);
 
+// Global scraper instance
+let scraperInstance = null;
+
+// Initialize scraper function
+function initializeScraper() {
+  if (!scraperInstance) {
+    console.log('Creating new TwitterFollowerScraper instance');
+    scraperInstance = new TwitterFollowerScraper();
+  } else {
+    console.log('Scraper instance already exists');
+  }
+}
+
 // Check if we're on a followers page
 if (window.location.href.includes('/followers')) {
   console.log('On followers page, initializing scraper...');
-  new TwitterFollowerScraper();
+  initializeScraper();
 } else {
   console.log('Not on followers page, content script waiting...');
 }
@@ -319,7 +337,7 @@ new MutationObserver(() => {
     console.log('URL changed to:', url);
     if (url.includes('/followers')) {
       console.log('Navigated to followers page, initializing scraper...');
-      new TwitterFollowerScraper();
+      initializeScraper();
     }
   }
 }).observe(document, { subtree: true, childList: true });

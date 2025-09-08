@@ -71,8 +71,11 @@ class FollowlyticsExtension {
   }
 
   async startScan() {
+    console.log('startScan called, current API key:', this.apiKey ? 'present' : 'missing');
+    
     // Check if we're on a Twitter followers page
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    console.log('Current tab URL:', tab.url);
     
     if (!tab.url.includes('twitter.com') && !tab.url.includes('x.com')) {
       this.showError('Please navigate to a Twitter followers page first');
@@ -84,16 +87,19 @@ class FollowlyticsExtension {
       return;
     }
 
+    console.log('Setting scanning state to true');
     this.isScanning = true;
     this.followersFound = 0;
     this.updateUI();
 
     try {
+      console.log('Sending message to content script...');
       // Send message to content script to start scanning
-      await chrome.tabs.sendMessage(tab.id, {
+      const response = await chrome.tabs.sendMessage(tab.id, {
         action: 'startScan',
         apiKey: this.apiKey
       });
+      console.log('Message sent successfully, response:', response);
     } catch (error) {
       console.error('Failed to send message to content script:', error);
       this.showError('Extension not ready. Please refresh the page and try again.');
