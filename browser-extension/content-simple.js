@@ -115,6 +115,11 @@ async function collectFollowersWithBatching(totalCount) {
   const batchSize = 100;
   
   while (isScanning && scrollCount < 200 && stagnant < 5) {
+    // Stop if we've reached the total count
+    if (totalCount && followers.length >= totalCount) {
+      sendProgress(`Scan complete! Found all ${followers.length} followers.`, 100);
+      break;
+    }
     // Get current followers on screen
     const elements = document.querySelectorAll('[data-testid="UserCell"], [data-testid="cellInnerDiv"]');
     
@@ -153,9 +158,14 @@ async function collectFollowersWithBatching(totalCount) {
       }
     }
     
-    // Check progress
+    // Check progress - if no new followers found, increment stagnant counter
     if (followers.length === lastCount) {
       stagnant++;
+      // If we're stagnant and have found most followers, stop early
+      if (stagnant >= 3 && totalCount && followers.length >= totalCount * 0.95) {
+        sendProgress(`Scan complete! Found ${followers.length} of ${totalCount} followers.`, 100);
+        break;
+      }
     } else {
       stagnant = 0;
     }
@@ -165,6 +175,11 @@ async function collectFollowersWithBatching(totalCount) {
       Math.min(scrollCount * 1.5, 90);
     
     sendProgress(`Found ${followers.length}${totalCount ? `/${totalCount}` : ''} followers...`, progress);
+    
+    // Stop scrolling if we've likely reached the end
+    if (stagnant >= 5 || (totalCount && followers.length >= totalCount)) {
+      break;
+    }
     
     // Scroll down with variable speed
     window.scrollBy(0, window.innerHeight * 0.8);

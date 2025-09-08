@@ -36,6 +36,24 @@ export default function DashboardPage() {
 
   const fetchFollowers = async () => {
     try {
+      // First try to get followers from extension uploads
+      const extensionResponse = await fetch('/api/extension/followers', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (extensionResponse.ok) {
+        const extensionData = await extensionResponse.json()
+        if (extensionData.followers && extensionData.followers.length > 0) {
+          setFollowers(extensionData.followers)
+          return
+        }
+      }
+      
+      // Fallback to Scrapfly if no extension data
       const response = await fetch('/api/twitter/followers-scrapfly', {
         method: 'POST',
         credentials: 'include',
