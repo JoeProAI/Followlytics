@@ -88,7 +88,6 @@ export async function POST(request: NextRequest) {
     let sandbox
     try {
       sandbox = await daytona.create({
-        snapshot: 'python',
         envVars: {
           TARGET_USERNAME: username,
           ESTIMATED_FOLLOWERS: estimated_followers.toString(),
