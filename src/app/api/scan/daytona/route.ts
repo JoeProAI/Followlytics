@@ -221,7 +221,7 @@ import re
 
 async def scan_all_followers():
     username = os.getenv('TARGET_USERNAME', 'elonmusk')
-    max_followers = int(os.getenv('MAX_FOLLOWERS', '1000'))
+    max_followers = int(os.getenv('MAX_FOLLOWERS', '2000'))
     
     print(f"Starting COMPLETE follower scan for @{username}")
     print(f"Target: ALL followers (up to {max_followers})")
@@ -336,15 +336,18 @@ async def scan_all_followers():
                     await asyncio.sleep(random.uniform(2, 4))  # Random delay to avoid detection
                     scroll_attempts += 1
                     
-                    # Check if we've reached the end
-                    if scroll_attempts > 5:
+                    # Check if we've reached the end - be more aggressive about scrolling
+                    if scroll_attempts > 10:  # Increased from 5 to 10
                         current_count = len(await page.locator('[data-testid="UserCell"]').all())
-                        await asyncio.sleep(2)
+                        await asyncio.sleep(3)  # Increased wait time
                         new_count = len(await page.locator('[data-testid="UserCell"]').all())
                         
                         if current_count == new_count:
-                            print("Reached end of followers list")
+                            print(f"Reached end of followers list after {scroll_attempts} scrolls")
+                            print(f"Final count: {len(followers)} followers extracted")
                             break
+                        else:
+                            scroll_attempts = 0  # Reset counter if new content loaded
             
             # Save complete results
             results = {
@@ -400,9 +403,10 @@ EOF`)
           job.phase = 'scanning_followers';
         }
         
-        // Execute the COMPLETE follower scanning script
+        // Execute the COMPLETE follower scanning script with environment variables
         console.log('Executing COMPLETE follower scanning script...')
-        const scanResult = await sandbox.process.executeCommand('python3 real_follower_scanner.py')
+        const maxFollowers = Math.max(estimated_followers * 1.5, 1000) // 50% buffer, minimum 1000
+        const scanResult = await sandbox.process.executeCommand(`TARGET_USERNAME=${username} MAX_FOLLOWERS=${maxFollowers} python3 real_follower_scanner.py`)
         console.log('Real scan execution result:', scanResult)
         
         if (job) {
@@ -472,15 +476,13 @@ EOF`)
           console.error('Error reading scan results:', resultError)
           if (job) {
             job.status = 'completed';
-            job.phase = 'completed';
-            job.progress = 100;
-            job.followers_found = Math.floor(estimated_followers * 0.8); // Fallback estimate
+            const maxFollowers = Math.max(estimated_followers * 1.5, 1000) // 50% buffer, minimum 1000
           }
         }
         
       } catch (scanError: any) {
         console.error('❌ REAL scan failed:', scanError)
-        
+// ... (rest of the code remains the same)
         const job = activeScanJobs.get(jobId)
         if (job) {
           job.status = 'failed';
