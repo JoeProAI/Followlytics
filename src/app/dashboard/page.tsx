@@ -71,6 +71,7 @@ export default function DashboardPage() {
         credentials: 'include',
         body: JSON.stringify({
           username: username.replace('@', '').trim(),
+          estimated_followers: 800, // Your actual follower count
           priority: 'normal',
           user_id: user?.uid
         })

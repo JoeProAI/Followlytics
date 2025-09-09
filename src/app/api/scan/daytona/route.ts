@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
         image: 'debian:12',
         envVars: {
           TARGET_USERNAME: username,
-          MAX_FOLLOWERS: Math.min(estimated_followers, 1000).toString()
+          MAX_FOLLOWERS: (estimated_followers || 50000).toString() // Remove artificial limit
         }
       })
       
