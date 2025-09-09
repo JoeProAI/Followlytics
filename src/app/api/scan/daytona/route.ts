@@ -128,11 +128,11 @@ export async function POST(request: NextRequest) {
       try {
         console.log(`🚀 Starting REAL follower scan for @${username}`)
         
-        const job = activeScanJobs.get(jobId)
+        const job = activeScanJobs.get(jobId);
         if (job) {
-          job.status = 'running'
-          job.phase = 'initializing'
-          job.progress = 5
+          job.status = 'running';
+          job.phase = 'initializing';
+          job.progress = 5;
         }
         
         // Set environment variables for real scanning
@@ -141,36 +141,36 @@ export async function POST(request: NextRequest) {
         await sandbox.process.executeCommand(`export MAX_FOLLOWERS="${Math.min(estimated_followers, 5000)}"`)
         
         if (job) {
-          job.progress = 15
-          job.phase = 'connecting'
+          job.progress = 15;
+          job.phase = 'connecting';
         }
         
         // Execute the REAL Python scanning script
         console.log('Executing REAL follower scanning script...')
         if (job) {
-          job.progress = 25
-          job.phase = 'scanning_followers'
+          job.progress = 25;
+          job.phase = 'scanning_followers';
         }
         
         const scanResult = await sandbox.process.executeCommand('python real_follower_scanner.py')
         console.log('Real scan execution result:', scanResult)
         
         if (job) {
-          job.progress = 85
-          job.phase = 'processing'
+          job.progress = 85;
+          job.phase = 'processing';
         }
         
         // Get the actual results from the scan
         try {
           const resultsCommand = await sandbox.process.executeCommand('cat /tmp/real_scan_results.json')
-          const scanData = JSON.parse(String(resultsCommand) || '{}')
+          const scanData = JSON.parse(resultsCommand.toString() || '{}')
           
           if (job) {
-            job.status = 'completed'
-            job.phase = 'completed'
-            job.progress = 100
-            job.followers_found = scanData.followers_found || 0
-            (job as any).real_data = scanData.followers || []
+            job.status = 'completed';
+            job.phase = 'completed';
+            job.progress = 100;
+            job.followers_found = scanData.followers_found || 0;
+            (job as any).real_data = scanData.followers || [];
           }
           
           console.log(`✅ REAL scan completed for @${username} - Found ${scanData.followers_found || 0} actual followers`)
@@ -178,10 +178,10 @@ export async function POST(request: NextRequest) {
         } catch (resultError) {
           console.error('Error reading scan results:', resultError)
           if (job) {
-            job.status = 'completed'
-            job.phase = 'completed'
-            job.progress = 100
-            job.followers_found = Math.floor(estimated_followers * 0.8) // Fallback estimate
+            job.status = 'completed';
+            job.phase = 'completed';
+            job.progress = 100;
+            job.followers_found = Math.floor(estimated_followers * 0.8); // Fallback estimate
           }
         }
         
@@ -190,9 +190,9 @@ export async function POST(request: NextRequest) {
         
         const job = activeScanJobs.get(jobId)
         if (job) {
-          job.status = 'failed'
-          job.phase = 'error'
-          (job as any).error = scanError.message
+          job.status = 'failed';
+          job.phase = 'error';
+          (job as any).error = scanError.message;
         }
       }
     })
