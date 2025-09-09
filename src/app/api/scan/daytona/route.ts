@@ -56,12 +56,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Initialize Daytona SDK
-    console.log('Initializing Daytona SDK with config:', {
-      apiUrl,
-      target: orgId,
-      hasApiKey: !!apiKey
+    console.log('Daytona config:', { 
+      apiKey: apiKey ? `${apiKey.substring(0, 10)}...` : 'MISSING',
+      apiUrl: apiUrl || 'MISSING'
     })
-
+  
     const daytona = new Daytona({
       apiKey: apiKey,
       apiUrl: apiUrl
@@ -90,11 +89,28 @@ export async function POST(request: NextRequest) {
     
     let sandbox
     try {
+      console.log('Attempting to list Daytona sandboxes...')
       const sandboxes = await daytona.list()
+      console.log(`Found ${sandboxes.length} sandboxes:`, sandboxes.map((sb: any) => ({ id: sb.id, state: sb.state })))
+      
       sandbox = sandboxes.find((sb: any) => sb.id === SANDBOX_ID)
       
-      if (!sandbox || sandbox.state !== 'started') {
-        throw new Error(`Real sandbox ${SANDBOX_ID} is not available or not running`)
+      if (!sandbox) {
+        console.error(`Sandbox ${SANDBOX_ID} not found in available sandboxes`)
+        return NextResponse.json({ 
+          error: 'Sandbox not found',
+          details: `Sandbox ${SANDBOX_ID} not found`,
+          available_sandboxes: sandboxes.map((sb: any) => ({ id: sb.id, state: sb.state }))
+        }, { status: 404 })
+      }
+      
+      if (sandbox.state !== 'started') {
+        console.error(`Sandbox ${SANDBOX_ID} is not running (state: ${sandbox.state})`)
+        return NextResponse.json({ 
+          error: 'Sandbox not running',
+          details: `Sandbox ${SANDBOX_ID} is in state: ${sandbox.state}`,
+          sandbox_info: { id: sandbox.id, state: sandbox.state }
+        }, { status: 503 })
       }
       
       console.log(`✅ Using real sandbox: ${sandbox.id} (${sandbox.state})`)
@@ -102,7 +118,11 @@ export async function POST(request: NextRequest) {
       console.error('Real sandbox access failed:', sandboxError)
       return NextResponse.json({ 
         error: 'Failed to access real Daytona sandbox',
-        details: sandboxError instanceof Error ? sandboxError.message : 'Unknown sandbox error'
+        details: sandboxError instanceof Error ? sandboxError.message : 'Unknown sandbox error',
+        api_config: {
+          apiUrl: apiUrl,
+          hasApiKey: !!apiKey
+        }
       }, { status: 500 })
     }
 
