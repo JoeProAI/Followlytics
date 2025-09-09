@@ -130,12 +130,23 @@ export async function POST(request: NextRequest) {
       
     } catch (sandboxError) {
       console.error('Sandbox creation failed:', sandboxError)
+      console.error('Full error details:', {
+        message: sandboxError instanceof Error ? sandboxError.message : 'Unknown error',
+        stack: sandboxError instanceof Error ? sandboxError.stack : null,
+        apiUrl,
+        hasApiKey: !!apiKey,
+        envVars: Object.keys(process.env).filter(k => k.includes('DAYTONA'))
+      })
+      
       return NextResponse.json({ 
         error: 'Failed to create Daytona sandbox',
         details: sandboxError instanceof Error ? sandboxError.message : 'Unknown sandbox error',
-        api_config: {
+        debug_info: {
           apiUrl: apiUrl,
-          hasApiKey: !!apiKey
+          hasApiKey: !!apiKey,
+          daytonaEnvVars: Object.keys(process.env).filter(k => k.includes('DAYTONA')),
+          errorType: sandboxError instanceof Error ? sandboxError.constructor.name : typeof sandboxError,
+          timestamp: new Date().toISOString()
         }
       }, { status: 500 })
     }
