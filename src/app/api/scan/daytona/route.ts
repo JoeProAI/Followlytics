@@ -536,9 +536,22 @@ export async function GET(request: NextRequest) {
     const job = activeScanJobs.get(jobId)
     
     if (!job) {
+      // Job not found in memory - could be expired or server restarted
+      // Try to check if it's a valid job ID format and return appropriate response
+      if (jobId.startsWith('daytona_')) {
+        return NextResponse.json({ 
+          job_id: jobId,
+          status: 'unknown',
+          progress: 0,
+          phase: 'unknown',
+          message: 'Job not found in active tracking. It may have expired or completed.',
+          error: 'Job tracking expired'
+        }, { status: 200 }) // Return 200 instead of 404 to avoid polling errors
+      }
+      
       return NextResponse.json({ 
-        error: 'Job not found' 
-      }, { status: 404 })
+        error: 'Invalid job ID format' 
+      }, { status: 400 })
     }
 
     const elapsed = Date.now() - job.startTime
