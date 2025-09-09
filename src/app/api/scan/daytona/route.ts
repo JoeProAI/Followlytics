@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Use the verified working sandbox
-    const SANDBOX_ID = 'b6be7430-f3fc-4a4e-82f7-b7f76b552036'
+    const SANDBOX_ID = '9f8324a8-1246-462f-9306-99bcb05a4a52'
     console.log(`Using verified working Daytona sandbox: ${SANDBOX_ID}`)
     
     let sandbox
