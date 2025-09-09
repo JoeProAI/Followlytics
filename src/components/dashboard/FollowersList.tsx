@@ -21,9 +21,13 @@ interface Follower {
 
 interface FollowersListProps {
   onRefresh?: () => void
+  scanResults?: {
+    followers?: any[]
+    total_followers?: number
+  }
 }
 
-export default function FollowersList({ onRefresh }: FollowersListProps) {
+export default function FollowersList({ onRefresh, scanResults }: FollowersListProps) {
   const [followers, setFollowers] = useState<Follower[]>([])
   const [loading, setLoading] = useState(false)
   const [pagination, setPagination] = useState({
@@ -69,8 +73,32 @@ export default function FollowersList({ onRefresh }: FollowersListProps) {
   }
 
   useEffect(() => {
-    fetchFollowers()
-  }, [])
+    if (scanResults?.followers && scanResults.followers.length > 0) {
+      // Use scan results directly instead of fetching from API
+      const scanFollowers = scanResults.followers.map((follower, index) => ({
+        id: follower.id || `scan_${index}`,
+        username: follower.username || follower.screen_name || `user_${index}`,
+        name: follower.name || follower.display_name,
+        profile_image_url: follower.profile_image_url || follower.avatar,
+        followers_count: follower.followers_count || follower.public_metrics?.followers_count,
+        source: 'daytona_scan',
+        scanned_at: new Date().toISOString()
+      }))
+      
+      setFollowers(scanFollowers)
+      setPagination({
+        page: 1,
+        limit: 50,
+        totalCount: scanFollowers.length,
+        totalPages: Math.ceil(scanFollowers.length / 50),
+        hasNext: scanFollowers.length > 50,
+        hasPrev: false
+      })
+      setLoading(false)
+    } else {
+      fetchFollowers()
+    }
+  }, [scanResults])
 
   const handlePageChange = (newPage: number) => {
     fetchFollowers(newPage)

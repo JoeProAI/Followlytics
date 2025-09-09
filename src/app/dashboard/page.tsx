@@ -17,10 +17,13 @@ export default function DashboardPage() {
   const { user, loading, logout, isAuthenticated } = useAuth()
   const [followers, setFollowers] = useState<any[]>([])
   const [unfollowers, setUnfollowers] = useState<any[]>([])
-  const [scanLoading, setScanLoading] = useState(false)
   const [scanProgress, setScanProgress] = useState<any>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [isScanning, setIsScanning] = useState(false)
+  const [scanError, setScanError] = useState<string | null>(null)
+  const [scanResults, setScanResults] = useState<any>(null)
   const [username, setUsername] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [scanLoading, setScanLoading] = useState(false)
 
   // Fetch existing followers on component mount
   useEffect(() => {
@@ -131,18 +134,21 @@ export default function DashboardPage() {
             
             if (statusData.status === 'completed') {
               clearInterval(pollInterval)
-              setScanLoading(false)
-              
-              // Update followers with results
-              if (statusData.results?.followers) {
-                setFollowers(statusData.results.followers)
+              setIsScanning(false)
+              if (statusData.results) {
+                setScanResults(statusData.results)
+                // Update followers list for the Followers tab
+                if (statusData.results.followers) {
+                  setFollowers(statusData.results.followers)
+                }
+                console.log('✅ Scan completed with results:', statusData.results)
               }
-              
-              setError(null)
+              console.log('✅ Scan completed successfully:', statusData)
             } else if (statusData.status === 'failed') {
               clearInterval(pollInterval)
-              setScanLoading(false)
-              setError(statusData.error || 'Scan failed')
+              setIsScanning(false)
+              setScanError('Scan failed')
+              console.error('❌ Scan failed:', statusData)
             }
           }
         } catch (pollError) {
@@ -356,8 +362,92 @@ export default function DashboardPage() {
             ) : (
               <DaytonaScanProgress 
                 scanProgress={scanProgress} 
-                onComplete={handleScanComplete}
+                onComplete={(followers) => {
+                  console.log('Scan completed with followers:', followers)
+                  setFollowers(followers)
+                  setScanResults({ followers, total_followers: followers.length })
+                }}
               />
+            )}
+
+            {/* Display Scan Results */}
+            {scanResults && (
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Scan Results
+                  </CardTitle>
+                  <CardDescription>
+                    Latest follower scan completed successfully
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div className="text-center p-4 bg-blue-50 rounded-lg">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {scanResults.total_followers?.toLocaleString() || scanResults.followers?.length?.toLocaleString() || 0}
+                      </div>
+                      <div className="text-sm text-blue-600">Total Followers</div>
+                    </div>
+                    {scanResults.ai_analysis && (
+                      <div className="text-center p-4 bg-purple-50 rounded-lg">
+                        <div className="text-2xl font-bold text-purple-600">
+                          <Brain className="h-6 w-6 mx-auto" />
+                        </div>
+                        <div className="text-sm text-purple-600">AI Analysis Available</div>
+                      </div>
+                    )}
+                    {scanResults.metrics && (
+                      <div className="text-center p-4 bg-green-50 rounded-lg">
+                        <div className="text-2xl font-bold text-green-600">
+                          ✓
+                        </div>
+                        <div className="text-sm text-green-600">Metrics Generated</div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {scanResults.ai_analysis && (
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                      <h4 className="font-semibold mb-2">AI Analysis Summary</h4>
+                      <p className="text-sm text-gray-700">
+                        {typeof scanResults.ai_analysis === 'string' 
+                          ? scanResults.ai_analysis 
+                          : JSON.stringify(scanResults.ai_analysis, null, 2)
+                        }
+                      </p>
+                    </div>
+                  )}
+                  
+                  <div className="flex gap-2 mt-4">
+                    <Button 
+                      onClick={() => {
+                        if (scanResults.followers) {
+                          setFollowers(scanResults.followers)
+                        }
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <Users className="h-4 w-4" />
+                      View Followers List
+                    </Button>
+                    {scanResults.ai_analysis && (
+                      <Button 
+                        variant="outline"
+                        onClick={() => {
+                          // Navigate to analytics with AI data
+                          console.log('AI Analysis:', scanResults.ai_analysis)
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <Brain className="h-4 w-4" />
+                        View AI Insights
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </TabsContent>
 
@@ -395,11 +485,12 @@ export default function DashboardPage() {
               </Card>
             </div>
 
-            <FollowersList />
+            <FollowersList scanResults={scanResults} />
           </TabsContent>
 
-          <TabsContent value="analytics">
-            <AnalyticsDashboard />
+          {/* Analytics Tab */}
+          <TabsContent value="analytics" className="space-y-6">
+            <AnalyticsDashboard scanResults={scanResults} />
           </TabsContent>
 
           {/* Settings Tab */}

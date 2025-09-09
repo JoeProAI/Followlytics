@@ -567,7 +567,13 @@ export async function GET(request: NextRequest) {
       estimated_cost: job.estimated_cost,
       followers_found: job.followers_found,
       estimated_completion: job.status === 'running' ? `${Math.max(1, parseInt(job.estimated_duration.split('-')[0]) - elapsedMinutes)} minutes` : null,
-      message: phaseMessages[job.phase as keyof typeof phaseMessages] || 'Processing...'
+      message: phaseMessages[job.phase as keyof typeof phaseMessages] || 'Processing...',
+      results: job.status === 'completed' ? {
+        followers: (job as any).real_data || [],
+        ai_analysis: (job as any).ai_analysis || null,
+        metrics: (job as any).metrics || null,
+        total_followers: job.followers_found
+      } : null
     })
 
   } catch (error) {

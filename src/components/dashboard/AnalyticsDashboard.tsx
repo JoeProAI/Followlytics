@@ -58,7 +58,16 @@ interface AnalyticsData {
   growthTrend: Array<{ date: string; followers: number }>
 }
 
-export default function AnalyticsDashboard() {
+interface AnalyticsDashboardProps {
+  scanResults?: {
+    followers?: any[]
+    total_followers?: number
+    ai_analysis?: any
+    metrics?: any
+  }
+}
+
+export default function AnalyticsDashboard({ scanResults }: AnalyticsDashboardProps) {
   const [unfollowerData, setUnfollowerData] = useState<UnfollowerData | null>(null)
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -68,7 +77,7 @@ export default function AnalyticsDashboard() {
 
   useEffect(() => {
     fetchAnalyticsData()
-  }, [])
+  }, [scanResults])
 
   const fetchAnalyticsData = async () => {
     try {
@@ -89,23 +98,26 @@ export default function AnalyticsDashboard() {
         console.error('Analytics fetch error:', error)
       }
 
-      // Mock analytics data for now - will be replaced with real API
+      // Use scan results if available, otherwise fall back to API data
+      const currentFollowers = scanResults?.total_followers || unfollowerResult?.summary?.current_followers || 0
+      const scanFollowers = scanResults?.followers || []
+      
       const mockAnalytics: AnalyticsData = {
-        totalFollowers: unfollowerResult?.summary?.current_followers || 0,
+        totalFollowers: currentFollowers,
         followersGrowth: unfollowerResult?.summary?.net_change || 0,
         unfollowersToday: unfollowerResult?.unfollowers?.length || 0,
         newFollowersToday: unfollowerResult?.summary?.new_followers_count || 0,
         engagementRate: 4.2,
-        topFollowers: unfollowerResult.new_followers?.slice(0, 5) || [],
+        topFollowers: scanFollowers.slice(0, 5) || unfollowerResult.new_followers?.slice(0, 5) || [],
         recentUnfollowers: unfollowerResult.unfollowers?.slice(0, 5) || [],
         growthTrend: [
-          { date: '7 days ago', followers: (unfollowerResult.summary?.current_followers || 1000) - 50 },
-          { date: '6 days ago', followers: (unfollowerResult.summary?.current_followers || 1000) - 40 },
-          { date: '5 days ago', followers: (unfollowerResult.summary?.current_followers || 1000) - 30 },
-          { date: '4 days ago', followers: (unfollowerResult.summary?.current_followers || 1000) - 20 },
-          { date: '3 days ago', followers: (unfollowerResult.summary?.current_followers || 1000) - 10 },
-          { date: '2 days ago', followers: (unfollowerResult.summary?.current_followers || 1000) - 5 },
-          { date: 'Today', followers: unfollowerResult.summary?.current_followers || 1000 }
+          { date: '7 days ago', followers: Math.max(0, currentFollowers - 50) },
+          { date: '6 days ago', followers: Math.max(0, currentFollowers - 40) },
+          { date: '5 days ago', followers: Math.max(0, currentFollowers - 30) },
+          { date: '4 days ago', followers: Math.max(0, currentFollowers - 20) },
+          { date: '3 days ago', followers: Math.max(0, currentFollowers - 10) },
+          { date: '2 days ago', followers: Math.max(0, currentFollowers - 5) },
+          { date: 'Today', followers: currentFollowers }
         ]
       }
       setAnalyticsData(mockAnalytics)
