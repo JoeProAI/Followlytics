@@ -41,3 +41,5 @@ ui-debug.log
 
 # Service Account Key
 *firebase-adminsdk*.json
+
+.vercel
