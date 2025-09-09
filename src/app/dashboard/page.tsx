@@ -59,6 +59,13 @@ export default function DashboardPage() {
 
     try {
       console.log('Starting Daytona scan for:', username)
+      console.log('API endpoint:', '/api/scan/daytona')
+      console.log('Request payload:', {
+        username: username.replace('@', '').trim(),
+        estimated_followers: 800,
+        priority: 'normal',
+        user_id: user?.uid
+      })
       setScanLoading(true)
       setError(null)
       
@@ -79,6 +86,12 @@ export default function DashboardPage() {
       
       if (!response.ok) {
         const errorData = await response.json()
+        console.error('API Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData: errorData,
+          url: response.url
+        })
         throw new Error(errorData.error || 'Scan submission failed')
       }
       
@@ -141,6 +154,11 @@ export default function DashboardPage() {
       
     } catch (error) {
       console.error('Daytona scan error:', error)
+      console.error('Full error details:', {
+        error: error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : null
+      })
       setError(error instanceof Error ? error.message : 'Failed to submit scan to Daytona')
       setScanLoading(false)
       setScanProgress(null)
