@@ -37,7 +37,7 @@ async function testCompleteFlow() {
         console.log('2️⃣ Submitting Scan Request...');
         const scanRequest = {
             username: 'JoeProAI',
-            estimated_followers: 100,
+            estimated_followers: 800,
             priority: 'normal',
             user_id: 'test-user'
         };
