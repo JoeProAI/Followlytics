@@ -22,14 +22,13 @@ async function testConnection() {
         console.log('🔧 Configuration:');
         console.log(`   API Key: ${process.env.DAYTONA_API_KEY?.substring(0, 20)}...`);
         console.log(`   API URL: ${process.env.DAYTONA_API_URL || 'https://app.daytona.io/api'}`);
-        console.log(`   Org ID: ${process.env.DAYTONA_ORG_ID}`);
+        console.log('   Note: NOT using DAYTONA_ORG_ID (causes runner errors)');
         console.log('');
         
-        // Initialize SDK
+        // Initialize SDK (without target parameter to avoid runner errors)
         const daytona = new Daytona({
             apiKey: process.env.DAYTONA_API_KEY,
-            apiUrl: process.env.DAYTONA_API_URL || 'https://app.daytona.io/api',
-            target: process.env.DAYTONA_ORG_ID
+            apiUrl: process.env.DAYTONA_API_URL || 'https://app.daytona.io/api'
         });
         
         console.log('✅ Daytona SDK initialized');

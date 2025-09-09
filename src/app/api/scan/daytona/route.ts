@@ -30,23 +30,19 @@ export async function POST(request: NextRequest) {
 
     // Check for required Daytona credentials
     const apiKey = process.env.DAYTONA_API_KEY
-    const orgId = process.env.DAYTONA_ORG_ID
     const apiUrl = process.env.DAYTONA_API_URL || 'https://app.daytona.io/api'
     
     console.log('Daytona environment check:', {
       hasApiKey: !!apiKey,
-      hasOrgId: !!orgId,
       apiUrl,
-      apiKeyLength: apiKey?.length,
-      orgIdPrefix: orgId?.substring(0, 10)
+      apiKeyLength: apiKey?.length
     })
     
-    if (!apiKey || !orgId) {
+    if (!apiKey) {
       return NextResponse.json({ 
-        error: 'Daytona credentials not configured. Please set DAYTONA_API_KEY and DAYTONA_ORG_ID environment variables.',
+        error: 'Daytona credentials not configured. Please set DAYTONA_API_KEY environment variable.',
         missing: {
-          api_key: !apiKey,
-          org_id: !orgId
+          api_key: !apiKey
         },
         debug: {
           env_keys: Object.keys(process.env).filter(k => k.includes('DAYTONA')),
@@ -83,7 +79,7 @@ export async function POST(request: NextRequest) {
       estimated_followers
     })
 
-    // Use the verified working sandbox
+    // Use the currently active verified working sandbox
     const SANDBOX_ID = '9f8324a8-1246-462f-9306-99bcb05a4a52'
     console.log(`Using verified working Daytona sandbox: ${SANDBOX_ID}`)
     
