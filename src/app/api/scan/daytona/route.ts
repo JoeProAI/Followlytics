@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
           // Clean up sandbox after successful scan
           setTimeout(async () => {
             try {
-              await daytona.delete(sandbox.id)
+              await daytona.delete(sandbox)
               console.log(`🗑️ Cleaned up sandbox ${sandbox.id}`)
             } catch (cleanupError) {
               console.error('Sandbox cleanup failed:', cleanupError)
@@ -228,7 +228,7 @@ export async function POST(request: NextRequest) {
         
         // Clean up failed sandbox
         try {
-          await daytona.delete(sandbox.id)
+          await daytona.delete(sandbox)
           console.log(`🗑️ Cleaned up failed sandbox ${sandbox.id}`)
         } catch (cleanupError) {
           console.error('Failed sandbox cleanup failed:', cleanupError)
