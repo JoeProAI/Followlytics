@@ -136,12 +136,21 @@ export default function DashboardPage() {
               clearInterval(pollInterval)
               setIsScanning(false)
               if (statusData.results) {
+                console.log('📊 Raw scan results received:', statusData.results)
+                console.log('📊 Followers array:', statusData.results.followers)
+                console.log('📊 Total followers:', statusData.results.total_followers)
+                
                 setScanResults(statusData.results)
                 // Update followers list for the Followers tab
-                if (statusData.results.followers) {
+                if (statusData.results.followers && statusData.results.followers.length > 0) {
                   setFollowers(statusData.results.followers)
+                  console.log('✅ Updated followers state with', statusData.results.followers.length, 'followers')
+                } else {
+                  console.log('⚠️ No followers found in results')
                 }
                 console.log('✅ Scan completed with results:', statusData.results)
+              } else {
+                console.log('⚠️ No results object in completed status')
               }
               console.log('✅ Scan completed successfully:', statusData)
             } else if (statusData.status === 'failed') {
@@ -386,7 +395,8 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div className="text-center p-4 bg-blue-50 rounded-lg">
                       <div className="text-2xl font-bold text-blue-600">
-                        {scanResults.total_followers?.toLocaleString() || scanResults.followers?.length?.toLocaleString() || 0}
+                        {scanResults.total_followers?.toLocaleString() || 
+                         (scanResults.followers && scanResults.followers.length > 0 ? scanResults.followers.length.toLocaleString() : '0')}
                       </div>
                       <div className="text-sm text-blue-600">Total Followers</div>
                     </div>
@@ -423,14 +433,17 @@ export default function DashboardPage() {
                   <div className="flex gap-2 mt-4">
                     <Button 
                       onClick={() => {
-                        if (scanResults.followers) {
+                        if (scanResults.followers && scanResults.followers.length > 0) {
                           setFollowers(scanResults.followers)
+                          console.log('🔄 Manually updated followers list with', scanResults.followers.length, 'followers')
+                        } else {
+                          console.log('⚠️ No followers to display')
                         }
                       }}
                       className="flex items-center gap-2"
                     >
                       <Users className="h-4 w-4" />
-                      View Followers List
+                      View Followers List ({scanResults.followers?.length || 0})
                     </Button>
                     {scanResults.ai_analysis && (
                       <Button 
