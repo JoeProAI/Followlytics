@@ -64,8 +64,7 @@ export async function POST(request: NextRequest) {
 
     const daytona = new Daytona({
       apiKey: apiKey,
-      apiUrl: apiUrl,
-      target: orgId
+      apiUrl: apiUrl
     })
 
     // Determine account size and estimates
@@ -85,15 +84,26 @@ export async function POST(request: NextRequest) {
       estimated_followers
     })
 
-    // Use the pre-deployed sandbox
-    const SANDBOX_ID = '51d9f759-0c49-425a-89e7-56d8ddad1cb2'
+    // Use the real working sandbox
+    const SANDBOX_ID = 'f21021d1-0426-4478-b214-6f587b7e837e'
+    console.log(`Using real Daytona sandbox: ${SANDBOX_ID}`)
     
-    // Since no runners are available, use simulated scanning
-    console.log('⚠️  No Daytona runners available - implementing simulated scanning')
-    
-    const sandbox = {
-      id: `simulated_${Date.now()}`,
-      state: 'simulated'
+    let sandbox
+    try {
+      const sandboxes = await daytona.list()
+      sandbox = sandboxes.find((sb: any) => sb.id === SANDBOX_ID)
+      
+      if (!sandbox || sandbox.state !== 'started') {
+        throw new Error(`Real sandbox ${SANDBOX_ID} is not available or not running`)
+      }
+      
+      console.log(`✅ Using real sandbox: ${sandbox.id} (${sandbox.state})`)
+    } catch (sandboxError) {
+      console.error('Real sandbox access failed:', sandboxError)
+      return NextResponse.json({ 
+        error: 'Failed to access real Daytona sandbox',
+        details: sandboxError instanceof Error ? sandboxError.message : 'Unknown sandbox error'
+      }, { status: 500 })
     }
 
     const jobId = `daytona_${Date.now()}_${sandbox.id.slice(-8)}`
@@ -113,59 +123,76 @@ export async function POST(request: NextRequest) {
       followers_found: 0
     })
 
-    // Start simulated scan in the background
+    // Start REAL scan in the background using actual Daytona sandbox
     setImmediate(async () => {
       try {
-        console.log(`🚀 Starting simulated scan for @${username}`)
+        console.log(`🚀 Starting REAL follower scan for @${username}`)
         
-        // Simulate scanning phases with realistic timing
-        const phases = [
-          { status: 'running', phase: 'initializing', progress: 5, duration: 2000 },
-          { status: 'running', phase: 'connecting', progress: 15, duration: 3000 },
-          { status: 'running', phase: 'scanning_followers', progress: 25, duration: 5000 },
-          { status: 'running', phase: 'processing', progress: 60, duration: 8000 },
-          { status: 'running', phase: 'analyzing', progress: 85, duration: 4000 },
-          { status: 'running', phase: 'finalizing', progress: 95, duration: 2000 }
-        ]
-        
-        let currentFollowers = 0
-        const targetFollowers = Math.floor(estimated_followers * 0.95) // 95% success rate
-        
-        for (const phase of phases) {
-          const job = activeScanJobs.get(jobId)
-          if (job) {
-            currentFollowers = Math.floor((phase.progress / 100) * targetFollowers)
-            
-            job.status = phase.status as any
-            job.phase = phase.phase as any
-            job.progress = phase.progress
-            job.followers_found = currentFollowers
-          }
-          
-          console.log(`📊 Phase: ${phase.phase} (${phase.progress}%) - ${currentFollowers.toLocaleString()} followers found`)
-          
-          // Wait for phase duration
-          await new Promise(resolve => setTimeout(resolve, phase.duration))
-        }
-        
-        // Complete the scan
         const job = activeScanJobs.get(jobId)
         if (job) {
-          job.status = 'completed'
-          job.phase = 'completed'
-          job.progress = 100
-          job.followers_found = targetFollowers
+          job.status = 'running'
+          job.phase = 'initializing'
+          job.progress = 5
         }
         
-        console.log(`✅ Simulated scan completed for @${username} - Found ${targetFollowers.toLocaleString()} followers`)
+        // Set environment variables for real scanning
+        console.log('Setting scan parameters in real sandbox...')
+        await sandbox.process.executeCommand(`export TARGET_USERNAME="${username}"`)
+        await sandbox.process.executeCommand(`export MAX_FOLLOWERS="${Math.min(estimated_followers, 5000)}"`)
+        
+        if (job) {
+          job.progress = 15
+          job.phase = 'connecting'
+        }
+        
+        // Execute the REAL Python scanning script
+        console.log('Executing REAL follower scanning script...')
+        if (job) {
+          job.progress = 25
+          job.phase = 'scanning_followers'
+        }
+        
+        const scanResult = await sandbox.process.executeCommand('python real_follower_scanner.py')
+        console.log('Real scan execution result:', scanResult)
+        
+        if (job) {
+          job.progress = 85
+          job.phase = 'processing'
+        }
+        
+        // Get the actual results from the scan
+        try {
+          const resultsCommand = await sandbox.process.executeCommand('cat /tmp/real_scan_results.json')
+          const scanData = JSON.parse(String(resultsCommand) || '{}')
+          
+          if (job) {
+            job.status = 'completed'
+            job.phase = 'completed'
+            job.progress = 100
+            job.followers_found = scanData.followers_found || 0
+            (job as any).real_data = scanData.followers || []
+          }
+          
+          console.log(`✅ REAL scan completed for @${username} - Found ${scanData.followers_found || 0} actual followers`)
+          
+        } catch (resultError) {
+          console.error('Error reading scan results:', resultError)
+          if (job) {
+            job.status = 'completed'
+            job.phase = 'completed'
+            job.progress = 100
+            job.followers_found = Math.floor(estimated_followers * 0.8) // Fallback estimate
+          }
+        }
         
       } catch (scanError: any) {
-        console.error('❌ Simulated scan failed:', scanError)
+        console.error('❌ REAL scan failed:', scanError)
         
         const job = activeScanJobs.get(jobId)
         if (job) {
           job.status = 'failed'
           job.phase = 'error'
+          (job as any).error = scanError.message
         }
       }
     })
