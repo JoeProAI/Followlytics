@@ -1,20 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Daytona } from '@daytonaio/sdk'
-
-// In-memory job tracking for scan progress
-const activeScanJobs = new Map<string, {
-  sandbox_id: string
-  username: string
-  status: string
-  progress: number
-  startTime: number
-  estimated_followers: number
-  account_size: string
-  estimated_duration: string
-  estimated_cost: string
-  phase: string
-  followers_found: number
-}>()
+import { activeScanJobs } from '@/lib/scan-jobs'
 
 // Submit scan using Daytona SDK
 export async function POST(request: NextRequest) {
