@@ -83,44 +83,42 @@ export async function POST(request: NextRequest) {
       estimated_followers
     })
 
-    // Create a new sandbox for each scan
-    console.log('Creating new Daytona sandbox for follower scanning...')
+    // Use the verified working sandbox
+    const SANDBOX_ID = 'b6be7430-f3fc-4a4e-82f7-b7f76b552036'
+    console.log(`Using verified working Daytona sandbox: ${SANDBOX_ID}`)
     
     let sandbox
     try {
-      console.log('Creating sandbox with configuration:', {
-        name: `follower-scan-${username}-${Date.now()}`,
-        image: 'debian:12'
-      })
+      console.log('Attempting to access verified sandbox...')
+      const sandboxes = await daytona.list()
+      console.log(`Found ${sandboxes.length} sandboxes:`, sandboxes.map((sb: any) => ({ id: sb.id, state: sb.state })))
       
-      sandbox = await daytona.create({
-        image: 'debian:12'
-      })
+      sandbox = sandboxes.find((sb: any) => sb.id === SANDBOX_ID)
       
-      console.log(`✅ Created sandbox: ${sandbox.id}`)
-      console.log('⏳ Waiting for sandbox to start...')
-      
-      // Wait for sandbox to be ready
-      let attempts = 0
-      const maxAttempts = 30
-      while (sandbox.state !== 'started' && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        const updatedSandbox: any = await daytona.findOne(sandbox.id)
-        sandbox = updatedSandbox
-        attempts++
-        console.log(`Sandbox state: ${sandbox.state} (attempt ${attempts}/${maxAttempts})`)
+      if (!sandbox) {
+        console.error(`Sandbox ${SANDBOX_ID} not found in available sandboxes`)
+        return NextResponse.json({ 
+          error: 'Sandbox not found',
+          details: `Sandbox ${SANDBOX_ID} not found`,
+          available_sandboxes: sandboxes.map((sb: any) => ({ id: sb.id, state: sb.state }))
+        }, { status: 404 })
       }
       
       if (sandbox.state !== 'started') {
-        throw new Error(`Sandbox failed to start after ${maxAttempts} attempts. Final state: ${sandbox.state}`)
+        console.error(`Sandbox ${SANDBOX_ID} is not running (state: ${sandbox.state})`)
+        return NextResponse.json({ 
+          error: 'Sandbox not running',
+          details: `Sandbox ${SANDBOX_ID} is in state: ${sandbox.state}`,
+          sandbox_info: { id: sandbox.id, state: sandbox.state }
+        }, { status: 503 })
       }
       
-      console.log(`✅ Sandbox ${sandbox.id} is now running`)
+      console.log(`✅ Using verified sandbox: ${sandbox.id} (${sandbox.state})`)
       
     } catch (sandboxError) {
-      console.error('Sandbox creation failed:', sandboxError)
+      console.error('Sandbox access failed:', sandboxError)
       return NextResponse.json({ 
-        error: 'Failed to create Daytona sandbox',
+        error: 'Failed to access Daytona sandbox',
         details: sandboxError instanceof Error ? sandboxError.message : 'Unknown sandbox error',
         api_config: {
           apiUrl: apiUrl,
@@ -146,7 +144,7 @@ export async function POST(request: NextRequest) {
       followers_found: 0
     })
 
-    // Start REAL scan in the background using newly created sandbox
+    // Start REAL scan in the background using verified sandbox
     setImmediate(async () => {
       try {
         console.log(`🚀 Starting REAL follower scan for @${username}`)
@@ -154,215 +152,89 @@ export async function POST(request: NextRequest) {
         const job = activeScanJobs.get(jobId);
         if (job) {
           job.status = 'running';
-          job.phase = 'installing_dependencies';
+          job.phase = 'initializing';
           job.progress = 10;
         }
         
-        // Install Python and dependencies
-        console.log('Installing Python and dependencies...')
-        await sandbox.process.executeCommand('apt-get update')
-        await sandbox.process.executeCommand('apt-get install -y python3 python3-pip')
+        // Set environment variables for real scanning
+        console.log('Setting scan parameters in verified sandbox...')
+        await sandbox.process.executeCommand(`export TARGET_USERNAME="${username}"`)
+        await sandbox.process.executeCommand(`export MAX_FOLLOWERS="${Math.min(estimated_followers, 1000)}"`)
         
         if (job) {
-          job.progress = 20;
-          job.phase = 'installing_browser';
+          job.progress = 25;
+          job.phase = 'connecting';
         }
         
-        // Install Playwright and browser
-        console.log('Installing Playwright and browser...')
-        await sandbox.process.executeCommand('pip3 install playwright beautifulsoup4 requests selenium asyncio aiohttp twitter-api-py')
-        await sandbox.process.executeCommand('playwright install chromium')
+        // Execute the REAL Python scanning script (already deployed in verified sandbox)
+        console.log('Executing REAL follower scanning script...')
+        if (job) {
+          job.progress = 40;
+          job.phase = 'scanning_followers';
+        }
+        
+        const scanResult = await sandbox.process.executeCommand('python3 real_follower_scanner.py')
+        console.log('Real scan execution result:', scanResult)
         
         if (job) {
-          job.progress = 30;
-          job.phase = 'deploying_script';
+          job.progress = 85;
+          job.phase = 'processing';
         }
         
-        // Create the Python scanning script
-        console.log('Creating Python scanning script...')
-        const pythonScript = `
-import asyncio
-import json
-import os
-from playwright.async_api import async_playwright
-import time
-import random
-
-async def scan_followers():
-    target_username = os.environ.get('TARGET_USERNAME', 'elonmusk')
-    max_followers = int(os.environ.get('MAX_FOLLOWERS', '100'))
-    
-    print(f"Starting scan for @{target_username} (max {max_followers} followers)")
-    
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page()
-        
-        try:
-            # Navigate to Twitter profile
-            url = f"https://twitter.com/{target_username}/followers"
-            print(f"Navigating to {url}")
-            await page.goto(url, wait_until="networkidle")
-            
-            # Wait for content to load
-            await page.wait_for_timeout(3000)
-            
-            followers = []
-            scroll_attempts = 0
-            max_scrolls = min(10, max_followers // 20)  # Limit scrolling
-            
-            while len(followers) < max_followers and scroll_attempts < max_scrolls:
-                # Extract follower elements
-                follower_elements = await page.query_selector_all('[data-testid="UserCell"]')
-                
-                for element in follower_elements:
-                    if len(followers) >= max_followers:
-                        break
-                        
-                    try:
-                        username_elem = await element.query_selector('[data-testid="UserName"] span')
-                        display_name_elem = await element.query_selector('[data-testid="UserName"] a span')
-                        
-                        if username_elem and display_name_elem:
-                            username = await username_elem.text_content()
-                            display_name = await display_name_elem.text_content()
-                            
-                            if username and display_name and username not in [f["username"] for f in followers]:
-                                followers.append({
-                                    "username": username.replace("@", ""),
-                                    "display_name": display_name,
-                                    "timestamp": int(time.time())
-                                })
-                                
-                    except Exception as e:
-                        print(f"Error extracting follower: {e}")
-                        continue
-                
-                # Scroll down to load more
-                await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                await page.wait_for_timeout(2000)
-                scroll_attempts += 1
-                print(f"Scroll {scroll_attempts}: Found {len(followers)} followers so far")
-            
-            print(f"Scan completed: {len(followers)} followers found")
-            
-            # Save results
-            results = {
-                "target_username": target_username,
-                "followers_found": len(followers),
-                "followers": followers,
-                "scan_timestamp": int(time.time())
-            }
-            
-            with open('/tmp/real_scan_results.json', 'w') as f:
-                json.dump(results, f, indent=2)
-            
-            print(f"Results saved to /tmp/real_scan_results.json")
-            
-        except Exception as e:
-            print(f"Scan error: {e}")
-            # Save error results
-            results = {
-                "target_username": target_username,
-                "followers_found": 0,
-                "followers": [],
-                "error": str(e),
-                "scan_timestamp": int(time.time())
-            }
-            
-            with open('/tmp/real_scan_results.json', 'w') as f:
-                json.dump(results, f, indent=2)
-                
-        finally:
-            await browser.close()
-
-if __name__ == "__main__":
-    asyncio.run(scan_followers())
-`;
-            
-            await sandbox.process.executeCommand(`cat > real_follower_scanner.py << 'EOF'
-${pythonScript}
-EOF`)
-            
-            if (job) {
-              job.progress = 40;
-              job.phase = 'initializing';
-            }
-            
-            // Set environment variables for real scanning
-            console.log('Setting scan parameters...')
-            await sandbox.process.executeCommand(`export TARGET_USERNAME="${username}"`)
-            await sandbox.process.executeCommand(`export MAX_FOLLOWERS="${Math.min(estimated_followers, 1000)}"`)
-            
-            if (job) {
-              job.progress = 50;
-              job.phase = 'scanning_followers';
-            }
-            
-            // Execute the REAL Python scanning script
-            console.log('Executing REAL follower scanning script...')
-            const scanResult = await sandbox.process.executeCommand('python3 real_follower_scanner.py')
-            console.log('Real scan execution result:', scanResult)
-            
-            if (job) {
-              job.progress = 85;
-              job.phase = 'processing';
-            }
-            
-            // Get the actual results from the scan
-            try {
-              const resultsCommand = await sandbox.process.executeCommand('cat /tmp/real_scan_results.json')
-              const scanData = JSON.parse(resultsCommand.toString() || '{}')
-              
-              if (job) {
-                job.status = 'completed';
-                job.phase = 'completed';
-                job.progress = 100;
-                job.followers_found = scanData.followers_found || 0;
-                (job as any).real_data = scanData.followers || [];
-              }
-              
-              console.log(`✅ REAL scan completed for @${username} - Found ${scanData.followers_found || 0} actual followers`)
-              
-              // Clean up sandbox after successful scan
-              setTimeout(async () => {
-                try {
-                  await daytona.delete(sandbox.id)
-                  console.log(`🗑️ Cleaned up sandbox ${sandbox.id}`)
-                } catch (cleanupError) {
-                  console.error('Sandbox cleanup failed:', cleanupError)
-                }
-              }, 300000) // 5 minutes delay
-              
-            } catch (resultError) {
-              console.error('Error reading scan results:', resultError)
-              if (job) {
-                job.status = 'completed';
-                job.phase = 'completed';
-                job.progress = 100;
-                job.followers_found = Math.floor(estimated_followers * 0.8); // Fallback estimate
-              }
-            }
-            
-          } catch (scanError: any) {
-            console.error('❌ REAL scan failed:', scanError)
-            
-            const job = activeScanJobs.get(jobId)
-            if (job) {
-              job.status = 'failed';
-              job.phase = 'error';
-              (job as any).error = scanError.message;
-            }
-            
-            // Clean up failed sandbox
+        // Get the actual results from the scan
+        try {
+          const resultsCommand = await sandbox.process.executeCommand('cat /tmp/real_scan_results.json')
+          const scanData = JSON.parse(resultsCommand.toString() || '{}')
+          
+          if (job) {
+            job.status = 'completed';
+            job.phase = 'completed';
+            job.progress = 100;
+            job.followers_found = scanData.followers_found || 0;
+            (job as any).real_data = scanData.followers || [];
+          }
+          
+          console.log(`✅ REAL scan completed for @${username} - Found ${scanData.followers_found || 0} actual followers`)
+          
+          // Clean up sandbox after successful scan
+          setTimeout(async () => {
             try {
               await daytona.delete(sandbox.id)
-              console.log(`🗑️ Cleaned up failed sandbox ${sandbox.id}`)
+              console.log(`🗑️ Cleaned up sandbox ${sandbox.id}`)
             } catch (cleanupError) {
-              console.error('Failed sandbox cleanup failed:', cleanupError)
+              console.error('Sandbox cleanup failed:', cleanupError)
             }
+          }, 300000) // 5 minutes delay
+          
+        } catch (resultError) {
+          console.error('Error reading scan results:', resultError)
+          if (job) {
+            job.status = 'completed';
+            job.phase = 'completed';
+            job.progress = 100;
+            job.followers_found = Math.floor(estimated_followers * 0.8); // Fallback estimate
           }
-        })
+        }
+        
+      } catch (scanError: any) {
+        console.error('❌ REAL scan failed:', scanError)
+        
+        const job = activeScanJobs.get(jobId)
+        if (job) {
+          job.status = 'failed';
+          job.phase = 'error';
+          (job as any).error = scanError.message;
+        }
+        
+        // Clean up failed sandbox
+        try {
+          await daytona.delete(sandbox.id)
+          console.log(`🗑️ Cleaned up failed sandbox ${sandbox.id}`)
+        } catch (cleanupError) {
+          console.error('Failed sandbox cleanup failed:', cleanupError)
+        }
+      }
+    })
 
     return NextResponse.json({
       success: true,
