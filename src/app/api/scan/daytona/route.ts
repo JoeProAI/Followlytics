@@ -254,26 +254,54 @@ async def scan_all_followers():
             
             # Handle login requirement or rate limiting
             if "login" in page.url.lower() or "i/flow/login" in page.url:
-                print("⚠️ Login required - using alternative method")
-                # Try profile page instead
-                await page.goto(f"https://twitter.com/{username}", wait_until='networkidle')
-                await asyncio.sleep(2)
+                print("⚠️ Login required - Twitter is blocking access")
+                print("Current URL:", page.url)
                 
-                # Click followers link
-                try:
-                    followers_link = page.locator('a[href*="/followers"]').first
-                    await followers_link.click()
-                    await asyncio.sleep(3)
-                except:
-                    print("Could not access followers page directly")
+                # Save screenshot for debugging
+                await page.screenshot(path='/tmp/login_required.png')
+                print("Screenshot saved to /tmp/login_required.png")
+                
+                # Return empty results with error message
+                results = {
+                    "target_username": username,
+                    "followers_found": 0,
+                    "total_extracted": 0,
+                    "followers": [],
+                    "scan_completed_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "status": "failed",
+                    "error": "Twitter login required - cannot access followers page",
+                    "method": "web_scraping_blocked"
+                }
+                
+                with open('/tmp/real_scan_results.json', 'w') as f:
+                    json.dump(results, f, indent=2)
+                
+                print("❌ Scan failed: Login required")
+                return
             
             print("Starting follower extraction...")
+            print(f"Current page URL: {page.url}")
+            print(f"Page title: {await page.title()}")
+            
+            # Check if we can see any follower elements
+            initial_elements = await page.locator('[data-testid="UserCell"]').all()
+            print(f"Initial follower elements found: {len(initial_elements)}")
+            
+            # Also check for alternative selectors
+            alt_elements = await page.locator('div[data-testid="cellInnerDiv"]').all()
+            print(f"Alternative elements found: {len(alt_elements)}")
+            
+            # Take a screenshot for debugging
+            await page.screenshot(path='/tmp/followers_page.png')
+            print("Screenshot saved to /tmp/followers_page.png")
+            
             scroll_attempts = 0
             max_scrolls = min(max_followers // 20, 100)  # Estimate 20 followers per scroll
             
             while len(followers) < max_followers and scroll_attempts < max_scrolls:
                 # Extract followers from current view
                 follower_elements = await page.locator('[data-testid="UserCell"]').all()
+                print(f"Scroll {scroll_attempts}: Found {len(follower_elements)} follower elements")
                 
                 for element in follower_elements:
                     try:
@@ -392,8 +420,13 @@ EOF`)
         // Execute the COMPLETE follower scanning script with environment variables
         console.log('Executing COMPLETE follower scanning script...')
         const maxFollowers = Math.max(estimated_followers * 1.5, 1000) // 50% buffer, minimum 1000
+        
+        // Add debug logging to the Python script execution
         const scanResult = await sandbox.process.executeCommand(`TARGET_USERNAME=${username} MAX_FOLLOWERS=${maxFollowers} python3 real_follower_scanner.py`)
         console.log('Real scan execution result:', scanResult)
+        console.log('Scan stdout:', scanResult.stdout)
+        console.log('Scan stderr:', scanResult.stderr)
+        console.log('Scan exit code:', scanResult.exitCode)
         
         if (job) {
           job.progress = 85;
@@ -403,6 +436,12 @@ EOF`)
         // Get the actual results from the scan
         try {
           const resultsCommand = await sandbox.process.executeCommand('cat /tmp/real_scan_results.json')
+          console.log('Raw results file content:', resultsCommand.toString())
+          
+          // Also check if the file exists and its size
+          const fileCheck = await sandbox.process.executeCommand('ls -la /tmp/real_scan_results.json')
+          console.log('Results file info:', fileCheck.toString())
+          
           const scanData = JSON.parse(resultsCommand.toString() || '{}')
           
           if (job) {
