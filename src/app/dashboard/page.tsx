@@ -66,6 +66,12 @@ export default function DashboardPage() {
         priority: 'normal',
         user_id: user?.uid
       })
+      console.log('Full request payload JSON:', JSON.stringify({
+        username: username.replace('@', '').trim(),
+        estimated_followers: 800,
+        priority: 'normal',
+        user_id: user?.uid
+      }, null, 2))
       setScanLoading(true)
       setError(null)
       
@@ -92,6 +98,7 @@ export default function DashboardPage() {
           errorData: errorData,
           url: response.url
         })
+        console.error('Full API Error Data:', JSON.stringify(errorData, null, 2))
         throw new Error(errorData.error || 'Scan submission failed')
       }
       
