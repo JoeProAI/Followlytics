@@ -159,6 +159,11 @@ export async function POST(request: NextRequest) {
       try {
         console.log(`🚀 Starting REAL follower scan for @${username}`)
         
+        // Verify sandbox is still valid
+        if (!sandbox || !sandbox.id) {
+          throw new Error('Sandbox object is undefined or invalid')
+        }
+        
         const job = activeScanJobs.get(jobId);
         if (job) {
           job.status = 'running';
@@ -247,6 +252,11 @@ if __name__ == "__main__":
     print(f"\\n=== TEST RESULT: {'PASS' if success else 'FAIL'} ===")
 `
 
+        // Verify sandbox.files exists before upload
+        if (!sandbox.files || typeof sandbox.files.upload !== 'function') {
+          throw new Error('Sandbox files API is not available')
+        }
+        
         await sandbox.files.upload('/tmp/test_sandbox.py', testScript)
         console.log('Test script uploaded successfully')
         
@@ -429,6 +439,10 @@ if __name__ == "__main__":
 `
 
         // Write the Python script to the sandbox
+        if (!sandbox.files || typeof sandbox.files.upload !== 'function') {
+          throw new Error('Sandbox files API is not available for Python script upload')
+        }
+        
         await sandbox.files.upload('/tmp/real_follower_scanner.py', pythonScript)
         
         await sandbox.process.executeCommand('chmod +x real_follower_scanner.py')
