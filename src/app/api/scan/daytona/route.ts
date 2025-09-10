@@ -451,7 +451,9 @@ if __name__ == "__main__":
         
         // Check if the script failed
         if (scanResult.exitCode !== 0) {
-          throw new Error(`Python script failed with exit code ${scanResult.exitCode}: ${scanResult.stderr || scanResult.stdout}`)
+          const errorDetails = scanResult.stderr || scanResult.stdout || 'No error output'
+          console.error('Python script failed:', errorDetails)
+          throw new Error(`Python script failed with exit code ${scanResult.exitCode}: ${errorDetails}`)
         }
         
         // Also run a direct test to see if Python can access the internet
@@ -547,12 +549,14 @@ if __name__ == "__main__":
         
       } catch (scanError: any) {
         console.error('❌ REAL scan failed:', scanError)
-// ... (rest of the code remains the same)
+        console.error('❌ Scan error details:', scanError.stack)
+        
         const job = activeScanJobs.get(jobId)
         if (job) {
           job.status = 'failed';
           job.phase = 'error';
-          (job as any).error = scanError.message;
+          (job as any).error = scanError.message || 'Unknown scan error';
+          (job as any).details = scanError.stack || scanError.toString();
         }
         
         // Clean up failed sandbox
@@ -657,7 +661,9 @@ export async function GET(request: NextRequest) {
         ai_analysis: (job as any).ai_analysis || null,
         metrics: (job as any).metrics || null,
         total_followers: job.followers_found
-      } : null
+      } : null,
+      error: job.status === 'failed' ? (job as any).error : null,
+      details: job.status === 'failed' ? (job as any).details : null
     })
 
   } catch (error) {
