@@ -459,18 +459,31 @@ EOF`
         console.log('Executing COMPLETE follower scanning script...')
         const maxFollowers = Math.max(estimated_followers * 1.5, 1000) // 50% buffer, minimum 1000
         
-        // Add debug logging to the Python script execution with output redirection
-        const scanResult = await sandbox.process.executeCommand(`cd /tmp && TARGET_USERNAME=${username} MAX_FOLLOWERS=${maxFollowers} python3 real_follower_scanner.py`)
+        // Execute Python script with better error capture
+        const scanResult = await sandbox.process.executeCommand(`cd /tmp && TARGET_USERNAME=${username} MAX_FOLLOWERS=${maxFollowers} python3 real_follower_scanner.py 2>&1`)
         console.log('Real scan execution result:', scanResult)
         console.log('Scan stdout:', scanResult.stdout)
         console.log('Scan stderr:', scanResult.stderr)
         console.log('Scan exit code:', scanResult.exitCode)
         
+        // Also check if the script file exists and is readable
+        const fileCheck = await sandbox.process.executeCommand('ls -la /tmp/real_follower_scanner.py')
+        console.log('Python script file check:', fileCheck.toString())
+        
+        // Try to run a simple Python test first
+        const pythonTest = await sandbox.process.executeCommand('cd /tmp && python3 -c "print(\\"Python is working\\"); import requests; print(\\"Requests imported\\")"')
+        console.log('Python basic test:', pythonTest.toString())
+        
         // Check if the script failed
         if (scanResult.exitCode !== 0) {
-          const errorDetails = scanResult.stderr || scanResult.stdout || 'No error output'
-          console.error('Python script failed:', errorDetails)
-          throw new Error(`Python script failed with exit code ${scanResult.exitCode}: ${errorDetails}`)
+          const errorOutput = scanResult.stdout || scanResult.stderr || 'No output captured'
+          console.error('Python script failed with output:', errorOutput)
+          
+          // Try to get more details about the error
+          const debugResult = await sandbox.process.executeCommand('cd /tmp && python3 -u real_follower_scanner.py 2>&1 | head -50')
+          console.log('Debug script execution:', debugResult.toString())
+          
+          throw new Error(`Python script failed with exit code ${scanResult.exitCode}. Output: ${errorOutput}`)
         }
         
         // Also run a direct test to see if Python can access the internet
