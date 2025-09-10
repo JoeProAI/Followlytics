@@ -252,13 +252,14 @@ if __name__ == "__main__":
     print(f"\\n=== TEST RESULT: {'PASS' if success else 'FAIL'} ===")
 `
 
-        // Verify sandbox.files exists before upload
-        if (!sandbox.files || typeof sandbox.files.upload !== 'function') {
-          throw new Error('Sandbox files API is not available')
-        }
+        // Create test script using echo command instead of files API
+        console.log('Creating test script using echo command...')
+        const createTestScript = `cat > /tmp/test_sandbox.py << 'EOF'
+${testScript}
+EOF`
         
-        await sandbox.files.upload('/tmp/test_sandbox.py', testScript)
-        console.log('Test script uploaded successfully')
+        await sandbox.process.executeCommand(createTestScript)
+        console.log('Test script created successfully')
         
         // Run the test script first
         console.log('Running sandbox functionality test...')
@@ -438,12 +439,14 @@ if __name__ == "__main__":
     extract_real_followers()
 `
 
-        // Write the Python script to the sandbox
-        if (!sandbox.files || typeof sandbox.files.upload !== 'function') {
-          throw new Error('Sandbox files API is not available for Python script upload')
-        }
+        // Create Python script using cat command instead of files API
+        console.log('Creating Python follower scanner script...')
+        const createPythonScript = `cat > /tmp/real_follower_scanner.py << 'EOF'
+${pythonScript}
+EOF`
         
-        await sandbox.files.upload('/tmp/real_follower_scanner.py', pythonScript)
+        await sandbox.process.executeCommand(createPythonScript)
+        console.log('Python script created successfully')
         
         await sandbox.process.executeCommand('chmod +x real_follower_scanner.py')
         
