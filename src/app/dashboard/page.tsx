@@ -175,12 +175,37 @@ export default function DashboardPage() {
       }, 30 * 60 * 1000)
       
     } catch (error) {
-      console.error('Daytona scan error:', error)
+      console.error('❌ Scan failed:', error)
+      
+      // Enhanced error logging for debugging
+      if (error && typeof error === 'object') {
+        console.error('Error object keys:', Object.keys(error))
+        console.error('Error details:', JSON.stringify(error, null, 2))
+        
+        // Check if it's a fetch response error
+        if ('response' in error) {
+          console.error('Response status:', (error as any).response?.status)
+          console.error('Response text:', (error as any).response?.text)
+        }
+        
+        // Check if it has error details from our API
+        if ('details' in error) {
+          console.error('API error details:', (error as any).details)
+        }
+        
+        if ('stack' in error) {
+          console.error('API error stack:', (error as any).stack)
+        }
+      }
+      
       console.error('Full error details:', {
         error: error,
         message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : null
+        stack: error instanceof Error ? error.stack : null,
+        type: typeof error,
+        constructor: error?.constructor?.name
       })
+      
       setError(error instanceof Error ? error.message : 'Failed to submit scan to Daytona')
       setScanLoading(false)
       setScanProgress(null)
@@ -263,9 +288,9 @@ export default function DashboardPage() {
         )}
 
         <Tabs defaultValue="scan" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className={`grid w-full ${followers.length > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
             <TabsTrigger value="scan">Daytona Scan</TabsTrigger>
-            <TabsTrigger value="followers">Followers</TabsTrigger>
+            {followers.length > 0 && <TabsTrigger value="followers">Followers</TabsTrigger>}
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
@@ -431,20 +456,18 @@ export default function DashboardPage() {
                   )}
                   
                   <div className="flex gap-2 mt-4">
-                    <Button 
-                      onClick={() => {
-                        if (scanResults.followers && scanResults.followers.length > 0) {
+                    {scanResults.followers && scanResults.followers.length > 0 && (
+                      <Button 
+                        onClick={() => {
                           setFollowers(scanResults.followers)
                           console.log('🔄 Manually updated followers list with', scanResults.followers.length, 'followers')
-                        } else {
-                          console.log('⚠️ No followers to display')
-                        }
-                      }}
-                      className="flex items-center gap-2"
-                    >
-                      <Users className="h-4 w-4" />
-                      View Followers List ({scanResults.followers?.length || 0})
-                    </Button>
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <Users className="h-4 w-4" />
+                        View Followers List ({scanResults.followers.length})
+                      </Button>
+                    )}
                     {scanResults.ai_analysis && (
                       <Button 
                         variant="outline"
