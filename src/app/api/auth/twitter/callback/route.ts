@@ -81,11 +81,11 @@ export async function GET(request: NextRequest) {
   const oauthVerifier = searchParams.get('oauth_verifier')
   const denied = searchParams.get('denied')
 
-  const origin = request.nextUrl.origin
+  // Use fixed origin that matches Twitter app configuration
+  const origin = 'https://followlytics.vercel.app'
   if (denied) {
     return NextResponse.redirect(`${origin}?error=access_denied`)
   }
-
 
   if (!oauthToken || !oauthVerifier) {
     return NextResponse.redirect(`${origin}?error=missing_params`)
