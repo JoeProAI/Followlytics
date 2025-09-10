@@ -529,10 +529,14 @@ if __name__ == "__main__":
     })
 
   } catch (error) {
-    console.error('Daytona scan submission error:', error)
+    console.error('Daytona scan error:', error)
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    
     return NextResponse.json({ 
-      error: 'Failed to create Daytona sandbox for scan',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      success: false,
+      error: 'Failed to start Daytona scan',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : null
     }, { status: 500 })
   }
 }
