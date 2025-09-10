@@ -176,9 +176,9 @@ export async function POST(request: NextRequest) {
           job.phase = 'installing_browser';
         }
         
-        // Install Python packages for web scraping
+        // Install Python packages for web scraping with specific versions
         console.log('Installing Python packages...')
-        await sandbox.process.executeCommand('pip3 install playwright beautifulsoup4 requests selenium asyncio aiohttp')
+        await sandbox.process.executeCommand('pip3 install playwright==1.40.0 beautifulsoup4==4.12.2 requests==2.31.0 selenium==4.15.0 asyncio aiohttp==3.9.0 fake-useragent==1.4.0')
         
         if (job) {
           job.progress = 40;
@@ -204,6 +204,7 @@ from playwright.async_api import async_playwright
 import time
 import random
 import re
+from fake_useragent import UserAgent
 
 async def scan_all_followers():
     username = os.getenv('TARGET_USERNAME', 'elonmusk')
@@ -211,6 +212,10 @@ async def scan_all_followers():
     
     print(f"Starting COMPLETE follower scan for @{username}")
     print(f"Target: ALL followers (up to {max_followers})")
+    
+    # Generate random user agent
+    ua = UserAgent()
+    user_agent = ua.random
     
     async with async_playwright() as p:
         # Use stealth mode with aggressive anti-detection
@@ -233,13 +238,17 @@ async def scan_all_followers():
         
         context = await browser.new_context(
             viewport={'width': 1920, 'height': 1080},
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            user_agent=user_agent,
             extra_http_headers={
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
                 'Accept-Language': 'en-US,en;q=0.5',
                 'Accept-Encoding': 'gzip, deflate',
                 'Connection': 'keep-alive',
                 'Upgrade-Insecure-Requests': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Cache-Control': 'max-age=0'
             }
         )
         
@@ -258,12 +267,54 @@ async def scan_all_followers():
             followers = []
             seen_usernames = set()
             
-            # Navigate to followers page
-            followers_url = f"https://twitter.com/{username}/followers"
-            print(f"Navigating to {followers_url}")
+            # Try multiple approaches to get followers
+            urls_to_try = [
+                f"https://x.com/{username}/followers",
+                f"https://twitter.com/{username}/followers", 
+                f"https://mobile.twitter.com/{username}/followers",
+                f"https://nitter.net/{username}/followers"
+            ]
             
-            await page.goto(followers_url, wait_until='networkidle', timeout=30000)
-            await asyncio.sleep(3)
+            success = False
+            for url in urls_to_try:
+                try:
+                    print(f"Trying URL: {url}")
+                    await page.goto(url, wait_until='networkidle', timeout=30000)
+                    await asyncio.sleep(5)
+                    
+                    # Check if we got blocked
+                    current_url = page.url.lower()
+                    page_content = await page.content()
+                    
+                    if "login" not in current_url and "suspended" not in page_content.lower():
+                        print(f"✅ Successfully loaded: {url}")
+                        success = True
+                        break
+                    else:
+                        print(f"❌ Blocked on {url}, trying next...")
+                        continue
+                        
+                except Exception as e:
+                    print(f"❌ Failed to load {url}: {e}")
+                    continue
+            
+            if not success:
+                print("⚠️ All URLs failed, trying with different approach...")
+                # Try going to profile first, then clicking followers
+                try:
+                    profile_url = f"https://x.com/{username}"
+                    await page.goto(profile_url, wait_until='networkidle', timeout=30000)
+                    await asyncio.sleep(3)
+                    
+                    # Look for followers link and click it
+                    followers_link = page.locator('a[href*="/followers"]').first
+                    if await followers_link.count() > 0:
+                        await followers_link.click()
+                        await asyncio.sleep(5)
+                        success = True
+                        print("✅ Successfully navigated via profile page")
+                except Exception as e:
+                    print(f"Profile navigation failed: {e}")
             
             # Handle login requirement - try alternative approaches
             if "login" in page.url.lower() or "i/flow/login" in page.url:
@@ -330,21 +381,100 @@ async def scan_all_followers():
             scroll_attempts = 0
             max_scrolls = min(max_followers // 10, 50)  # More aggressive scrolling
             
-            while len(followers) < max_followers and scroll_attempts < max_scrolls:
-                # Use the best selector found
-                follower_elements = await page.locator(best_selector or '[data-testid="UserCell"]').all()
-                print(f"Scroll {scroll_attempts}: Found {len(follower_elements)} elements with {best_selector}")
+            # Aggressive extraction with multiple methods
+            extraction_attempts = 0
+            max_extraction_attempts = 3
+            
+            while len(followers) < max_followers and extraction_attempts < max_extraction_attempts:
+                extraction_attempts += 1
+                print(f"\\n=== EXTRACTION ATTEMPT {extraction_attempts} ===")
                 
-                # Try to extract usernames from any links we find
-                if best_selector == 'a[href*="/"]':
-                    for element in follower_elements:
+                # Method 1: Standard Twitter selectors
+                standard_selectors = [
+                    '[data-testid="UserCell"]',
+                    '[data-testid="cellInnerDiv"]',
+                    'div[data-testid="UserCell"]'
+                ]
+                
+                for selector in standard_selectors:
+                    elements = await page.locator(selector).all()
+                    print(f"Method 1 - {selector}: {len(elements)} elements")
+                    
+                    for element in elements:
                         try:
-                            href = await element.get_attribute('href')
+                            # Try multiple ways to get username
+                            username_elem = element.locator('[data-testid="User-Name"] a, a[href*="/"]').first
+                            href = await username_elem.get_attribute('href')
+                            
                             if href and '/' in href:
                                 username_part = href.split('/')[-1]
-                                if username_part and not username_part.startswith('i/') and len(username_part) > 0:
-                                    if username_part not in seen_usernames:
+                                if (username_part and 
+                                    not username_part.startswith('i/') and 
+                                    len(username_part) > 0 and 
+                                    username_part not in seen_usernames and
+                                    not username_part in ['followers', 'following', 'status', 'home']):
+                                    
+                                    seen_usernames.add(username_part)
+                                    
+                                    # Try to get display name and bio
+                                    display_name = username_part
+                                    bio = ""
+                                    
+                                    try:
+                                        display_elem = element.locator('[data-testid="User-Name"] span, .css-901oao').first
+                                        if await display_elem.count() > 0:
+                                            display_name = await display_elem.text_content() or username_part
+                                    except:
+                                        pass
+                                    
+                                    try:
+                                        bio_elem = element.locator('[data-testid="UserDescription"], .css-901oao.css-16my406').first
+                                        if await bio_elem.count() > 0:
+                                            bio = await bio_elem.text_content() or ""
+                                    except:
+                                        pass
+                                    
+                                    follower_data = {
+                                        "id": f"user_{len(followers)+1}",
+                                        "username": username_part,
+                                        "display_name": display_name.strip(),
+                                        "bio": bio.strip(),
+                                        "followers_count": 0,
+                                        "following_count": 0,
+                                        "verified": False,
+                                        "profile_image_url": "",
+                                        "created_at": time.strftime("%Y-%m-%d")
+                                    }
+                                    followers.append(follower_data)
+                                    print(f"✅ Extracted: @{username_part} ({display_name})")
+                        except Exception as e:
+                            continue
+                
+                # Method 2: Extract all profile links
+                print(f"Method 2 - Extracting all profile links...")
+                all_links = await page.locator('a[href*="/"]').all()
+                print(f"Found {len(all_links)} total links")
+                
+                for link in all_links:
+                    try:
+                        href = await link.get_attribute('href')
+                        if href and '/' in href:
+                            parts = href.split('/')
+                            if len(parts) >= 2:
+                                username_part = parts[-1] if parts[-1] else parts[-2]
+                                
+                                if (username_part and 
+                                    not username_part.startswith('i/') and 
+                                    not username_part.startswith('http') and
+                                    len(username_part) > 0 and 
+                                    len(username_part) < 16 and  # Twitter username limit
+                                    username_part not in seen_usernames and
+                                    not username_part in ['followers', 'following', 'status', 'home', 'search', 'messages']):
+                                    
+                                    # Validate it looks like a username
+                                    if re.match(r'^[a-zA-Z0-9_]+$', username_part):
                                         seen_usernames.add(username_part)
+                                        
                                         follower_data = {
                                             "id": f"user_{len(followers)+1}",
                                             "username": username_part,
@@ -357,9 +487,25 @@ async def scan_all_followers():
                                             "created_at": time.strftime("%Y-%m-%d")
                                         }
                                         followers.append(follower_data)
-                                        print(f"Extracted follower: {username_part}")
-                        except:
-                            continue
+                                        print(f"✅ Link extracted: @{username_part}")
+                    except:
+                        continue
+                
+                print(f"Current total: {len(followers)} followers")
+                
+                # Scroll down aggressively
+                if len(followers) < max_followers:
+                    print("Scrolling for more followers...")
+                    for scroll in range(5):
+                        await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                        await asyncio.sleep(random.uniform(1, 3))
+                        
+                        # Check if new content loaded
+                        new_elements = await page.locator('[data-testid="UserCell"], a[href*="/"]').all()
+                        if len(new_elements) == 0:
+                            break
+                    
+                    await asyncio.sleep(3)  # Wait for content to load
                 else:
                     # Use original extraction method
                     for element in follower_elements:
