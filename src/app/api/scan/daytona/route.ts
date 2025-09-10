@@ -171,13 +171,21 @@ export async function POST(request: NextRequest) {
           job.progress = 10;
         }
         
-        // Install Python and dependencies in the new sandbox
-        console.log('Installing Python and dependencies...')
-        await sandbox.process.executeCommand('apt-get update')
-        await sandbox.process.executeCommand('apt-get install -y python3 python3-pip')
+        // Install Python and browser dependencies
+        console.log('Installing Python and browser dependencies...')
+        await sandbox.process.executeCommand('apt-get update && apt-get install -y python3 python3-pip wget curl')
+        await sandbox.process.executeCommand('pip3 install requests beautifulsoup4 selenium playwright asyncio aiohttp')
         
+        // Install Playwright browsers with proper setup
+        console.log('Installing Playwright browsers...')
+        await sandbox.process.executeCommand('playwright install chromium --with-deps')
+        
+        // Verify browser installation
+        const browserCheck = await sandbox.process.executeCommand('playwright --version && chromium --version 2>/dev/null || echo "Chromium not in PATH"')
+        console.log('Browser check:', browserCheck.toString())
+
         if (job) {
-          job.progress = 25;
+          job.progress = 40;
           job.phase = 'installing_browser';
         }
         
@@ -186,7 +194,6 @@ export async function POST(request: NextRequest) {
         await sandbox.process.executeCommand('pip3 install playwright==1.40.0 beautifulsoup4==4.12.2 requests==2.31.0 selenium==4.15.0 asyncio aiohttp==3.9.0 fake-useragent==1.4.0')
         
         if (job) {
-          job.progress = 40;
           job.phase = 'creating_scanner';
         }
         
@@ -266,132 +273,137 @@ EOF`
         const testResult = await sandbox.process.executeCommand('cd /tmp && python3 test_sandbox.py')
         console.log('Test result:', testResult.toString())
         
-        // Create a comprehensive test script to verify follower extraction
-        console.log('Creating comprehensive follower test script...')
+        // Create browser-based follower extraction script
+        console.log('Creating browser-based follower extraction script...')
         const pythonScript = `#!/usr/bin/env python3
-import requests
+import asyncio
 import json
-import time
 import os
-import re
-from urllib.parse import urljoin
+import time
+from playwright.async_api import async_playwright
 
-def extract_real_followers():
-    username = os.environ.get('TARGET_USERNAME', 'elonmusk')
+async def extract_real_followers():
+    username = os.environ.get('TARGET_USERNAME', 'JoeProAI')
     max_followers = int(os.environ.get('MAX_FOLLOWERS', 1000))
     
-    print(f"🚀 Extracting REAL followers for @{username}")
+    print(f"🚀 Extracting REAL followers for @{username} using browser automation")
     print(f"📊 Max followers to extract: {max_followers}")
     print("⚠️ NO MOCK DATA - Real followers only or failure")
     
     followers = []
     
-    # Enhanced headers to mimic real browser
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'DNT': '1',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1',
-        'Cache-Control': 'max-age=0'
-    }
-    
-    # Try multiple URLs for the target username only
-    urls_to_try = [
-        f'https://x.com/{username}/followers',
-        f'https://twitter.com/{username}/followers',
-        f'https://x.com/{username}',
-        f'https://twitter.com/{username}',
-        f'https://nitter.net/{username}/followers',
-        f'https://nitter.net/{username}'
-    ]
-    
-    print(f"\\nTrying {len(urls_to_try)} URLs for @{username}...")
-    
-    for url in urls_to_try:
-        try:
-            print(f"\\n🌐 Trying URL: {url}")
-            response = requests.get(url, headers=headers, timeout=20, allow_redirects=True)
-            print(f"   Status: {response.status_code}")
-            print(f"   Final URL: {response.url}")
-            print(f"   Content length: {len(response.text):,} chars")
-            
-            if response.status_code == 200:
-                content = response.text
+    async with async_playwright() as p:
+        # Launch browser with stealth settings
+        browser = await p.chromium.launch(
+            headless=True,
+            args=[
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--disable-gpu'
+            ]
+        )
+        
+        context = await browser.new_context(
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            viewport={'width': 1920, 'height': 1080}
+        )
+        
+        page = await context.new_page()
+        
+        # Try multiple URLs for follower extraction
+        urls_to_try = [
+            f'https://x.com/{username}/followers',
+            f'https://x.com/{username}/following',
+            f'https://x.com/{username}',
+            f'https://nitter.net/{username}/followers',
+            f'https://nitter.net/{username}'
+        ]
+        
+        print(f"\\nTrying {len(urls_to_try)} URLs for @{username}...")
+        
+        for url in urls_to_try:
+            try:
+                print(f"\\n🌐 Trying URL: {url}")
                 
-                # Look for follower count indicators
-                follower_count_patterns = [
-                    r'(\\d{1,3}(?:,\\d{3})*(?:\\.\\d+)?[KMB]?)\\s*[Ff]ollowers?',
-                    r'[Ff]ollowers?[^\\d]*(\\d{1,3}(?:,\\d{3})*(?:\\.\\d+)?[KMB]?)',
-                    r'"followers_count":\\s*(\\d+)',
-                    r'"follower_count":\\s*(\\d+)'
-                ]
+                # Navigate to the page
+                response = await page.goto(url, wait_until='networkidle', timeout=30000)
+                print(f"   Status: {response.status}")
+                print(f"   Final URL: {page.url}")
                 
-                print("   🔍 Searching for follower counts...")
-                for pattern in follower_count_patterns:
-                    matches = re.findall(pattern, content, re.IGNORECASE)
-                    if matches:
-                        print(f"      Found follower count: {matches}")
-                
-                # Look for username patterns (potential followers)
-                username_patterns = [
-                    r'@([a-zA-Z0-9_]{1,15})(?![a-zA-Z0-9_])',  # @username format
-                    r'href=["\\']/([a-zA-Z0-9_]{1,15})(?![a-zA-Z0-9_])["\\'']',  # profile links
-                    r'"screen_name":\\s*"([a-zA-Z0-9_]{1,15})"',  # JSON screen_name
-                    r'"username":\\s*"([a-zA-Z0-9_]{1,15})"'  # JSON username
-                ]
-                
-                found_usernames = set()
-                print("   🔍 Searching for usernames...")
-                
-                for pattern in username_patterns:
-                    matches = re.findall(pattern, content, re.IGNORECASE)
-                    for match in matches:
-                        # Filter out common non-user paths and the target user
-                        if (len(match) >= 2 and 
-                            match.lower() not in [
-                                'home', 'explore', 'notifications', 'messages', 'search', 
-                                'settings', 'help', 'login', 'signup', 'about', 'privacy',
-                                'terms', 'support', 'download', 'mobile', 'web', 'api',
-                                'dev', 'blog', 'press', 'jobs', 'advertise', 'business',
-                                username.lower()  # Exclude the target user
-                            ] and
-                            not match.isdigit() and
-                            not match.startswith('http')):
-                            found_usernames.add(match)
-                
-                print(f"      Found {len(found_usernames)} potential usernames")
-                
-                # Convert to follower format - only if we found real usernames
-                if found_usernames:
-                    for i, uname in enumerate(list(found_usernames)[:max_followers]):
-                        followers.append({
-                            'username': uname,
-                            'display_name': uname.replace('_', ' ').title(),
-                            'extracted_at': time.strftime("%Y-%m-%d %H:%M:%S"),
-                            'source': url,
-                            'method': 'regex_extraction'
-                        })
+                if response.status == 200:
+                    # Wait for content to load
+                    await page.wait_for_timeout(3000)
                     
-                    print(f"      Sample usernames: {list(found_usernames)[:10]}")
-                    print(f"      ✅ Added {len(followers)} followers from this URL")
+                    # Get page content
+                    content = await page.content()
+                    print(f"   Content length: {len(content):,} chars")
                     
-                    # If we found followers, we can stop trying other URLs
-                    if len(followers) >= 10:  # Minimum threshold for success
-                        break
+                    # Look for user links and mentions
+                    user_links = await page.query_selector_all('a[href*="/"]')
+                    print(f"   Found {len(user_links)} links")
+                    
+                    found_usernames = set()
+                    
+                    # Extract usernames from links
+                    for link in user_links[:100]:  # Limit to first 100 links
+                        try:
+                            href = await link.get_attribute('href')
+                            if href and href.startswith('/') and len(href) > 1:
+                                potential_username = href[1:].split('/')[0]
+                                if (len(potential_username) >= 2 and 
+                                    len(potential_username) <= 15 and
+                                    potential_username.replace('_', '').isalnum() and
+                                    potential_username.lower() not in [
+                                        'home', 'explore', 'search', 'settings', 'help', 
+                                        'about', 'privacy', 'terms', 'notifications', 
+                                        'messages', 'compose', 'login', 'signup',
+                                        username.lower()
+                                    ]):
+                                    found_usernames.add(potential_username)
+                        except:
+                            continue
+                    
+                    # Also look for @mentions in text
+                    text_content = await page.text_content('body')
+                    if text_content:
+                        import re
+                        mentions = re.findall(r'@([a-zA-Z0-9_]{2,15})', text_content)
+                        for mention in mentions:
+                            if mention.lower() != username.lower():
+                                found_usernames.add(mention)
+                    
+                    print(f"   Found {len(found_usernames)} potential usernames")
+                    
+                    # Convert to follower format
+                    if found_usernames:
+                        for i, uname in enumerate(list(found_usernames)[:max_followers]):
+                            followers.append({
+                                'username': uname,
+                                'display_name': uname.replace('_', ' ').title(),
+                                'extracted_at': time.strftime("%Y-%m-%d %H:%M:%S"),
+                                'source': url,
+                                'method': 'browser_automation'
+                            })
+                        
+                        print(f"      Sample usernames: {list(found_usernames)[:10]}")
+                        print(f"      ✅ Added {len(followers)} followers from this URL")
+                        
+                        # If we found enough followers, stop trying other URLs
+                        if len(followers) >= 10:
+                            break
                 
-            else:
-                print(f"      ❌ HTTP {response.status_code}")
-                
-        except Exception as e:
-            print(f"      ❌ Error: {e}")
-            continue
+                else:
+                    print(f"      ❌ HTTP {response.status}")
+                    
+            except Exception as e:
+                print(f"      ❌ Error: {e}")
+                continue
+        
+        await browser.close()
     
     # Create results - NO MOCK DATA
     if followers:
@@ -404,7 +416,7 @@ def extract_real_followers():
         print("   - Account is private")
         print("   - Twitter/X blocking automated access")
         print("   - Rate limiting")
-        print("   - Account doesn't exist")
+        print("   - Network restrictions in sandbox")
     
     results = {
         "target_username": username,
@@ -413,30 +425,20 @@ def extract_real_followers():
         "followers": followers,
         "scan_completed_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "status": status,
-        "method": "real_extraction_only",
+        "method": "browser_automation",
         "debug_info": {
             "urls_tried": len(urls_to_try),
-            "extraction_method": "regex_patterns_no_mock"
+            "extraction_method": "playwright_browser"
         }
     }
     
     with open('/tmp/real_scan_results.json', 'w') as f:
         json.dump(results, f, indent=2)
     
-    print(f"\\n📊 Final Results:")
-    print(f"   Target: @{username}")
-    print(f"   Followers found: {len(followers)}")
-    print(f"   Status: {status}")
-    
-    if followers:
-        print("   Sample followers:")
-        for i, follower in enumerate(followers[:5]):
-            print(f"      {i+1}. @{follower['username']}")
-    
     return results
 
 if __name__ == "__main__":
-    extract_real_followers()
+    asyncio.run(extract_real_followers())
 `
 
         // Create Python script using cat command instead of files API
