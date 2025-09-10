@@ -568,16 +568,34 @@ async def scan_all_followers():
                         else:
                             scroll_attempts = 0  # Reset counter if new content loaded
             
-            # Save complete results
+            # Save complete results with detailed logging
+            print(f"\\n=== FINAL RESULTS ===")
+            print(f"Total followers extracted: {len(followers)}")
+            print(f"Unique usernames: {len(seen_usernames)}")
+            print(f"Target was: {max_followers}")
+            
+            # Show sample of extracted followers
+            if followers:
+                print("Sample followers:")
+                for i, follower in enumerate(followers[:5]):
+                    print(f"  {i+1}. @{follower['username']} - {follower['display_name']}")
+            else:
+                print("❌ NO FOLLOWERS EXTRACTED!")
+                
             results = {
                 "target_username": username,
                 "followers_found": len(followers),
                 "total_extracted": len(followers),
                 "followers": followers,
                 "scan_completed_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-                "status": "completed",
-                "method": "web_scraping",
-                "coverage": "100%" if len(followers) >= max_followers else f"{len(followers)} followers"
+                "status": "completed" if len(followers) > 0 else "failed",
+                "method": "web_scraping_enhanced",
+                "coverage": "100%" if len(followers) >= max_followers else f"{len(followers)} followers",
+                "debug_info": {
+                    "unique_usernames_seen": len(seen_usernames),
+                    "extraction_attempts": extraction_attempts,
+                    "final_page_url": page.url
+                }
             }
             
             with open('/tmp/real_scan_results.json', 'w') as f:
@@ -626,12 +644,16 @@ EOF`)
         console.log('Executing COMPLETE follower scanning script...')
         const maxFollowers = Math.max(estimated_followers * 1.5, 1000) // 50% buffer, minimum 1000
         
-        // Add debug logging to the Python script execution
-        const scanResult = await sandbox.process.executeCommand(`TARGET_USERNAME=${username} MAX_FOLLOWERS=${maxFollowers} python3 real_follower_scanner.py`)
+        // Add debug logging to the Python script execution with output redirection
+        const scanResult = await sandbox.process.executeCommand(`TARGET_USERNAME=${username} MAX_FOLLOWERS=${maxFollowers} python3 real_follower_scanner.py > /tmp/python_scan.log 2>&1`)
         console.log('Real scan execution result:', scanResult)
         console.log('Scan stdout:', scanResult.stdout)
         console.log('Scan stderr:', scanResult.stderr)
         console.log('Scan exit code:', scanResult.exitCode)
+        
+        // Also run a direct test to see if Python can access the internet
+        const internetTest = await sandbox.process.executeCommand('python3 -c "import requests; print(requests.get(\'https://httpbin.org/ip\').text)" 2>&1')
+        console.log('Internet connectivity test:', internetTest.toString())
         
         if (job) {
           job.progress = 85;
@@ -640,12 +662,21 @@ EOF`)
         
         // Get the actual results from the scan
         try {
-          const resultsCommand = await sandbox.process.executeCommand('cat /tmp/real_scan_results.json')
+          // First check what files exist in /tmp
+          const tmpFiles = await sandbox.process.executeCommand('ls -la /tmp/')
+          console.log('Files in /tmp:', tmpFiles.toString())
+          
+          // Check if our results file exists
+          const fileCheck = await sandbox.process.executeCommand('ls -la /tmp/real_scan_results.json 2>/dev/null || echo "File not found"')
+          console.log('Results file check:', fileCheck.toString())
+          
+          // Try to read the results file
+          const resultsCommand = await sandbox.process.executeCommand('cat /tmp/real_scan_results.json 2>/dev/null || echo "{}"')
           console.log('Raw results file content:', resultsCommand.toString())
           
-          // Also check if the file exists and its size
-          const fileCheck = await sandbox.process.executeCommand('ls -la /tmp/real_scan_results.json')
-          console.log('Results file info:', fileCheck.toString())
+          // Also check Python script logs
+          const pythonLogs = await sandbox.process.executeCommand('cat /tmp/python_scan.log 2>/dev/null || echo "No Python logs found"')
+          console.log('Python execution logs:', pythonLogs.toString())
           
           const scanData = JSON.parse(resultsCommand.toString() || '{}')
           
