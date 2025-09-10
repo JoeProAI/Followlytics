@@ -172,6 +172,13 @@ export default function DashboardPage() {
                 progress: statusData.progress,
                 fullStatusData: statusData
               })
+              
+              // Log individual error components for easier debugging
+              console.error('❌ Error message:', statusData.error)
+              console.error('❌ Error details:', statusData.details)
+              console.error('❌ Phase when failed:', statusData.phase)
+              console.error('❌ Progress when failed:', statusData.progress)
+              console.error('❌ Full status object:', JSON.stringify(statusData, null, 2))
             }
           }
         } catch (pollError) {
