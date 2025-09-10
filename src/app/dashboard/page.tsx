@@ -156,8 +156,22 @@ export default function DashboardPage() {
             } else if (statusData.status === 'failed') {
               clearInterval(pollInterval)
               setIsScanning(false)
-              setScanError('Scan failed')
-              console.error('❌ Scan failed:', statusData)
+              
+              // Extract detailed error information
+              const errorMessage = statusData.error || statusData.message || 'Unknown scan failure'
+              const errorDetails = statusData.details || ''
+              const fullError = errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage
+              
+              setScanError(fullError)
+              console.error('❌ Scan failed with details:', {
+                status: statusData.status,
+                error: statusData.error,
+                message: statusData.message,
+                details: statusData.details,
+                phase: statusData.phase,
+                progress: statusData.progress,
+                fullStatusData: statusData
+              })
             }
           }
         } catch (pollError) {
