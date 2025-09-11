@@ -117,11 +117,61 @@ export default function DashboardPage() {
       }
       
       if (data.success && data.authorization_url) {
-        // Store token secret in cookie for callback
-        document.cookie = `twitter_oauth_token_secret=${data.oauth_token_secret}; path=/; max-age=600; SameSite=Lax`
+        // Open Twitter authorization in a popup window
+        const popup = window.open(
+          data.authorization_url,
+          'twitter-auth',
+          'width=600,height=700,scrollbars=yes,resizable=yes,status=yes,location=yes,toolbar=no,menubar=no'
+        )
         
-        // Redirect to Twitter authorization
-        window.location.href = data.authorization_url
+        if (!popup) {
+          throw new Error('Popup blocked. Please allow popups for this site and try again.')
+        }
+        
+        // Monitor popup for completion
+        const checkClosed = setInterval(() => {
+          if (popup.closed) {
+            clearInterval(checkClosed)
+            setAuthLoading(false)
+            // Check if auth was successful by checking URL params or making a status call
+            setTimeout(() => {
+              checkTwitterAuthStatus()
+            }, 1000)
+          }
+        }, 1000)
+        
+        // Handle popup message (if callback sends postMessage)
+        const handleMessage = (event: MessageEvent) => {
+          if (event.origin !== window.location.origin) return
+          
+          if (event.data.type === 'TWITTER_AUTH_SUCCESS') {
+            setTwitterAuthorized(true)
+            popup.close()
+            clearInterval(checkClosed)
+            setAuthLoading(false)
+            window.removeEventListener('message', handleMessage)
+          } else if (event.data.type === 'TWITTER_AUTH_ERROR') {
+            setError(event.data.error || 'Twitter authorization failed')
+            popup.close()
+            clearInterval(checkClosed)
+            setAuthLoading(false)
+            window.removeEventListener('message', handleMessage)
+          }
+        }
+        
+        window.addEventListener('message', handleMessage)
+        
+        // Timeout after 5 minutes
+        setTimeout(() => {
+          if (!popup.closed) {
+            popup.close()
+            clearInterval(checkClosed)
+            setAuthLoading(false)
+            setError('Authorization timeout. Please try again.')
+            window.removeEventListener('message', handleMessage)
+          }
+        }, 5 * 60 * 1000)
+        
       } else {
         throw new Error('Invalid OAuth response')
       }

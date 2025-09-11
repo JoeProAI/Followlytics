@@ -260,7 +260,45 @@ export async function GET(request: NextRequest) {
     // Clear OAuth cookies
     response.cookies.delete('twitter_oauth_token_secret')
 
-    return response
+    // For popup flow, return HTML that sends message to parent window
+    const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Twitter Authorization Complete</title>
+    </head>
+    <body>
+        <script>
+            // Send success message to parent window
+            if (window.opener) {
+                window.opener.postMessage({
+                    type: 'TWITTER_AUTH_SUCCESS',
+                    user: {
+                        username: '${userData.screen_name}',
+                        name: '${userData.name}'
+                    }
+                }, '${origin}');
+                window.close();
+            } else {
+                // Fallback: redirect to dashboard
+                window.location.href = '${origin}/dashboard?twitter_auth=success';
+            }
+        </script>
+        <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
+            <h2>Authorization Successful!</h2>
+            <p>You can close this window and return to the dashboard.</p>
+        </div>
+    </body>
+    </html>
+    `;
+
+    return new Response(html, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html',
+        'Set-Cookie': response.headers.get('Set-Cookie') || ''
+      }
+    })
 
   } catch (error) {
     console.error('OAuth callback error:', error)
@@ -273,8 +311,42 @@ export async function GET(request: NextRequest) {
       consumerKey: !!consumerKey,
       consumerSecret: !!consumerSecret
     })
-    // Instead of redirecting to error, redirect to dashboard with debug info
-    const response = NextResponse.redirect(`${origin}/dashboard?debug=auth_failed&error=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`)
-    return response
+    // For popup flow, return HTML that sends error message to parent window
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Twitter Authorization Failed</title>
+    </head>
+    <body>
+        <script>
+            // Send error message to parent window
+            if (window.opener) {
+                window.opener.postMessage({
+                    type: 'TWITTER_AUTH_ERROR',
+                    error: '${errorMessage.replace(/'/g, "\\'")}'
+                }, '${origin}');
+                window.close();
+            } else {
+                // Fallback: redirect to dashboard with error
+                window.location.href = '${origin}/dashboard?debug=auth_failed&error=${encodeURIComponent(errorMessage)}';
+            }
+        </script>
+        <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
+            <h2>Authorization Failed</h2>
+            <p>Error: ${errorMessage}</p>
+            <p>You can close this window and try again.</p>
+        </div>
+    </body>
+    </html>
+    `;
+
+    return new Response(html, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html'
+      }
+    })
   }
 }
