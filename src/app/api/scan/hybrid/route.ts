@@ -139,7 +139,7 @@ async function extractFollowersWithPagination(userId: string, totalFollowers: nu
       const data = await response.json()
       
       if (data.data) {
-        followers.push(...data.data.map(user => ({
+        followers.push(...data.data.map((user: any) => ({
           username: user.username,
           name: user.name,
           followers_count: user.public_metrics?.followers_count || 0
