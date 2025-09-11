@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     console.log('📡 Requesting OAuth token from Twitter...')
 
     // Request OAuth token from Twitter
-    const response = await fetch('https://api.twitter.com/oauth/request_token', {
+    const twitterResponse = await fetch('https://api.twitter.com/oauth/request_token', {
       method: 'POST',
       headers: {
         'Authorization': authHeader,
@@ -96,17 +96,17 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    if (!response.ok) {
-      const errorText = await response.text()
+    if (!twitterResponse.ok) {
+      const errorText = await twitterResponse.text()
       console.error('❌ Twitter OAuth request failed:', {
-        status: response.status,
-        statusText: response.statusText,
+        status: twitterResponse.status,
+        statusText: twitterResponse.statusText,
         error: errorText
       })
-      throw new Error(`Twitter OAuth request failed: ${response.status} ${errorText}`)
+      throw new Error(`Twitter OAuth request failed: ${twitterResponse.status} ${errorText}`)
     }
 
-    const responseText = await response.text()
+    const responseText = await twitterResponse.text()
     console.log('✅ Twitter OAuth response:', responseText)
 
     // Parse response
@@ -120,18 +120,28 @@ export async function POST(request: NextRequest) {
       throw new Error('Invalid OAuth response from Twitter')
     }
 
-    // Store token secret in session/database (for production, use proper session storage)
-    // For now, we'll pass it as a query parameter (not secure for production)
-    const authUrl = `https://api.twitter.com/oauth/authorize?oauth_token=${oauthToken}&oauth_token_secret=${oauthTokenSecret}`
+    // Create authorization URL (token secret should NOT be in URL)
+    const authUrl = `https://api.twitter.com/oauth/authorize?oauth_token=${oauthToken}`
 
     console.log('🔗 Generated Twitter authorization URL:', authUrl)
 
-    return NextResponse.json({
+    // Create response with cookie to store token secret
+    const response = NextResponse.json({
       success: true,
       authorization_url: authUrl,
-      oauth_token: oauthToken,
-      oauth_token_secret: oauthTokenSecret
+      oauth_token: oauthToken
     })
+
+    // Store token secret in httpOnly cookie for callback
+    response.cookies.set('twitter_oauth_token_secret', oauthTokenSecret, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 10, // 10 minutes
+      path: '/'
+    })
+
+    return response
 
   } catch (error) {
     console.error('❌ Twitter OAuth initialization failed:', error)
