@@ -1,6 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Daytona } from '@daytonaio/sdk'
 import { activeScanJobs } from '@/lib/scan-jobs'
+import admin from 'firebase-admin'
+
+// Initialize Firebase Admin if not already initialized
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    }),
+  })
+}
+
+const adminDb = admin.firestore()
+
+async function getUserTwitterTokens(userId: string) {
+  try {
+    const userDoc = await adminDb.collection('users').doc(userId).get()
+    if (!userDoc.exists) {
+      return null
+    }
+    
+    const userData = userDoc.data()
+    return {
+      access_token: userData?.twitter_access_token,
+      access_token_secret: userData?.twitter_access_token_secret
+    }
+  } catch (error) {
+    console.error('Error getting user Twitter tokens:', error)
+    return null
+  }
+}
 
 // Submit scan using Daytona SDK
 export async function POST(request: NextRequest) {
@@ -11,6 +43,12 @@ export async function POST(request: NextRequest) {
     if (!username) {
       return NextResponse.json({ 
         error: 'Username is required' 
+      }, { status: 400 })
+    }
+
+    if (!user_id) {
+      return NextResponse.json({ 
+        error: 'User ID is required for OAuth token retrieval' 
       }, { status: 400 })
     }
 
@@ -69,16 +107,33 @@ export async function POST(request: NextRequest) {
     try {
       console.log('Creating new sandbox with debian:12 image...')
       
-      // Create a new sandbox for this scan with OAuth credentials
-      sandbox = await daytona.create({
-        image: 'debian:12',
-        envVars: {
-          TARGET_USERNAME: username,
-          MAX_FOLLOWERS: (estimated_followers || 50000).toString(),
-          TWITTER_ACCESS_TOKEN: process.env.TWITTER_ACCESS_TOKEN || '',
-          TWITTER_ACCESS_TOKEN_SECRET: process.env.TWITTER_ACCESS_TOKEN_SECRET || ''
+      // Determine extraction method based on account size
+      const extractionMethod = estimated_followers > 50000 ? 'twitter_api' : 'browser_automation'
+      
+      console.log(`📊 Account size: ${estimated_followers} followers`)
+      console.log(`🔧 Using extraction method: ${extractionMethod}`)
+
+        // Get user's OAuth tokens from Firebase
+        const userTokens = await getUserTwitterTokens(user_id)
+        
+        if (!userTokens || !userTokens.access_token || !userTokens.access_token_secret) {
+          throw new Error('User must complete Twitter OAuth authorization before scanning')
         }
-      })
+
+        // Create a new sandbox for this scan with user's OAuth credentials
+        sandbox = await daytona.create({
+          image: 'debian:12',
+          envVars: {
+            TARGET_USERNAME: username,
+            MAX_FOLLOWERS: (estimated_followers || 50000).toString(),
+            TWITTER_API_KEY: process.env.TWITTER_API_KEY || '',
+            TWITTER_API_SECRET: process.env.TWITTER_API_SECRET || '',
+            TWITTER_ACCESS_TOKEN: userTokens.access_token,
+            TWITTER_ACCESS_TOKEN_SECRET: userTokens.access_token_secret,
+            EXTRACTION_METHOD: extractionMethod,
+            ACCOUNT_SIZE: estimated_followers.toString()
+          }
+        })
       
       console.log(`✅ Created new sandbox: ${sandbox.id}`)
       
@@ -310,6 +365,20 @@ async def extract_followers_with_app_consent():
     log_info(f"Max followers to extract: {max_followers}")
     log_info(f"Using Twitter app authorization consent")
     
+    # Check if we have OAuth credentials from the user
+    access_token = os.environ.get('TWITTER_ACCESS_TOKEN')
+    access_token_secret = os.environ.get('TWITTER_ACCESS_TOKEN_SECRET')
+    
+    if not access_token or not access_token_secret:
+        log_info("No OAuth tokens found - user needs to authorize first")
+        return {
+            "error": "OAuth authorization required",
+            "message": "User must complete Twitter OAuth authorization before scanning",
+            "status": "authorization_required",
+            "followers_found": 0
+        }
+    
+    log_info("OAuth tokens found - proceeding with authorized scan")
     followers = []
     
     try:
@@ -553,7 +622,7 @@ if __name__ == "__main__":
         
     except Exception as e:
         log_error("Main execution failed", e)
-        # Create error result
+        # Create error result but don't exit with error code
         error_result = {
             "error": "Main execution failed",
             "details": str(e),
@@ -565,7 +634,9 @@ if __name__ == "__main__":
         with open('/tmp/scan_results.json', 'w') as f:
             json.dump(error_result, f, indent=2)
         
-        sys.exit(1)
+        log_info("Error result saved, exiting gracefully")
+        # Don't use sys.exit(1) - it causes the script to fail
+        # Instead, save error result and exit normally
 `
 
 // Create Python script using cat command instead of files API
@@ -634,8 +705,8 @@ EOF`
           const fileCheck = await sandbox.process.executeCommand('ls -la /tmp/real_scan_results.json 2>/dev/null || echo "File not found"')
           console.log('Results file check:', fileCheck.toString())
           
-          // Try to read the results file
-          const resultsCommand = await sandbox.process.executeCommand('cat /tmp/real_scan_results.json 2>/dev/null || echo "{}"')
+          // Try to read the results file (check both possible filenames)
+          const resultsCommand = await sandbox.process.executeCommand('cat /tmp/scan_results.json 2>/dev/null || cat /tmp/real_scan_results.json 2>/dev/null || echo "{}"')
           console.log('Raw results file content:', resultsCommand.toString())
           
           // Also check Python script logs

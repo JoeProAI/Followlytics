@@ -49,7 +49,7 @@ function generateAuthHeader(params: Record<string, string>) {
   return `OAuth ${authParams}`
 }
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     console.log('🔐 Starting Twitter OAuth authorization flow...')
 
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      authUrl,
+      authorization_url: authUrl,
       oauth_token: oauthToken,
       oauth_token_secret: oauthTokenSecret
     })

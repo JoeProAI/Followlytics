@@ -150,8 +150,8 @@ export default function DashboardPage() {
       setScanLoading(true)
       setError(null)
       
-      // Submit to unified Daytona system
-      const response = await fetch('/api/scan/daytona', {
+      // Submit to scalable browser automation system
+      const response = await fetch('/api/scan/scalable', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -159,7 +159,7 @@ export default function DashboardPage() {
         credentials: 'include',
         body: JSON.stringify({
           username: username.replace('@', '').trim(),
-          estimated_followers: 800, // Your actual follower count
+          estimated_followers: 800, // Will be auto-detected
           priority: 'normal',
           user_id: user?.uid
         })
