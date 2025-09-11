@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 
 // Twitter OAuth 1.0a configuration
-const TWITTER_API_KEY = process.env.TWITTER_API_KEY!
-const TWITTER_API_SECRET = process.env.TWITTER_API_SECRET!
+const TWITTER_API_KEY = process.env.TWITTER_API_KEY
+const TWITTER_API_SECRET = process.env.TWITTER_API_SECRET
 const CALLBACK_URL = process.env.NEXT_PUBLIC_APP_URL + '/api/auth/twitter/callback'
 
 // OAuth 1.0a signature generation
@@ -52,6 +52,15 @@ function generateAuthHeader(params: Record<string, string>) {
 export async function POST(request: NextRequest) {
   try {
     console.log('🔐 Starting Twitter OAuth authorization flow...')
+
+    // Check required environment variables
+    if (!TWITTER_API_KEY || !TWITTER_API_SECRET) {
+      console.error('❌ Missing Twitter API credentials')
+      return NextResponse.json(
+        { error: 'Twitter API credentials not configured' },
+        { status: 500 }
+      )
+    }
 
     // Generate OAuth parameters
     const oauthParams = {
