@@ -37,13 +37,7 @@ export default function DashboardPage() {
   })
   const [error, setError] = useState<string | null>(null)
   const [scanLoading, setScanLoading] = useState(false)
-  const [twitterAuthorized, setTwitterAuthorized] = useState(() => {
-    // Initialize from localStorage if available
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('twitter_authorized') === 'true'
-    }
-    return false
-  })
+  const [twitterAuthorized, setTwitterAuthorized] = useState(false)
   const [authLoading, setAuthLoading] = useState(false)
 
   // Fetch existing followers on component mount
@@ -60,7 +54,6 @@ export default function DashboardPage() {
     const urlParams = new URLSearchParams(window.location.search)
     if (urlParams.get('twitter_auth') === 'success') {
       setTwitterAuthorized(true)
-      localStorage.setItem('twitter_authorized', 'true')
       // Clean up URL
       window.history.replaceState({}, '', '/dashboard')
       // Force a status check to get username
@@ -83,22 +76,25 @@ export default function DashboardPage() {
         const isAuthorized = data.authorized || false
         setTwitterAuthorized(isAuthorized)
         
-        // Persist authorization state in localStorage
-        localStorage.setItem('twitter_authorized', isAuthorized.toString())
-        
         if (isAuthorized && data.username) {
           setAuthorizedUsername(data.username)
           setUsername(data.username) // Auto-populate username field
-          localStorage.setItem('twitter_username', data.username)
-        } else if (!isAuthorized) {
+        } else {
           // Clear stored data if not authorized
-          localStorage.removeItem('twitter_username')
           setAuthorizedUsername('')
           setUsername('')
         }
+      } else {
+        // If status check fails, assume not authorized
+        setTwitterAuthorized(false)
+        setAuthorizedUsername('')
+        setUsername('')
       }
     } catch (error) {
       console.log('Twitter auth status check failed:', error)
+      setTwitterAuthorized(false)
+      setAuthorizedUsername('')
+      setUsername('')
     }
   }
 
@@ -189,12 +185,10 @@ export default function DashboardPage() {
           
           if (event.data.type === 'TWITTER_AUTH_SUCCESS') {
             setTwitterAuthorized(true)
-            localStorage.setItem('twitter_authorized', 'true')
             
             if (event.data.user && event.data.user.username) {
               setAuthorizedUsername(event.data.user.username)
               setUsername(event.data.user.username) // Auto-populate username field
-              localStorage.setItem('twitter_username', event.data.user.username)
             }
             popup.close()
             clearInterval(checkClosed)
@@ -541,7 +535,7 @@ export default function DashboardPage() {
                       <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                         <div className="flex items-center gap-3 mb-3">
                           <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">1</div>
-                          <h3 className="font-semibold text-blue-900">Authorize Twitter Access</h3>
+                          <h3 className="font-semibold text-blue-900">Authorize X (Twitter) Access</h3>
                         </div>
                         <p className="text-blue-700 mb-4">
                           To scan your followers, you need to authorize Followlytics to access your Twitter account. 
@@ -562,7 +556,7 @@ export default function DashboardPage() {
                               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
                               </svg>
-                              Authorize Twitter Access
+                              Authorize X Access
                             </>
                           )}
                         </Button>
@@ -574,10 +568,10 @@ export default function DashboardPage() {
                       <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                         <div className="flex items-center gap-3 mb-2">
                           <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center">✓</div>
-                          <h3 className="font-semibold text-green-900">Twitter Access Authorized</h3>
+                          <h3 className="font-semibold text-green-900">X Access Authorized</h3>
                         </div>
                         <p className="text-green-700">
-                          Great! You can now scan any Twitter account for followers.
+                          Great! You can now scan any X account for followers.
                         </p>
                       </div>
 

@@ -26,6 +26,8 @@ if (!admin.apps.length) {
 
 async function getUserTwitterTokens(userId: string) {
   try {
+    console.log(`🔍 Getting Twitter tokens for user: ${userId}`)
+    
     if (!admin.apps.length) {
       console.warn('Firebase not initialized - cannot get user tokens')
       return null
@@ -33,15 +35,27 @@ async function getUserTwitterTokens(userId: string) {
     
     const adminDb = admin.firestore()
     const userDoc = await adminDb.collection('users').doc(userId).get()
+    
+    console.log(`📄 User document exists: ${userDoc.exists}`)
+    
     if (!userDoc.exists) {
+      console.log(`❌ No user document found for userId: ${userId}`)
       return null
     }
     
     const userData = userDoc.data()
-    return {
+    console.log(`📊 User data fields:`, Object.keys(userData || {}))
+    console.log(`🔑 Has access_token: ${!!userData?.access_token}`)
+    console.log(`🔐 Has access_token_secret: ${!!userData?.access_token_secret}`)
+    
+    const tokens = {
       access_token: userData?.access_token,
       access_token_secret: userData?.access_token_secret
     }
+    
+    console.log(`✅ Returning tokens - access_token length: ${tokens.access_token?.length || 0}, secret length: ${tokens.access_token_secret?.length || 0}`)
+    
+    return tokens
   } catch (error) {
     console.error('Error getting user Twitter tokens:', error)
     return null

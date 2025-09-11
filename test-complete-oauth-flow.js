@@ -7,7 +7,7 @@ async function testCompleteOAuthFlow() {
   try {
     // Step 1: Test Twitter OAuth initialization
     console.log('\n📱 Step 1: Testing Twitter OAuth initialization...');
-    const oauthResponse = await fetch('http://localhost:3000/api/auth/twitter', {
+    const oauthResponse = await fetch('https://followlytics.vercel.app/api/auth/twitter', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
