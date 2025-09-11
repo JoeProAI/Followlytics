@@ -1,12 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * Test Twitter API v1.1 Followers Endpoint
- * Sometimes v1.1 works when v2 doesn't
+ * Test improved app authentication in Daytona scan
  */
 
-const crypto = require('crypto');
-require('dotenv').config({ path: '.env.local' });
+const https = require('https');
 
 class TwitterV1Test {
   constructor() {

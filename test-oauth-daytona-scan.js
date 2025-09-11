@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Test OAuth-authenticated Daytona browser scraping system
+ * Test OAuth-authenticated Daytona browser scraping system with improved error handling
  * This script tests the complete flow of OAuth-authenticated follower extraction
  */
 

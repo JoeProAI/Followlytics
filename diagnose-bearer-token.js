@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * Diagnose Bearer Token and API Key Issues
- * Check if keys match project attachment
+ * Diagnose OAuth 1.0a Authentication Issues
  */
 
-require('dotenv').config({ path: '.env.local' });
+const https = require('https');
 
 async function diagnoseBearerToken() {
   console.log('🔍 BEARER TOKEN DIAGNOSTIC');

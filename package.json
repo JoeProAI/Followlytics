@@ -28,7 +28,7 @@
     "next": "14.2.5",
     "oauth-1.0a": "^2.2.6",
     "playwright": "^1.55.0",
-    "puppeteer": "^24.19.0",
+    "puppeteer": "^24.20.0",
     "react": "^18",
     "react-dom": "^18",
     "recharts": "^2.12.7",

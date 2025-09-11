@@ -60,7 +60,6 @@ export async function GET(request: NextRequest) {
   try {
     console.log('Initiating Twitter OAuth request with callback:', callbackUrl)
     console.log('Using consumer key:', consumerKey ? `${consumerKey.substring(0, 10)}...` : 'MISSING')
-    console.log('Request origin:', origin)
     
     // Request token from Twitter
     const response = await fetch('https://api.twitter.com/oauth/request_token', {
@@ -84,12 +83,18 @@ export async function GET(request: NextRequest) {
     }
     
     const responseText = await response.text()
+    console.log('Twitter API response:', responseText)
+    
     const params = new URLSearchParams(responseText)
     const oauthToken = params.get('oauth_token')
     const oauthTokenSecret = params.get('oauth_token_secret')
+    const callbackConfirmed = params.get('oauth_callback_confirmed')
     
-    if (!oauthToken || !oauthTokenSecret) {
-      throw new Error('Invalid response from Twitter API')
+    console.log('Parsed OAuth tokens:', { oauthToken, oauthTokenSecret, callbackConfirmed })
+    
+    if (!oauthToken || !oauthTokenSecret || callbackConfirmed !== 'true') {
+      console.error('Invalid Twitter API response:', { oauthToken: !!oauthToken, oauthTokenSecret: !!oauthTokenSecret, callbackConfirmed })
+      throw new Error(`Invalid response from Twitter API: ${responseText}`)
     }
     
     // Store token secret for callback

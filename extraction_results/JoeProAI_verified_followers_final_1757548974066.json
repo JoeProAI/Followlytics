@@ -1,0 +1,25 @@
+{
+  "username": "JoeProAI",
+  "type": "verified_followers_final",
+  "count": 14,
+  "expected_count": 868,
+  "success_rate": "1.6%",
+  "extracted_at": "2025-09-11T00:02:54.066Z",
+  "method": "verified_count_extraction",
+  "followers": [
+    "JoeProAI",
+    "getimg_ai",
+    "SunoMusic",
+    "capcutapp",
+    "Kdenny_astro",
+    "krassenstein",
+    "momentumdash",
+    "gdb",
+    "NorthstarBrain",
+    "elder_plinius",
+    "Shadow_Official",
+    "cocktailpeanut",
+    "JonathanACaruso",
+    "TechPalsTalk"
+  ]
+}
