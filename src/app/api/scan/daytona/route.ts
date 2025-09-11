@@ -5,19 +5,33 @@ import admin from 'firebase-admin'
 
 // Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    }),
-  })
+  try {
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+    
+    if (!privateKey || !process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL) {
+      console.warn('Firebase Admin SDK not initialized - missing environment variables')
+    } else {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: privateKey,
+        }),
+      })
+    }
+  } catch (error) {
+    console.error('Firebase Admin initialization failed:', error)
+  }
 }
-
-const adminDb = admin.firestore()
 
 async function getUserTwitterTokens(userId: string) {
   try {
+    if (!admin.apps.length) {
+      console.warn('Firebase not initialized - cannot get user tokens')
+      return null
+    }
+    
+    const adminDb = admin.firestore()
     const userDoc = await adminDb.collection('users').doc(userId).get()
     if (!userDoc.exists) {
       return null

@@ -3,16 +3,32 @@ import admin from 'firebase-admin'
 
 // Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    }),
-  })
+  try {
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+    
+    if (!privateKey || !process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL) {
+      console.warn('Firebase Admin SDK not initialized - missing environment variables')
+    } else {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: privateKey,
+        }),
+      })
+    }
+  } catch (error) {
+    console.error('Firebase Admin initialization failed:', error)
+  }
 }
 
-const adminDb = admin.firestore()
+// Get Firestore instance safely
+function getFirestore() {
+  if (!admin.apps.length) {
+    throw new Error('Firebase not initialized')
+  }
+  return admin.firestore()
+}
 
 // Manual OAuth token storage for testing
 export async function POST(request: NextRequest) {
@@ -28,6 +44,7 @@ export async function POST(request: NextRequest) {
     console.log('🔐 Storing manual OAuth tokens for user:', user_id)
 
     // Store tokens in Firebase
+    const adminDb = getFirestore()
     await adminDb.collection('users').doc(user_id).set({
       twitter_access_token: access_token,
       twitter_access_token_secret: access_token_secret,
@@ -68,6 +85,7 @@ export async function GET(request: NextRequest) {
       }, { status: 400 })
     }
 
+    const adminDb = getFirestore()
     const userDoc = await adminDb.collection('users').doc(user_id).get()
     
     if (!userDoc.exists) {
