@@ -81,21 +81,23 @@ function getProcessingStrategy(followers: number) {
 async function singleProcessing(username: string, followers: number, strategy: any, jobId: string) {
   console.log(`🚀 Starting single worker processing for ${followers} followers`)
   
-  // Use existing Daytona endpoint with optimized parameters
-  const response = await fetch('/api/scan/daytona', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  // Import and call the Daytona route handler directly
+  const { POST: daytonaHandler } = await import('../daytona/route')
+  
+  // Create a mock request object
+  const mockRequest = {
+    json: async () => ({
       username,
       estimated_followers: followers,
       job_id: jobId,
       method: 'optimized_single',
       scroll_delay: strategy.scrollDelay,
-      batch_size: strategy.batchSize
+      batch_size: strategy.batchSize,
+      user_id: 'scalable_system'
     })
-  })
+  } as NextRequest
   
-  return response
+  return await daytonaHandler(mockRequest)
 }
 
 async function parallelProcessing(username: string, followers: number, strategy: any, jobId: string) {
@@ -143,10 +145,12 @@ async function parallelProcessing(username: string, followers: number, strategy:
 async function createWorker(username: string, startOffset: number, endOffset: number, strategy: any, workerId: string) {
   console.log(`🔧 Creating worker ${workerId} for range ${startOffset}-${endOffset}`)
   
-  const response = await fetch('/api/scan/daytona', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  // Import and call the Daytona route handler directly
+  const { POST: daytonaHandler } = await import('../daytona/route')
+  
+  // Create a mock request object
+  const mockRequest = {
+    json: async () => ({
       username,
       estimated_followers: endOffset - startOffset,
       job_id: workerId,
@@ -154,9 +158,12 @@ async function createWorker(username: string, startOffset: number, endOffset: nu
       start_offset: startOffset,
       end_offset: endOffset,
       scroll_delay: strategy.scrollDelay,
-      batch_size: strategy.batchSize
+      batch_size: strategy.batchSize,
+      user_id: 'scalable_system'
     })
-  })
+  } as NextRequest
+  
+  const response = await daytonaHandler(mockRequest)
   
   if (!response.ok) {
     throw new Error(`Worker ${workerId} failed to start: ${response.status}`)
@@ -177,9 +184,12 @@ export async function GET(request: NextRequest) {
   try {
     // Check if this is a parallel job
     if (jobId.includes('_worker_')) {
-      // Single worker status
-      const response = await fetch(`/api/scan/daytona?job_id=${jobId}`)
-      return response
+      // Single worker status - call Daytona handler directly
+      const { GET: daytonaGetHandler } = await import('../daytona/route')
+      const mockRequest = {
+        url: `http://localhost/api/scan/daytona?job_id=${jobId}`
+      } as NextRequest
+      return await daytonaGetHandler(mockRequest)
     } else {
       // Parallel job - check all workers
       return await getParallelJobStatus(jobId)

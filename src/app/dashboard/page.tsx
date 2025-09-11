@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const [scanError, setScanError] = useState<string | null>(null)
   const [scanResults, setScanResults] = useState<any>(null)
   const [username, setUsername] = useState('')
+  const [authorizedUsername, setAuthorizedUsername] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [scanLoading, setScanLoading] = useState(false)
   const [twitterAuthorized, setTwitterAuthorized] = useState(false)
@@ -57,6 +58,10 @@ export default function DashboardPage() {
       if (response.ok) {
         const data = await response.json()
         setTwitterAuthorized(data.authorized || false)
+        if (data.authorized && data.username) {
+          setAuthorizedUsername(data.username)
+          setUsername(data.username) // Auto-populate username field
+        }
       }
     } catch (error) {
       console.log('Twitter auth status check failed:', error)
@@ -146,6 +151,10 @@ export default function DashboardPage() {
           
           if (event.data.type === 'TWITTER_AUTH_SUCCESS') {
             setTwitterAuthorized(true)
+            if (event.data.user && event.data.user.username) {
+              setAuthorizedUsername(event.data.user.username)
+              setUsername(event.data.user.username) // Auto-populate username field
+            }
             popup.close()
             clearInterval(checkClosed)
             setAuthLoading(false)
@@ -191,6 +200,12 @@ export default function DashboardPage() {
 
     if (!twitterAuthorized) {
       setError('Please authorize Twitter access first')
+      return
+    }
+
+    // Restrict scanning to only the authorized user's account
+    if (authorizedUsername && username.replace('@', '').toLowerCase() !== authorizedUsername.toLowerCase()) {
+      setError(`You can only scan your own account (@${authorizedUsername}). Please use your authorized Twitter username.`)
       return
     }
 
@@ -285,6 +300,14 @@ export default function DashboardPage() {
                 if (statusData.results.followers && statusData.results.followers.length > 0) {
                   setFollowers(statusData.results.followers)
                   console.log('✅ Updated followers state with', statusData.results.followers.length, 'followers')
+                  
+                  // Auto-navigate to followers tab after successful scan
+                  setTimeout(() => {
+                    const followersTab = document.querySelector('[value="followers"]') as HTMLElement
+                    if (followersTab) {
+                      followersTab.click()
+                    }
+                  }, 1000)
                 } else {
                   console.log('⚠️ No followers found in results')
                 }
@@ -525,11 +548,11 @@ export default function DashboardPage() {
                         </div>
                         <div className="flex gap-3">
                           <Input
-                            placeholder="Enter Twitter username (e.g., elonmusk)"
+                            placeholder={authorizedUsername ? `@${authorizedUsername} (your account)` : "Enter Twitter username"}
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             className="flex-1"
-                            disabled={scanLoading}
+                            disabled={scanLoading || !!authorizedUsername} // Disable if username is auto-populated
                           />
                           <Button 
                             onClick={handleDaytonaScan}
