@@ -93,23 +93,35 @@ export default function DashboardPage() {
       console.log('🔐 Initiating Twitter OAuth...')
       
       const response = await fetch('/api/auth/twitter', {
-        method: 'GET',
+        method: 'POST',
         credentials: 'include'
       })
       
       if (!response.ok) {
-        const errorData = await response.json()
+        let errorData
+        try {
+          const errorText = await response.text()
+          errorData = errorText ? JSON.parse(errorText) : { error: `HTTP ${response.status}` }
+        } catch {
+          errorData = { error: `HTTP ${response.status}: ${response.statusText}` }
+        }
         throw new Error(errorData.error || 'Failed to initialize Twitter OAuth')
       }
       
-      const data = await response.json()
+      let data
+      try {
+        const responseText = await response.text()
+        data = responseText ? JSON.parse(responseText) : {}
+      } catch {
+        throw new Error('Invalid response from Twitter OAuth endpoint')
+      }
       
-      if (data.success && data.authUrl) {
+      if (data.success && data.authorization_url) {
         // Store token secret in cookie for callback
         document.cookie = `twitter_oauth_token_secret=${data.oauth_token_secret}; path=/; max-age=600; SameSite=Lax`
         
         // Redirect to Twitter authorization
-        window.location.href = data.authUrl
+        window.location.href = data.authorization_url
       } else {
         throw new Error('Invalid OAuth response')
       }
@@ -166,7 +178,13 @@ export default function DashboardPage() {
       })
       
       if (!response.ok) {
-        const errorData = await response.json()
+        let errorData
+        try {
+          const errorText = await response.text()
+          errorData = errorText ? JSON.parse(errorText) : { error: 'Unknown error' }
+        } catch (parseError) {
+          errorData = { error: `HTTP ${response.status}: ${response.statusText}` }
+        }
         console.error('API Error Response:', {
           status: response.status,
           statusText: response.statusText,
