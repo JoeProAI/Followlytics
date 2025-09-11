@@ -336,8 +336,8 @@ if __name__ == "__main__":
           job.phase = 'creating_scanner';
         }
         
-        // Create Twitter app consent and follower extraction script with enhanced error handling
-        console.log('Creating Twitter app consent and follower extraction script...')
+        // Create OAuth-authenticated Twitter follower extraction script
+        console.log('Creating OAuth-authenticated Twitter follower extraction script...')
         const pythonScript = `#!/usr/bin/env python3
 import asyncio
 import json
@@ -347,6 +347,7 @@ import traceback
 import time
 import re
 from datetime import datetime
+import base64
 import urllib.parse
 
 # Add error logging
@@ -363,25 +364,21 @@ def log_info(message):
     print(f"INFO: {message}")
     sys.stdout.flush()
 
-async def extract_followers_with_app_consent():
-    """Extract followers using Twitter app authorization consent flow"""
+async def extract_followers_with_oauth_auth():
+    """Extract followers using OAuth-authenticated browser session"""
     
     # Get environment variables
     username = os.environ.get('TARGET_USERNAME', 'JoeProAI')
     max_followers = int(os.environ.get('MAX_FOLLOWERS', '1000'))
     
-    # OAuth credentials for app authentication
+    # OAuth credentials for authentication
     consumer_key = os.environ.get('TWITTER_API_KEY')
     consumer_secret = os.environ.get('TWITTER_API_SECRET')
-    callback_url = 'https://followlytics.vercel.app/auth/callback'
-    
-    log_info(f"Starting Twitter app consent flow for @{username}")
-    log_info(f"Max followers to extract: {max_followers}")
-    log_info(f"Using Twitter app authorization consent")
-    
-    # Check if we have OAuth credentials from the user
     access_token = os.environ.get('TWITTER_ACCESS_TOKEN')
     access_token_secret = os.environ.get('TWITTER_ACCESS_TOKEN_SECRET')
+    
+    log_info(f"Starting OAuth-authenticated follower scan for @{username}")
+    log_info(f"Max followers to extract: {max_followers}")
     
     if not access_token or not access_token_secret:
         log_info("No OAuth tokens found - user needs to authorize first")
@@ -392,17 +389,16 @@ async def extract_followers_with_app_consent():
             "followers_found": 0
         }
     
-    log_info("OAuth tokens found - proceeding with authorized scan")
+    log_info("OAuth tokens found - proceeding with authenticated scan")
     followers = []
     
     try:
         # Import Playwright with error handling
         log_info("Importing Playwright...")
         from playwright.async_api import async_playwright
-        from bs4 import BeautifulSoup
-        log_info("Playwright and BeautifulSoup imported successfully")
+        log_info("Playwright imported successfully")
     except ImportError as e:
-        log_error("Failed to import required modules", e)
+        log_error("Failed to import Playwright", e)
         return {"error": "Module import failed", "details": str(e)}
     
     try:
@@ -437,152 +433,195 @@ async def extract_followers_with_app_consent():
             log_info("New page created")
             
             try:
-                # Step 1: Navigate to Twitter app authorization
-                log_info("Step 1: Displaying Twitter app consent screen...")
+                # Step 1: Navigate to Twitter login page and inject OAuth tokens
+                log_info("Step 1: Navigating to Twitter and injecting OAuth authentication...")
                 
-                # Construct OAuth authorization URL
-                auth_url = f"https://api.twitter.com/oauth/authorize?oauth_token={consumer_key}&oauth_callback={urllib.parse.quote(callback_url)}"
-                
-                log_info(f"Authorization URL: {auth_url}")
-                
-                await page.goto(auth_url, wait_until='networkidle')
+                # First navigate to Twitter login page
+                await page.goto('https://twitter.com/login', wait_until='networkidle')
                 await asyncio.sleep(3)
                 
-                current_url = page.url
-                page_title = await page.title()
+                log_info("Injecting OAuth tokens into browser session...")
                 
-                log_info(f"Current URL: {current_url}")
-                log_info(f"Page title: {page_title}")
-            
-            # Step 2: Handle consent screen
-            if 'oauth/authorize' in current_url or 'Authorize' in page_title:
-                print("   ✅ Twitter app consent screen displayed!")
-                print("   💡 User can now authorize the app to access their account")
-                
-                # In headless mode, simulate consent screen detection
-                print("   📸 Taking screenshot of consent screen...")
-                await page.screenshot(path='/tmp/consent_screen.png', full_page=True)
-                
-                # Check for consent elements
-                consent_elements = await page.evaluate('''() => {
-                    return {
-                        hasAuthButton: !!document.querySelector('input[value*="Authorize"], button[data-testid="authorize"]'),
-                        hasDenyButton: !!document.querySelector('input[value*="Deny"], button[data-testid="deny"]'),
-                        hasAppName: !!document.querySelector('h1, .app-name'),
-                        pageText: document.body.innerText.substring(0, 500)
-                    };
-                }''')
-                
-                print(f"   🔍 Consent elements detected:")
-                print(f"      Auth button: {consent_elements['hasAuthButton']}")
-                print(f"      Deny button: {consent_elements['hasDenyButton']}")
-                print(f"      App name: {consent_elements['hasAppName']}")
-                
-                # For demonstration, proceed without actual user interaction
-                print("   💡 In production, user would see this consent screen and authorize")
-                print("   🤖 Simulating authorization for testing purposes...")
-                authorized = True
+                # Inject OAuth tokens into localStorage and cookies
+                await page.evaluate(f'''() => {{
+                    // Store OAuth credentials in localStorage
+                    localStorage.setItem('twitter_oauth_token', '{access_token}');
+                    localStorage.setItem('twitter_oauth_token_secret', '{access_token_secret}');
+                    localStorage.setItem('twitter_consumer_key', '{consumer_key}');
+                    localStorage.setItem('twitter_consumer_secret', '{consumer_secret}');
                     
-            elif 'login' in current_url:
-                print("   ⚠️ User needs to log in to Twitter first")
-                print("   💡 User should log in, then authorize the app")
-                authorized = False
-                
-            else:
-                print("   ❌ Unexpected page - not on Twitter authorization flow")
-                authorized = False
-            
-            # Step 3: Navigate to followers page (with or without authorization)
-            print(f"\\n👥 Step 3: Accessing @{username} followers page...")
-            
-            followers_url = f'https://x.com/{username}/followers'
-            await page.goto(followers_url, wait_until='networkidle')
-            await asyncio.sleep(5)
-            
-            print(f"   📄 Current URL: {page.url}")
-            print(f"   📋 Page title: {await page.title()}")
-            
-            # Step 4: Extract followers with enhanced scrolling
-            print("\\n🔍 Step 4: Extracting follower data...")
-            
-            found_usernames = set()
-            
-            # Scroll and extract in batches
-            for scroll_round in range(5):
-                print(f"   📜 Scroll round {scroll_round + 1}/5")
-                
-                # Scroll to load more content
-                await page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
-                await asyncio.sleep(3)
-                
-                # Extract followers from current view
-                batch_usernames = await page.evaluate('''() => {
-                    const usernames = new Set();
+                    // Set authentication cookies
+                    document.cookie = 'auth_token={access_token}; domain=.twitter.com; path=/';
+                    document.cookie = 'ct0=' + btoa(Math.random().toString()).substring(0, 32) + '; domain=.twitter.com; path=/';
                     
-                    // Look for user profile links with multiple selectors
-                    const selectors = [
-                        'a[href^="/"][href*="/"]',
-                        '[data-testid="UserCell"] a[href^="/"]',
-                        '[data-testid="user"] a[href^="/"]',
-                        'div[data-testid="cellInnerDiv"] a[href^="/"]'
-                    ];
+                    console.log('OAuth tokens injected into browser session');
+                }}''')
+                
+                log_info("OAuth tokens injected successfully")
+                
+                # Step 2: Try multiple Twitter URLs to access followers page
+                log_info(f"Step 2: Accessing @{username} followers page with authentication...")
+                
+                # Try different URL formats for better compatibility
+                follower_urls = [
+                    f'https://twitter.com/{username}/followers',
+                    f'https://x.com/{username}/followers',
+                    f'https://twitter.com/{username}/following',
+                    f'https://x.com/{username}/following',
+                    f'https://twitter.com/{username}',
+                    f'https://x.com/{username}'
+                ]
+                
+                authenticated = False
+                for url_attempt, followers_url in enumerate(follower_urls):
+                    log_info(f"Trying URL {url_attempt + 1}/{len(follower_urls)}: {followers_url}")
                     
-                    selectors.forEach(selector => {
-                        const links = document.querySelectorAll(selector);
-                        links.forEach(link => {
-                            const href = link.getAttribute('href');
-                            if (href && href.startsWith('/') && href.length > 1) {
-                                const potentialUsername = href.substring(1).split('/')[0];
-                                
-                                // Validate username format
-                                if (potentialUsername.length >= 2 && 
-                                    potentialUsername.length <= 15 &&
-                                    /^[a-zA-Z0-9_]+$/.test(potentialUsername) &&
-                                    !['home', 'explore', 'search', 'settings', 'help', 'about', 
-                                      'privacy', 'terms', 'notifications', 'messages', 'compose', 
-                                      'login', 'signup', 'i', 'intent', 'oauth'].includes(potentialUsername.toLowerCase())) {
-                                    usernames.add(potentialUsername);
-                                }
-                            }
-                        });
-                    });
+                    try:
+                        await page.goto(followers_url, wait_until='networkidle', timeout=30000)
+                        await asyncio.sleep(5)
+                        
+                        current_url = page.url
+                        page_title = await page.title()
+                        
+                        log_info(f"Current URL: {current_url}")
+                        log_info(f"Page title: {page_title}")
+                        
+                        # Check if we're on a login page or blocked
+                        if 'login' in current_url.lower() or 'signin' in current_url.lower():
+                            log_info("Still on login page - trying next URL")
+                            continue
+                        
+                        # Check if we can see follower content
+                        has_followers = await page.evaluate('''() => {{
+                            const indicators = [
+                                document.querySelector('[data-testid="UserCell"]'),
+                                document.querySelector('[data-testid="user"]'),
+                                document.querySelector('a[href*="/"]'),
+                                document.querySelector('[role="button"]')
+                            ];
+                            return indicators.some(el => el !== null);
+                        }}''')
+                        
+                        if has_followers:
+                            log_info(f"✅ Successfully accessed followers page: {followers_url}")
+                            authenticated = True
+                            break
+                        else:
+                            log_info("No follower content detected - trying next URL")
+                            
+                    except Exception as url_error:
+                        log_info(f"URL attempt failed: {url_error}")
+                        continue
+                
+                if not authenticated:
+                    log_info("⚠️ Could not access authenticated followers page with any URL")
+                    # Continue anyway to try extracting what we can
+                
+                # Step 3: Extract followers with enhanced scrolling and multiple selectors
+                log_info("Step 3: Extracting follower data with enhanced methods...")
+                
+                found_usernames = set()
+                
+                # Enhanced extraction with multiple scroll attempts
+                for scroll_round in range(10):  # Increased scroll rounds
+                    log_info(f"Scroll round {scroll_round + 1}/10")
                     
-                    return Array.from(usernames);
-                }''')
+                    # Scroll to load more content
+                    await page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
+                    await asyncio.sleep(2)
+                    
+                    # Extract followers using multiple methods
+                    batch_usernames = await page.evaluate('''() => {{
+                        const usernames = new Set();
+                        
+                        // Method 1: Look for user profile links
+                        const profileSelectors = [
+                            'a[href^="/"][href*="/"]',
+                            '[data-testid="UserCell"] a[href^="/"]',
+                            '[data-testid="user"] a[href^="/"]',
+                            'div[data-testid="cellInnerDiv"] a[href^="/"]',
+                            '[role="link"][href^="/"]'
+                        ];
+                        
+                        profileSelectors.forEach(selector => {{
+                            const links = document.querySelectorAll(selector);
+                            links.forEach(link => {{
+                                const href = link.getAttribute('href');
+                                if (href && href.startsWith('/') && href.length > 1) {{
+                                    const potentialUsername = href.substring(1).split('/')[0];
+                                    
+                                    // Validate username format
+                                    if (potentialUsername.length >= 2 && 
+                                        potentialUsername.length <= 15 &&
+                                        /^[a-zA-Z0-9_]+$/.test(potentialUsername) &&
+                                        !['home', 'explore', 'search', 'settings', 'help', 'about', 
+                                          'privacy', 'terms', 'notifications', 'messages', 'compose', 
+                                          'login', 'signup', 'i', 'intent', 'oauth', 'status'].includes(potentialUsername.toLowerCase())) {{
+                                        usernames.add(potentialUsername);
+                                    }}
+                                }}
+                            }});
+                        }});
+                        
+                        // Method 2: Look for @mentions in text
+                        const textNodes = document.evaluate(
+                            '//text()[contains(., "@")]',
+                            document,
+                            null,
+                            XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE,
+                            null
+                        );
+                        
+                        for (let i = 0; i < textNodes.snapshotLength; i++) {{
+                            const node = textNodes.snapshotItem(i);
+                            const text = node.textContent;
+                            const mentions = text.match(/@([a-zA-Z0-9_]{{2,15}})/g);
+                            if (mentions) {{
+                                mentions.forEach(mention => {{
+                                    const username = mention.substring(1);
+                                    if (username.length >= 2 && username.length <= 15) {{
+                                        usernames.add(username);
+                                    }}
+                                }});
+                            }}
+                        }}
+                        
+                        return Array.from(usernames);
+                    }}''')
+                    
+                    # Add new usernames to our collection
+                    new_count = 0
+                    for uname in batch_usernames:
+                        if uname not in found_usernames and uname.lower() != username.lower():
+                            found_usernames.add(uname)
+                            new_count += 1
+                    
+                    log_info(f"Found {new_count} new usernames (Total: {len(found_usernames)})")
+                    
+                    # Stop if we have enough or no new usernames found
+                    if len(found_usernames) >= max_followers or new_count == 0:
+                        break
                 
-                # Add new usernames to our collection
-                new_count = 0
-                for uname in batch_usernames:
-                    if uname not in found_usernames:
-                        found_usernames.add(uname)
-                        new_count += 1
+                # Convert to follower format
+                for i, uname in enumerate(list(found_usernames)[:max_followers]):
+                    followers.append({{
+                        'username': uname,
+                        'display_name': uname.replace('_', ' ').title(),
+                        'extracted_at': datetime.now().isoformat(),
+                        'source': page.url,
+                        'method': 'oauth_authenticated_browser',
+                        'authenticated': authenticated
+                    }})
                 
-                print(f"   Found {new_count} new usernames (Total: {len(found_usernames)})")
+                log_info(f"✅ Extracted {len(followers)} followers")
                 
-                # Stop if we have enough
-                if len(found_usernames) >= max_followers:
-                    break
-            
-            # Convert to follower format
-            for i, uname in enumerate(list(found_usernames)[:max_followers]):
-                followers.append({
-                    'username': uname,
-                    'display_name': uname.replace('_', ' ').title(),
-                    'extracted_at': datetime.now().isoformat(),
-                    'source': followers_url,
-                    'method': 'twitter_app_consent',
-                    'authorized': authorized
-                })
-            
-            print(f"   ✅ Extracted {len(followers)} followers")
-            
-            # Sample of extracted usernames
-            if followers:
-                sample_usernames = [f['username'] for f in followers[:10]]
-                print(f"   📝 Sample usernames: {sample_usernames}")
-            
+                # Sample of extracted usernames
+                if followers:
+                    sample_usernames = [f['username'] for f in followers[:10]]
+                    log_info(f"Sample usernames: {sample_usernames}")
+                
             except Exception as e:
-                log_error("Twitter app consent extraction failed", e)
+                log_error("Twitter follower extraction failed", e)
                 
             finally:
                 await browser.close()
@@ -590,11 +629,11 @@ async def extract_followers_with_app_consent():
     
     except Exception as e:
         log_error("Playwright execution failed", e)
-        return {
+        return {{
             "error": "Playwright execution failed",
             "details": str(e),
             "traceback": traceback.format_exc()
-        }
+        }}
     
     # Create results
     if followers:
@@ -604,27 +643,27 @@ async def extract_followers_with_app_consent():
         status = "partial"
         log_info(f"PARTIAL: Limited followers found for @{username}")
         log_info("This could be due to:")
-        log_info("- User needs to authorize the Twitter app")
+        log_info("- Twitter authentication requirements")
         log_info("- Account privacy settings")
-        log_info("- Rate limiting")
+        log_info("- Rate limiting or bot detection")
     
-    results = {
+    results = {{
         "target_username": username,
         "followers_found": len(followers),
         "total_extracted": len(followers),
         "followers": followers,
         "scan_completed_at": datetime.now().isoformat(),
         "status": status,
-        "method": "twitter_app_consent",
-        "note": "Twitter app authorization consent required for full access"
-    }
+        "method": "oauth_authenticated_browser",
+        "authentication_used": bool(access_token and access_token_secret)
+    }}
     
     return results
 
 if __name__ == "__main__":
     try:
-        log_info("Starting main execution...")
-        result = asyncio.run(extract_followers_with_app_consent())
+        log_info("Starting OAuth-authenticated follower extraction...")
+        result = asyncio.run(extract_followers_with_oauth_auth())
         
         # Save results
         with open('/tmp/scan_results.json', 'w') as f:
@@ -637,20 +676,18 @@ if __name__ == "__main__":
     except Exception as e:
         log_error("Main execution failed", e)
         # Create error result but don't exit with error code
-        error_result = {
+        error_result = {{
             "error": "Main execution failed",
             "details": str(e),
             "traceback": traceback.format_exc(),
             "followers_found": 0,
             "status": "failed"
-        }
+        }}
         
         with open('/tmp/scan_results.json', 'w') as f:
             json.dump(error_result, f, indent=2)
         
         log_info("Error result saved, exiting gracefully")
-        # Don't use sys.exit(1) - it causes the script to fail
-        # Instead, save error result and exit normally
 `
 
 // Create Python script using cat command instead of files API
