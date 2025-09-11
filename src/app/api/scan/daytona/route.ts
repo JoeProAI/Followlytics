@@ -39,8 +39,8 @@ async function getUserTwitterTokens(userId: string) {
     
     const userData = userDoc.data()
     return {
-      access_token: userData?.twitter_access_token,
-      access_token_secret: userData?.twitter_access_token_secret
+      access_token: userData?.access_token,
+      access_token_secret: userData?.access_token_secret
     }
   } catch (error) {
     console.error('Error getting user Twitter tokens:', error)
