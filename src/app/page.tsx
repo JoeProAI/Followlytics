@@ -45,7 +45,7 @@ export default function LandingPage() {
                 </p>
               </div>
               <div className="space-x-4">
-                <Button size="lg" onClick={() => window.location.href = '/api/auth/twitter/login'}>
+                <Button size="lg" onClick={() => window.location.href = '/dashboard'}>
                   Start Free Trial
                 </Button>
                 <Button variant="outline" size="lg" asChild>

@@ -7,8 +7,8 @@ import Link from "next/link"
 
 export default function LoginPage() {
   const handleTwitterLogin = () => {
-    // This will be implemented with Firebase Auth
-    window.location.href = '/api/auth/twitter/login'
+    // Redirect to dashboard - Twitter auth happens when user wants to scan
+    window.location.href = '/dashboard'
   }
 
   return (
