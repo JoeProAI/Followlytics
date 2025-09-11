@@ -267,18 +267,32 @@ if __name__ == "__main__":
           job.phase = 'creating_scanner';
         }
         
-        // Create Twitter app consent and follower extraction script
+        // Create Twitter app consent and follower extraction script with enhanced error handling
         console.log('Creating Twitter app consent and follower extraction script...')
         const pythonScript = `#!/usr/bin/env python3
 import asyncio
 import json
 import os
+import sys
+import traceback
 import time
 import re
-from playwright.async_api import async_playwright
-from bs4 import BeautifulSoup
 from datetime import datetime
 import urllib.parse
+
+# Add error logging
+def log_error(message, error=None):
+    """Log errors with full traceback"""
+    print(f"ERROR: {message}")
+    if error:
+        print(f"Exception: {str(error)}")
+        print(f"Traceback: {traceback.format_exc()}")
+    sys.stdout.flush()
+
+def log_info(message):
+    """Log info messages"""
+    print(f"INFO: {message}")
+    sys.stdout.flush()
 
 async def extract_followers_with_app_consent():
     """Extract followers using Twitter app authorization consent flow"""
@@ -292,55 +306,70 @@ async def extract_followers_with_app_consent():
     consumer_secret = os.environ.get('TWITTER_API_SECRET')
     callback_url = 'https://followlytics.vercel.app/auth/callback'
     
-    print(f"🎯 Starting Twitter app consent flow for @{username}")
-    print(f"📊 Max followers to extract: {max_followers}")
-    print(f"🔐 Using Twitter app authorization consent")
+    log_info(f"Starting Twitter app consent flow for @{username}")
+    log_info(f"Max followers to extract: {max_followers}")
+    log_info(f"Using Twitter app authorization consent")
     
     followers = []
     
-    async with async_playwright() as p:
-        # Launch browser with proper settings for sandbox environment
-        browser = await p.chromium.launch(
-            headless=True,  # Must be headless in sandbox environment
-            args=[
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
-                '--no-first-run',
-                '--no-zygote',
-                '--disable-gpu',
-                '--disable-extensions',
-                '--disable-background-timer-throttling',
-                '--disable-backgrounding-occluded-windows',
-                '--disable-renderer-backgrounding'
-            ]
-        )
-        
-        context = await browser.new_context(
-            viewport={'width': 1920, 'height': 1080},
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        )
-        
-        page = await context.new_page()
-        
-        try:
-            # Step 1: Navigate to Twitter app authorization
-            print("\\n🔐 Step 1: Displaying Twitter app consent screen...")
+    try:
+        # Import Playwright with error handling
+        log_info("Importing Playwright...")
+        from playwright.async_api import async_playwright
+        from bs4 import BeautifulSoup
+        log_info("Playwright and BeautifulSoup imported successfully")
+    except ImportError as e:
+        log_error("Failed to import required modules", e)
+        return {"error": "Module import failed", "details": str(e)}
+    
+    try:
+        async with async_playwright() as p:
+            log_info("Launching browser...")
+            # Launch browser with proper settings for sandbox environment
+            browser = await p.chromium.launch(
+                headless=True,  # Must be headless in sandbox environment
+                args=[
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-accelerated-2d-canvas',
+                    '--no-first-run',
+                    '--no-zygote',
+                    '--disable-gpu',
+                    '--disable-extensions',
+                    '--disable-background-timer-throttling',
+                    '--disable-backgrounding-occluded-windows',
+                    '--disable-renderer-backgrounding'
+                ]
+            )
+            log_info("Browser launched successfully")
             
-            # Construct OAuth authorization URL
-            auth_url = f"https://api.twitter.com/oauth/authorize?oauth_token={consumer_key}&oauth_callback={urllib.parse.quote(callback_url)}"
+            context = await browser.new_context(
+                viewport={'width': 1920, 'height': 1080},
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            )
+            log_info("Browser context created")
             
-            print(f"   Authorization URL: {auth_url}")
+            page = await context.new_page()
+            log_info("New page created")
             
-            await page.goto(auth_url, wait_until='networkidle')
-            await asyncio.sleep(3)
-            
-            current_url = page.url
-            page_title = await page.title()
-            
-            print(f"   Current URL: {current_url}")
-            print(f"   Page title: {page_title}")
+            try:
+                # Step 1: Navigate to Twitter app authorization
+                log_info("Step 1: Displaying Twitter app consent screen...")
+                
+                # Construct OAuth authorization URL
+                auth_url = f"https://api.twitter.com/oauth/authorize?oauth_token={consumer_key}&oauth_callback={urllib.parse.quote(callback_url)}"
+                
+                log_info(f"Authorization URL: {auth_url}")
+                
+                await page.goto(auth_url, wait_until='networkidle')
+                await asyncio.sleep(3)
+                
+                current_url = page.url
+                page_title = await page.title()
+                
+                log_info(f"Current URL: {current_url}")
+                log_info(f"Page title: {page_title}")
             
             # Step 2: Handle consent screen
             if 'oauth/authorize' in current_url or 'Authorize' in page_title:
@@ -469,23 +498,32 @@ async def extract_followers_with_app_consent():
                 sample_usernames = [f['username'] for f in followers[:10]]
                 print(f"   📝 Sample usernames: {sample_usernames}")
             
-        except Exception as e:
-            print(f"❌ Twitter app consent extraction failed: {e}")
-            
-        finally:
-            await browser.close()
+            except Exception as e:
+                log_error("Twitter app consent extraction failed", e)
+                
+            finally:
+                await browser.close()
+                log_info("Browser closed")
+    
+    except Exception as e:
+        log_error("Playwright execution failed", e)
+        return {
+            "error": "Playwright execution failed",
+            "details": str(e),
+            "traceback": traceback.format_exc()
+        }
     
     # Create results
     if followers:
         status = "completed"
-        print(f"\\n✅ SUCCESS: Found {len(followers)} followers for @{username}")
+        log_info(f"SUCCESS: Found {len(followers)} followers for @{username}")
     else:
         status = "partial"
-        print(f"\\n⚠️ PARTIAL: Limited followers found for @{username}")
-        print("   This could be due to:")
-        print("   - User needs to authorize the Twitter app")
-        print("   - Account privacy settings")
-        print("   - Rate limiting")
+        log_info(f"PARTIAL: Limited followers found for @{username}")
+        log_info("This could be due to:")
+        log_info("- User needs to authorize the Twitter app")
+        log_info("- Account privacy settings")
+        log_info("- Rate limiting")
     
     results = {
         "target_username": username,
@@ -501,15 +539,33 @@ async def extract_followers_with_app_consent():
     return results
 
 if __name__ == "__main__":
-    result = asyncio.run(extract_followers_with_app_consent())
-    
-    # Save results
-    with open('/tmp/scan_results.json', 'w') as f:
-        json.dump(result, f, indent=2)
-    
-    print(f"\\n=== EXTRACTION COMPLETE ===")
-    print(f"Followers extracted: {result['followers_found']}")
-    print(f"Results saved to: /tmp/scan_results.json")
+    try:
+        log_info("Starting main execution...")
+        result = asyncio.run(extract_followers_with_app_consent())
+        
+        # Save results
+        with open('/tmp/scan_results.json', 'w') as f:
+            json.dump(result, f, indent=2)
+        
+        log_info("=== EXTRACTION COMPLETE ===")
+        log_info(f"Followers extracted: {result.get('followers_found', 0)}")
+        log_info("Results saved to: /tmp/scan_results.json")
+        
+    except Exception as e:
+        log_error("Main execution failed", e)
+        # Create error result
+        error_result = {
+            "error": "Main execution failed",
+            "details": str(e),
+            "traceback": traceback.format_exc(),
+            "followers_found": 0,
+            "status": "failed"
+        }
+        
+        with open('/tmp/scan_results.json', 'w') as f:
+            json.dump(error_result, f, indent=2)
+        
+        sys.exit(1)
 `
 
 // Create Python script using cat command instead of files API
