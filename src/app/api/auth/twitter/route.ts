@@ -4,7 +4,7 @@ import crypto from 'crypto'
 // Twitter OAuth 1.0a configuration
 const TWITTER_API_KEY = process.env.TWITTER_API_KEY
 const TWITTER_API_SECRET = process.env.TWITTER_API_SECRET
-const CALLBACK_URL = process.env.NEXT_PUBLIC_APP_URL + '/api/auth/twitter/callback'
+const CALLBACK_URL = 'https://followlytics.vercel.app/api/auth/twitter/callback'
 
 // OAuth 1.0a signature generation
 function generateOAuthSignature(

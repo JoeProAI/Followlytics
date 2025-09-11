@@ -244,7 +244,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Set Firebase token in cookie for useAuth hook
-    const response = NextResponse.redirect(`${origin}/dashboard?twitter_auth=success`)
+    const response = NextResponse.redirect(`https://followlytics.vercel.app/dashboard?twitter_auth=success`)
     
     // Set the Firebase token cookie (accessible to client JS)
     response.cookies.set('firebase_token', customToken, {
