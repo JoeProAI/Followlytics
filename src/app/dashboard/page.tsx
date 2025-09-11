@@ -21,11 +21,29 @@ export default function DashboardPage() {
   const [isScanning, setIsScanning] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
   const [scanResults, setScanResults] = useState<any>(null)
-  const [username, setUsername] = useState('')
-  const [authorizedUsername, setAuthorizedUsername] = useState('')
+  const [username, setUsername] = useState(() => {
+    // Initialize from localStorage if available
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('twitter_username') || ''
+    }
+    return ''
+  })
+  const [authorizedUsername, setAuthorizedUsername] = useState(() => {
+    // Initialize from localStorage if available
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('twitter_username') || ''
+    }
+    return ''
+  })
   const [error, setError] = useState<string | null>(null)
   const [scanLoading, setScanLoading] = useState(false)
-  const [twitterAuthorized, setTwitterAuthorized] = useState(false)
+  const [twitterAuthorized, setTwitterAuthorized] = useState(() => {
+    // Initialize from localStorage if available
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('twitter_authorized') === 'true'
+    }
+    return false
+  })
   const [authLoading, setAuthLoading] = useState(false)
 
   // Fetch existing followers on component mount
@@ -42,8 +60,13 @@ export default function DashboardPage() {
     const urlParams = new URLSearchParams(window.location.search)
     if (urlParams.get('twitter_auth') === 'success') {
       setTwitterAuthorized(true)
+      localStorage.setItem('twitter_authorized', 'true')
       // Clean up URL
       window.history.replaceState({}, '', '/dashboard')
+      // Force a status check to get username
+      setTimeout(() => {
+        checkTwitterAuthStatus()
+      }, 1000)
     }
   }, [])
 
@@ -57,10 +80,21 @@ export default function DashboardPage() {
       
       if (response.ok) {
         const data = await response.json()
-        setTwitterAuthorized(data.authorized || false)
-        if (data.authorized && data.username) {
+        const isAuthorized = data.authorized || false
+        setTwitterAuthorized(isAuthorized)
+        
+        // Persist authorization state in localStorage
+        localStorage.setItem('twitter_authorized', isAuthorized.toString())
+        
+        if (isAuthorized && data.username) {
           setAuthorizedUsername(data.username)
           setUsername(data.username) // Auto-populate username field
+          localStorage.setItem('twitter_username', data.username)
+        } else if (!isAuthorized) {
+          // Clear stored data if not authorized
+          localStorage.removeItem('twitter_username')
+          setAuthorizedUsername('')
+          setUsername('')
         }
       }
     } catch (error) {
@@ -141,6 +175,10 @@ export default function DashboardPage() {
             // Check if auth was successful by checking URL params or making a status call
             setTimeout(() => {
               checkTwitterAuthStatus()
+              // Also check if we lost auth state and restore it
+              if (!twitterAuthorized) {
+                setTwitterAuthorized(true)
+              }
             }, 1000)
           }
         }, 1000)
@@ -151,9 +189,12 @@ export default function DashboardPage() {
           
           if (event.data.type === 'TWITTER_AUTH_SUCCESS') {
             setTwitterAuthorized(true)
+            localStorage.setItem('twitter_authorized', 'true')
+            
             if (event.data.user && event.data.user.username) {
               setAuthorizedUsername(event.data.user.username)
               setUsername(event.data.user.username) // Auto-populate username field
+              localStorage.setItem('twitter_username', event.data.user.username)
             }
             popup.close()
             clearInterval(checkClosed)

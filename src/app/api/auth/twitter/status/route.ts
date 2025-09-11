@@ -67,8 +67,27 @@ export async function GET(request: NextRequest) {
     const firebase = await initializeFirebaseAdmin()
     
     // Verify the token and get user ID
-    const decodedToken = await firebase.auth().verifyIdToken(firebaseToken)
-    const userId = decodedToken.uid
+    let userId: string
+    try {
+      // Try to verify as ID token first
+      const decodedToken = await firebase.auth().verifyIdToken(firebaseToken)
+      userId = decodedToken.uid
+    } catch (idTokenError) {
+      // If that fails, try to verify as custom token by checking session
+      try {
+        const decodedToken = await firebase.auth().verifySessionCookie(firebaseToken)
+        userId = decodedToken.uid
+      } catch (sessionError) {
+        // Extract user ID from custom token payload (fallback)
+        const tokenParts = firebaseToken.split('.')
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString())
+          userId = payload.uid || payload.sub
+        } else {
+          throw new Error('Invalid token format')
+        }
+      }
+    }
 
     // Check if user has Twitter tokens in Firestore
     const db = firebase.firestore()
