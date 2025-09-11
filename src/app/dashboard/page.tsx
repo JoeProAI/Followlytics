@@ -24,13 +24,44 @@ export default function DashboardPage() {
   const [username, setUsername] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [scanLoading, setScanLoading] = useState(false)
+  const [twitterAuthorized, setTwitterAuthorized] = useState(false)
+  const [authLoading, setAuthLoading] = useState(false)
 
   // Fetch existing followers on component mount
   useEffect(() => {
     if (isAuthenticated && user) {
       fetchExistingFollowers()
+      // Check if user is already Twitter authorized
+      checkTwitterAuthStatus()
     }
   }, [isAuthenticated, user])
+
+  // Check URL params for Twitter auth success
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('twitter_auth') === 'success') {
+      setTwitterAuthorized(true)
+      // Clean up URL
+      window.history.replaceState({}, '', '/dashboard')
+    }
+  }, [])
+
+  const checkTwitterAuthStatus = async () => {
+    try {
+      // Check if user has Twitter tokens stored
+      const response = await fetch('/api/auth/twitter/status', {
+        method: 'GET',
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setTwitterAuthorized(data.authorized || false)
+      }
+    } catch (error) {
+      console.log('Twitter auth status check failed:', error)
+    }
+  }
 
   const fetchExistingFollowers = async () => {
     try {
@@ -54,9 +85,50 @@ export default function DashboardPage() {
     }
   }
 
+  const handleTwitterAuth = async () => {
+    setAuthLoading(true)
+    setError(null)
+    
+    try {
+      console.log('🔐 Initiating Twitter OAuth...')
+      
+      const response = await fetch('/api/auth/twitter', {
+        method: 'GET',
+        credentials: 'include'
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to initialize Twitter OAuth')
+      }
+      
+      const data = await response.json()
+      
+      if (data.success && data.authUrl) {
+        // Store token secret in cookie for callback
+        document.cookie = `twitter_oauth_token_secret=${data.oauth_token_secret}; path=/; max-age=600; SameSite=Lax`
+        
+        // Redirect to Twitter authorization
+        window.location.href = data.authUrl
+      } else {
+        throw new Error('Invalid OAuth response')
+      }
+      
+    } catch (error) {
+      console.error('❌ Twitter OAuth failed:', error)
+      setError(error instanceof Error ? error.message : 'Twitter authorization failed')
+      setAuthLoading(false)
+    }
+  }
+
   const handleDaytonaScan = async () => {
     if (!username.trim()) {
       setError('Please enter a Twitter username')
+      return
+    }
+
+    if (!twitterAuthorized) {
+      setError('Please authorize Twitter access first')
       return
     }
 
@@ -331,33 +403,87 @@ export default function DashboardPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {/* Scan Input */}
-                  <div className="flex gap-3">
-                    <Input
-                      placeholder="Enter Twitter username (e.g., elonmusk)"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="flex-1"
-                      disabled={scanLoading}
-                    />
-                    <Button 
-                      onClick={handleDaytonaScan}
-                      disabled={scanLoading || !username.trim()}
-                      className="flex items-center gap-2 min-w-[140px]"
-                    >
-                      {scanLoading ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 animate-spin" />
-                          Scanning...
-                        </>
-                      ) : (
-                        <>
-                          <Zap className="h-4 w-4" />
-                          Start Scan
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                  {/* Twitter Authorization Step */}
+                  {!twitterAuthorized ? (
+                    <div className="space-y-4">
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">1</div>
+                          <h3 className="font-semibold text-blue-900">Authorize Twitter Access</h3>
+                        </div>
+                        <p className="text-blue-700 mb-4">
+                          To scan your followers, you need to authorize Followlytics to access your Twitter account. 
+                          This is secure and you can revoke access anytime.
+                        </p>
+                        <Button 
+                          onClick={handleTwitterAuth}
+                          disabled={authLoading}
+                          className="flex items-center gap-2"
+                        >
+                          {authLoading ? (
+                            <>
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                              Connecting to Twitter...
+                            </>
+                          ) : (
+                            <>
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+                              </svg>
+                              Authorize Twitter Access
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Twitter Authorization Success */}
+                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center">✓</div>
+                          <h3 className="font-semibold text-green-900">Twitter Access Authorized</h3>
+                        </div>
+                        <p className="text-green-700">
+                          Great! You can now scan any Twitter account for followers.
+                        </p>
+                      </div>
+
+                      {/* Scan Input */}
+                      <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">2</div>
+                          <h3 className="font-semibold text-gray-900">Start Your Scan</h3>
+                        </div>
+                        <div className="flex gap-3">
+                          <Input
+                            placeholder="Enter Twitter username (e.g., elonmusk)"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            className="flex-1"
+                            disabled={scanLoading}
+                          />
+                          <Button 
+                            onClick={handleDaytonaScan}
+                            disabled={scanLoading || !username.trim()}
+                            className="flex items-center gap-2 min-w-[140px]"
+                          >
+                            {scanLoading ? (
+                              <>
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                                Scanning...
+                              </>
+                            ) : (
+                              <>
+                                <Zap className="h-4 w-4" />
+                                Start Scan
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Performance Features */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
