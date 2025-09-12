@@ -29,8 +29,23 @@ async function getUserTwitterTokens(userId: string) {
     console.log(`🔍 Getting Twitter tokens for user: ${userId}`)
     
     if (!admin.apps.length) {
-      console.warn('Firebase not initialized - cannot get user tokens')
-      return null
+      // Try to initialize Firebase Admin SDK
+      try {
+        const serviceAccountKey = process.env.FIREBASE_ADMIN_SDK_KEY
+        if (serviceAccountKey) {
+          const serviceAccount = JSON.parse(serviceAccountKey)
+          admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+          })
+          console.log('✅ Firebase Admin SDK initialized successfully')
+        } else {
+          console.warn('Firebase not initialized - cannot get user tokens')
+          return null
+        }
+      } catch (error) {
+        console.error('Failed to initialize Firebase Admin SDK:', error)
+        return null
+      }
     }
     
     const adminDb = admin.firestore()
