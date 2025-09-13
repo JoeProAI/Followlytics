@@ -125,14 +125,8 @@ export async function GET(request: NextRequest) {
 
     console.log('🔗 Generated Twitter authorization URL:', authUrl)
 
-    // Create response with cookie to store token secret
-    const response = NextResponse.json({
-      success: true,
-      authorization_url: authUrl,
-      oauth_token: oauthToken
-    })
-
-    // Store token secret in httpOnly cookie for callback
+    // Create response with cookie
+    const response = NextResponse.redirect(authUrl)
     response.cookies.set('twitter_oauth_token_secret', oauthTokenSecret, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

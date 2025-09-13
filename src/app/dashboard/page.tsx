@@ -128,7 +128,7 @@ export default function DashboardPage() {
       console.log('🔐 Initiating Twitter OAuth...')
       
       const response = await fetch('/api/auth/twitter', {
-        method: 'POST',
+        method: 'GET',
         credentials: 'include'
       })
       
