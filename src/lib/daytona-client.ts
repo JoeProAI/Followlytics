@@ -190,22 +190,62 @@ async function scanFollowers(username) {
     
     await page.goto(followersUrl, { waitUntil: 'networkidle', timeout: 30000 });
     
-    // Wait for followers list to load
-    console.log('Waiting for followers list...');
+    // Take a screenshot first to see what we're working with
+    await page.screenshot({ path: '/tmp/page_after_navigation.png' });
+    console.log('📸 Screenshot saved for debugging');
+    
+    // Check what's actually on the page
+    const pageInfo = await page.evaluate(() => {
+      return {
+        title: document.title,
+        url: window.location.href,
+        bodyText: document.body.innerText.substring(0, 500),
+        hasLoginForm: !!document.querySelector('input[name="session[username_or_email]"]'),
+        hasFollowerElements: !!document.querySelector('[data-testid="UserCell"]'),
+        allTestIds: Array.from(document.querySelectorAll('[data-testid]')).map(el => el.getAttribute('data-testid')).slice(0, 20)
+      };
+    });
+    
+    console.log('📋 Page analysis:', pageInfo);
+    
+    // If we're on a login page, try to handle it
+    if (pageInfo.hasLoginForm || pageInfo.title.includes('Login')) {
+      console.log('🔐 Detected login page, trying to authenticate...');
+      
+      // Try to navigate directly to the followers page again after auth
+      await page.goto(\`https://x.com/\${username}/followers\`, { waitUntil: 'networkidle', timeout: 30000 });
+      await page.screenshot({ path: '/tmp/page_after_x_navigation.png' });
+      
+      // Re-check page content
+      const newPageInfo = await page.evaluate(() => {
+        return {
+          title: document.title,
+          url: window.location.href,
+          hasFollowerElements: !!document.querySelector('[data-testid="UserCell"]'),
+          allTestIds: Array.from(document.querySelectorAll('[data-testid]')).map(el => el.getAttribute('data-testid')).slice(0, 20)
+        };
+      });
+      console.log('📋 Page after x.com navigation:', newPageInfo);
+    }
     
     // Try multiple selectors to find the followers list
     let foundSelector = null;
     const selectors = [
       '[data-testid="UserCell"]',
       '[data-testid="cellInnerDiv"]',
-      '[role="button"][data-testid="UserCell"]'
+      '[role="button"][data-testid="UserCell"]',
+      'article[data-testid="tweet"]',
+      'article',
+      '[role="article"]',
+      'div[data-testid="primaryColumn"] div[role="button"]',
+      'div[aria-label*="Follow"]'
     ];
     
     for (const selector of selectors) {
       try {
-        await page.waitForSelector(selector, { timeout: 10000 });
+        await page.waitForSelector(selector, { timeout: 3000 });
         foundSelector = selector;
-        console.log('Found followers using selector: ' + selector);
+        console.log('✓ Found follower list with selector:', selector);
         break;
       } catch (e) {
         console.log('Selector ' + selector + ' not found, trying next...');
@@ -213,24 +253,28 @@ async function scanFollowers(username) {
     }
     
     if (!foundSelector) {
-      // Try alternative selectors
-      const altSelectors = ['[data-testid="cellInnerDiv"]', 'article', '[role="article"]'];
-      for (const selector of altSelectors) {
-        try {
-          await page.waitForSelector(selector, { timeout: 5000 });
-          foundSelector = selector;
-          console.log('Primary selector not found, trying alternatives...');
-          console.log('Found alternative selector: ' + selector);
-          break;
-        } catch (e) {
-          console.log('Selector ' + selector + ' not found, trying next...');
-        }
-      }
+      console.log('❌ Could not find follower list elements');
       
-      if (!foundSelector) {
-        await page.screenshot({ path: '/tmp/followers_page_error.png' });
-        throw new Error('Could not find follower list elements');
-      }
+      // Get more detailed page analysis
+      const detailedInfo = await page.evaluate(() => {
+        const allElements = Array.from(document.querySelectorAll('*')).slice(0, 50);
+        return {
+          elementCount: document.querySelectorAll('*').length,
+          divCount: document.querySelectorAll('div').length,
+          buttonCount: document.querySelectorAll('button').length,
+          articleCount: document.querySelectorAll('article').length,
+          sampleElements: allElements.map(el => ({
+            tag: el.tagName,
+            testId: el.getAttribute('data-testid'),
+            role: el.getAttribute('role'),
+            ariaLabel: el.getAttribute('aria-label')
+          })).filter(el => el.testId || el.role || el.ariaLabel)
+        };
+      });
+      
+      console.log('🔍 Detailed page analysis:', detailedInfo);
+      await page.screenshot({ path: '/tmp/followers_page_debug.png' });
+      throw new Error('Could not find follower list elements');
     }
     
     console.log('✓ Followers page loaded');
