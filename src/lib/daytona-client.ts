@@ -277,11 +277,6 @@ main();
       TWITTER_ACCESS_TOKEN_SECRET: !!envVars.TWITTER_ACCESS_TOKEN_SECRET
     })
 
-    for (const [key, value] of Object.entries(envVars)) {
-      const envResult = await sandbox.process.executeCommand(`export ${key}="${value}"`)
-      console.log(`📝 Set ${key}:`, { exitCode: envResult.exitCode, success: envResult.exitCode === 0 })
-    }
-
     // Test if the script file exists
     console.log('📋 Checking if script file exists...')
     const lsResult = await sandbox.process.executeCommand('ls -la twitter-scraper.js')
@@ -306,8 +301,13 @@ main();
       preview: headResult.result?.substring(0, 300) 
     })
 
-    console.log('🚀 Executing scraper script...')
-    const result = await sandbox.process.executeCommand('node twitter-scraper.js')
+    // Build environment variable string for command execution
+    const envString = Object.entries(envVars)
+      .map(([key, value]) => `${key}="${value}"`)
+      .join(' ')
+
+    console.log('🚀 Executing scraper script with environment variables...')
+    const result = await sandbox.process.executeCommand(`${envString} node twitter-scraper.js`)
 
     console.log('📋 Script execution result:', {
       exitCode: result.exitCode,
