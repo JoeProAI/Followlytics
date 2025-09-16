@@ -46,31 +46,35 @@ export interface FollowerScanResult {
 
 export class DaytonaSandboxManager {
   static async createSandbox(config: SandboxConfig): Promise<any> {
-    console.log('Creating Daytona sandbox with config:', config)
+    console.log('Creating NEW Daytona sandbox with config:', config)
     
     try {
-      // Use the working sandbox ID from memories
-      const workingSandboxId = '9f8324a8-1246-462f-9306-99bcb05a4a52'
+      // Create a fresh new sandbox each time
+      const createPayload = {
+        name: config.name,
+        repository: config.repository || 'https://github.com/microsoft/vscode-dev-containers',
+        image: config.image || 'node:18'
+      }
       
-      // Get the actual sandbox from Daytona API
-      const sandbox = await makeDaytonaRequest(`/workspaces/${workingSandboxId}`)
+      console.log('Creating new workspace:', createPayload)
+      const sandbox = await makeDaytonaRequest('/workspaces', 'POST', createPayload)
       
       // Add the process.executeCommand method to the sandbox object
       sandbox.process = {
         executeCommand: async (command: string) => {
-          console.log(`Executing command: ${command}`)
-          const result = await makeDaytonaRequest(`/workspaces/${workingSandboxId}/exec`, 'POST', {
+          console.log(`Executing command in sandbox ${sandbox.id}: ${command}`)
+          const result = await makeDaytonaRequest(`/workspaces/${sandbox.id}/exec`, 'POST', {
             command: command
           })
           return result
         }
       }
       
-      console.log('✅ Retrieved existing sandbox:', sandbox.id)
+      console.log('✅ Created NEW sandbox:', sandbox.id)
       return sandbox
     } catch (error) {
-      console.error('❌ Failed to get sandbox:', error)
-      throw new Error(`Sandbox retrieval failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error('❌ Failed to create sandbox:', error)
+      throw new Error(`Sandbox creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -78,9 +82,16 @@ export class DaytonaSandboxManager {
     console.log('Setting up sandbox environment...')
     
     try {
-      // Skip actual setup for now - assume sandbox is already configured
-      console.log('✅ Using pre-configured sandbox environment')
-      console.log('Sandbox environment setup complete')
+      // Install Node.js dependencies
+      console.log('Installing Node.js dependencies...')
+      await sandbox.process.executeCommand('npm init -y')
+      await sandbox.process.executeCommand('npm install playwright puppeteer --save')
+      
+      // Install Playwright browsers
+      console.log('Installing Playwright browsers...')
+      await sandbox.process.executeCommand('npx playwright install chromium')
+      
+      console.log('✅ Sandbox environment setup complete')
     } catch (error) {
       console.error('Failed to setup sandbox environment:', error)
       throw new Error(`Environment setup failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -660,11 +671,12 @@ scanTwitterFollowers()
 
   static async cleanupSandbox(sandbox: any): Promise<void> {
     try {
-      console.log('🧹 Cleaning up sandbox...')
-      // Skip actual cleanup for now to avoid API issues
-      console.log('✅ Sandbox cleanup skipped (using persistent sandbox)')
+      console.log('🧹 Cleaning up sandbox:', sandbox.id)
+      await makeDaytonaRequest(`/workspaces/${sandbox.id}`, 'DELETE')
+      console.log('✅ Sandbox deleted successfully')
     } catch (error) {
       console.error('❌ Sandbox cleanup failed:', error)
+      // Don't throw error on cleanup failure - it's not critical
     }
   }
 }
