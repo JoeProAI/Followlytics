@@ -257,30 +257,122 @@ async function scanFollowers(username, accessToken, accessTokenSecret) {
     const maxScrolls = 5; // Limit scrolling for initial test
     
     while (scrollAttempts < maxScrolls) {
-      // Get current followers on page
-      const currentFollowers = await page.$$eval('[data-testid="UserCell"]', (cells) => {
-        return cells.map(cell => {
-          const nameElement = cell.querySelector('[data-testid="UserName"] span');
-          const usernameElement = cell.querySelector('[data-testid="UserName"] a');
-          const bioElement = cell.querySelector('[data-testid="UserDescription"]');
-          
-          return {
-            name: nameElement?.textContent?.trim() || '',
-            username: usernameElement?.textContent?.trim() || '',
-            bio: bioElement?.textContent?.trim() || '',
-            profileUrl: usernameElement?.href || ''
-          };
+      // Try multiple selectors for follower extraction
+      let currentFollowers = [];
+      
+      // Try primary selector first
+      try {
+        currentFollowers = await page.$$eval('[data-testid="UserCell"]', (cells) => {
+          return cells.map(cell => {
+            const nameElement = cell.querySelector('[data-testid="UserName"] span');
+            const usernameElement = cell.querySelector('[data-testid="UserName"] a');
+            const bioElement = cell.querySelector('[data-testid="UserDescription"]');
+            
+            return {
+              name: nameElement?.textContent?.trim() || '',
+              username: usernameElement?.textContent?.trim() || '',
+              bio: bioElement?.textContent?.trim() || '',
+              profileUrl: usernameElement?.href || ''
+            };
+          });
         });
-      });
+      } catch (error) {
+        console.log('Primary UserCell selector failed, trying alternatives...');
+      }
       
-      // Add new followers
-      currentFollowers.forEach(follower => {
-        if (follower.username && !followers.find(f => f.username === follower.username)) {
-          followers.push(follower);
+      // If primary failed, try alternative extraction methods
+      if (currentFollowers.length === 0) {
+        try {
+          currentFollowers = await page.$$eval('[data-testid="cellInnerDiv"]', (cells) => {
+            return cells.map(cell => {
+              // Look for username links
+              const usernameLink = cell.querySelector('a[href*="/"]');
+              const nameSpan = cell.querySelector('span[dir="ltr"]');
+              const bioDiv = cell.querySelector('div[dir="auto"]');
+              
+              let username = '';
+              if (usernameLink && usernameLink.href) {
+                const match = usernameLink.href.match(/twitter\\.com\\/([^/?]+)/) || 
+                             usernameLink.href.match(/x\\.com\\/([^/?]+)/);
+                if (match && match[1] && !match[1].includes('status')) {
+                  username = '@' + match[1];
+                }
+              }
+              
+              // Also try to find @username in text content
+              if (!username) {
+                const textContent = cell.textContent || '';
+                const atMatch = textContent.match(/@([a-zA-Z0-9_]+)/);
+                if (atMatch) {
+                  username = '@' + atMatch[1];
+                }
+              }
+              
+              return {
+                name: nameSpan?.textContent?.trim() || '',
+                username: username,
+                bio: bioDiv?.textContent?.trim() || '',
+                profileUrl: usernameLink?.href || ''
+              };
+            });
+          });
+          console.log(\`Extracted \${currentFollowers.length} followers using cellInnerDiv selector\`);
+        } catch (error) {
+          console.log('cellInnerDiv selector also failed:', error.message);
         }
-      });
+      }
       
-      console.log(\`Collected \${followers.length} followers so far...\`);
+      // If still no followers, try a more generic approach
+      if (currentFollowers.length === 0) {
+        try {
+          currentFollowers = await page.evaluate(() => {
+            const followers = [];
+            // Look for any links that look like profile links
+            const profileLinks = document.querySelectorAll('a[href*="/"]');
+            
+            profileLinks.forEach(link => {
+              const href = link.href;
+              const match = href.match(/(?:twitter|x)\\.com\\/([^/?#]+)/) || href.match(/\\/([^/?#]+)$/);
+              
+              if (match && match[1] && 
+                  !match[1].includes('status') && 
+                  !match[1].includes('search') &&
+                  !match[1].includes('home') &&
+                  !match[1].includes('notifications') &&
+                  match[1].length > 0 && 
+                  match[1] !== 'i') {
+                
+                const username = '@' + match[1];
+                const parentElement = link.closest('[data-testid], [role="button"], div');
+                const nameElement = parentElement?.querySelector('span[dir="ltr"]');
+                
+                followers.push({
+                  name: nameElement?.textContent?.trim() || '',
+                  username: username,
+                  bio: '',
+                  profileUrl: href
+                });
+              }
+            });
+            
+            return followers;
+          });
+          console.log(\`Extracted \${currentFollowers.length} followers using generic link approach\`);
+        } catch (error) {
+          console.log('Generic extraction failed:', error.message);
+        }
+      }
+      
+      // Filter and add new followers
+      const validFollowers = currentFollowers.filter(f => 
+        f.username && 
+        f.username.length > 1 && 
+        !f.username.includes('undefined') &&
+        !followers.find(existing => existing.username === f.username)
+      );
+      
+      followers.push(...validFollowers);
+      console.log(\`Collected \${followers.length} followers so far... (added \${validFollowers.length} new)\`);
       
       // Scroll down
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
