@@ -106,21 +106,20 @@ export async function POST(request: NextRequest) {
       // Create sandbox configuration
       console.log('Creating sandbox configuration...')
       const config = {
-        userId,
-        twitterUsername: xUsername,
-        sessionId,
-        autoDelete: true
+        name: `follower-scan-${sessionId}`,
+        repository: 'https://github.com/microsoft/vscode-dev-containers',
+        image: 'node:18'
       }
       
       // Create sandbox and execute scan with OAuth tokens
       console.log('Creating Daytona sandbox...')
-      const sandbox = await DaytonaSandboxManager.createFollowerScanSandbox(config)
+      const sandbox = await DaytonaSandboxManager.createSandbox(config)
       
       console.log('Setting up sandbox environment...')
       await DaytonaSandboxManager.setupSandboxEnvironment(sandbox)
       
       console.log('Executing follower scan...')
-      const result = await DaytonaSandboxManager.executeFollowerScan(sandbox.id, sessionId, xUsername, oauthTokens)
+      const result = await DaytonaSandboxManager.executeFollowerScan(sandbox, xUsername, oauthTokens.accessToken, oauthTokens.accessTokenSecret)
       
       // Update scan with results - filter out undefined values
       const updateData: any = {
@@ -178,14 +177,13 @@ async function startFollowerScan(
     })
 
     // Create Daytona sandbox
-    const sandboxConfig: SandboxConfig = {
-      userId,
-      twitterUsername,
-      sessionId,
-      autoDelete: true, // Auto-delete after completion
+    const sandboxConfig = {
+      name: `follower-scan-${sessionId}`,
+      repository: 'https://github.com/microsoft/vscode-dev-containers',
+      image: 'node:18'
     }
 
-    sandbox = await DaytonaSandboxManager.createFollowerScanSandbox(sandboxConfig)
+    sandbox = await DaytonaSandboxManager.createSandbox(sandboxConfig)
 
     // Update scan with sandbox ID
     await adminDb.collection('follower_scans').doc(scanId).update({
@@ -204,11 +202,15 @@ async function startFollowerScan(
     })
 
     // Execute the follower scan
+    if (!oauthTokens) {
+      throw new Error('OAuth tokens not found')
+    }
+    
     const scanResult = await DaytonaSandboxManager.executeFollowerScan(
-      sandbox.id,
-      sessionId,
+      sandbox,
       twitterUsername,
-      oauthTokens
+      oauthTokens.accessToken,
+      oauthTokens.accessTokenSecret
     )
 
     if (scanResult.status === 'failed') {
@@ -225,7 +227,8 @@ async function startFollowerScan(
     })
 
     // Check for unfollowers if this isn't the first scan
-    await checkForUnfollowers(userId, twitterUsername, scanResult.followers, scanId)
+    const followerUsernames = scanResult.followers.map((f: any) => f.username || f)
+    await checkForUnfollowers(userId, twitterUsername, followerUsernames, scanId)
 
   } catch (error) {
     console.error('Follower scan error:', error)
