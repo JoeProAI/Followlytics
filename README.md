@@ -151,7 +151,7 @@ Visit [http://localhost:3001](http://localhost:3001) 🎉
 | ❌ Scaling difficulties | ✅ Infinite scalability |
 | ❌ Security concerns | ✅ Isolated sandboxes |
 
-## 🚀 **Deployment - FORCE REBUILD**
+## 🚀 **Deployment - FORCE REBUILD v2**
 
 ### Vercel (Recommended)
 ```bash
