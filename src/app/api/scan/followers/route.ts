@@ -69,6 +69,22 @@ export async function POST(request: NextRequest) {
 
     // Start the scanning process asynchronously
     try {
+      // Get user's OAuth tokens from x_tokens collection
+      const xTokensDoc = await adminDb.collection('x_tokens').doc(userId).get()
+      if (!xTokensDoc.exists) {
+        throw new Error('Twitter OAuth tokens not found. Please re-authorize Twitter access.')
+      }
+
+      const tokenData = xTokensDoc.data()
+      const oauthTokens = {
+        accessToken: tokenData?.accessToken,
+        accessTokenSecret: tokenData?.accessTokenSecret
+      }
+
+      if (!oauthTokens.accessToken || !oauthTokens.accessTokenSecret) {
+        throw new Error('Invalid Twitter OAuth tokens. Please re-authorize Twitter access.')
+      }
+
       // Create sandbox configuration
       const config = {
         userId,
@@ -77,9 +93,9 @@ export async function POST(request: NextRequest) {
         autoDelete: true
       }
       
-      // Create sandbox and execute scan
+      // Create sandbox and execute scan with OAuth tokens
       const sandbox = await DaytonaSandboxManager.createFollowerScanSandbox(config)
-      const result = await DaytonaSandboxManager.executeFollowerScan(sandbox, xUsername, [])
+      const result = await DaytonaSandboxManager.executeFollowerScan(sandbox, xUsername, oauthTokens)
       
       // Update scan with results
       await adminDb.collection('follower_scans').doc(scanId).update({
@@ -120,7 +136,7 @@ async function startFollowerScan(
   userId: string,
   twitterUsername: string,
   sessionId: string,
-  twitterCookies?: any[]
+  oauthTokens?: { accessToken: string, accessTokenSecret: string }
 ) {
   let sandbox: any = null
 
@@ -161,7 +177,7 @@ async function startFollowerScan(
     const scanResult = await DaytonaSandboxManager.executeFollowerScan(
       sandbox,
       twitterUsername,
-      twitterCookies
+      oauthTokens
     )
 
     if (scanResult.status === 'failed') {

@@ -125,10 +125,23 @@ class TwitterFollowerScraper {
     await this.page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
   }
 
-  async authenticateWithCookies(cookies) {
-    if (cookies && cookies.length > 0) {
-      await this.page.context().addCookies(cookies);
-    }
+  async authenticateWithOAuth(accessToken, accessTokenSecret) {
+    // Navigate to Twitter login page
+    await this.page.goto('https://twitter.com/login', { waitUntil: 'networkidle' });
+    
+    // Inject OAuth tokens into localStorage for authentication
+    await this.page.evaluate((tokens) => {
+      localStorage.setItem('twitter_oauth_token', tokens.accessToken);
+      localStorage.setItem('twitter_oauth_token_secret', tokens.accessTokenSecret);
+      
+      // Also try setting as cookies for broader compatibility
+      document.cookie = \`oauth_token=\${tokens.accessToken}; domain=.twitter.com; path=/\`;
+      document.cookie = \`oauth_token_secret=\${tokens.accessTokenSecret}; domain=.twitter.com; path=/\`;
+    }, { accessToken, accessTokenSecret });
+    
+    // Try to navigate to home page to verify authentication
+    await this.page.goto('https://twitter.com/home', { waitUntil: 'networkidle' });
+    await this.page.waitForTimeout(2000);
   }
 
   async navigateToFollowersPage(username) {
@@ -202,24 +215,19 @@ async function main() {
     
     // Get environment variables
     const username = process.env.TWITTER_USERNAME;
-    const cookiesJson = process.env.TWITTER_COOKIES;
+    const accessToken = process.env.TWITTER_ACCESS_TOKEN;
+    const accessTokenSecret = process.env.TWITTER_ACCESS_TOKEN_SECRET;
     
     if (!username) {
       throw new Error('TWITTER_USERNAME environment variable is required');
     }
     
-    // Parse cookies if provided
-    let cookies = [];
-    if (cookiesJson) {
-      try {
-        cookies = JSON.parse(cookiesJson);
-      } catch (error) {
-        console.warn('Failed to parse cookies, proceeding without authentication');
-      }
+    if (!accessToken || !accessTokenSecret) {
+      throw new Error('Twitter OAuth tokens are required for authentication');
     }
     
-    // Authenticate and scrape
-    await scraper.authenticateWithCookies(cookies);
+    // Navigate to Twitter login and inject OAuth tokens
+    await scraper.authenticateWithOAuth(accessToken, accessTokenSecret);
     await scraper.navigateToFollowersPage(username);
     
     const followers = await scraper.scrapeFollowers();
@@ -268,13 +276,14 @@ main();
   static async executeFollowerScan(
     sandbox: any, 
     twitterUsername: string, 
-    twitterCookies?: any[]
+    oauthTokens?: { accessToken: string, accessTokenSecret: string }
   ): Promise<FollowerScanResult> {
     try {
       // Set environment variables for the scraper
       const envVars = {
         TWITTER_USERNAME: twitterUsername,
-        TWITTER_COOKIES: twitterCookies ? JSON.stringify(twitterCookies) : ''
+        TWITTER_ACCESS_TOKEN: oauthTokens?.accessToken || '',
+        TWITTER_ACCESS_TOKEN_SECRET: oauthTokens?.accessTokenSecret || ''
       }
 
       // Create a session for running the scraper
