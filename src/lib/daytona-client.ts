@@ -1,11 +1,43 @@
 import { Daytona } from '@daytonaio/sdk'
 
+// Validate required environment variables
+function validateDaytonaConfig() {
+  const requiredVars = {
+    DAYTONA_API_KEY: process.env.DAYTONA_API_KEY,
+    DAYTONA_API_URL: process.env.DAYTONA_API_URL || 'https://app.daytona.io/api',
+    DAYTONA_TARGET: process.env.DAYTONA_TARGET || 'us'
+  }
+
+  const missing = Object.entries(requiredVars)
+    .filter(([key, value]) => !value)
+    .map(([key]) => key)
+
+  if (missing.length > 0) {
+    throw new Error(`Missing required Daytona environment variables: ${missing.join(', ')}`)
+  }
+
+  return requiredVars
+}
+
 // Initialize Daytona client with configuration
-export const daytonaClient = new Daytona({
-  apiKey: process.env.DAYTONA_API_KEY!,
-  apiUrl: 'https://app.daytona.io/api',
-  target: 'us'
-})
+let daytonaClient: Daytona | null = null
+
+function getDaytonaClient() {
+  if (!daytonaClient) {
+    try {
+      const config = validateDaytonaConfig()
+      daytonaClient = new Daytona({
+        apiKey: config.DAYTONA_API_KEY!,
+        apiUrl: config.DAYTONA_API_URL,
+        target: config.DAYTONA_TARGET as any
+      })
+    } catch (error) {
+      console.error('Failed to initialize Daytona client:', error)
+      throw error
+    }
+  }
+  return daytonaClient
+}
 
 export interface SandboxConfig {
   userId: string
@@ -27,7 +59,8 @@ export class DaytonaSandboxManager {
    * Create a new sandbox for Twitter follower scanning
    */
   static async createFollowerScanSandbox(config: SandboxConfig) {
-    const sandbox = await daytonaClient.create({
+    const client = getDaytonaClient()
+    const sandbox = await client.create({
       language: 'typescript',
       envVars: {
         NODE_ENV: 'production',

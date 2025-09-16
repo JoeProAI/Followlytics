@@ -5,6 +5,23 @@ import { v4 as uuidv4 } from 'uuid'
 
 export async function POST(request: NextRequest) {
   try {
+    // Check environment variables first
+    const requiredEnvVars = [
+      'DAYTONA_API_KEY',
+      'FIREBASE_PROJECT_ID',
+      'FIREBASE_CLIENT_EMAIL',
+      'FIREBASE_PRIVATE_KEY'
+    ]
+    
+    const missingVars = requiredEnvVars.filter(varName => !process.env[varName])
+    if (missingVars.length > 0) {
+      console.error('Missing environment variables:', missingVars)
+      return NextResponse.json({ 
+        error: 'Server configuration error', 
+        details: `Missing environment variables: ${missingVars.join(', ')}` 
+      }, { status: 500 })
+    }
+
     // Verify user authentication
     const authHeader = request.headers.get('authorization')
     if (!authHeader?.startsWith('Bearer ')) {
