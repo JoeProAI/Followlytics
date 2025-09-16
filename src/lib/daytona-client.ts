@@ -271,9 +271,9 @@ async function scanFollowers(username, accessToken, accessTokenSecret) {
             const bioElement = cell.querySelector('[data-testid="UserDescription"]');
             
             return {
-              name: nameElement?.textContent?.trim() || '',
-              username: usernameElement?.textContent?.trim() || '',
-              bio: bioElement?.textContent?.trim() || '',
+              name: (nameElement?.textContent || '').trim(),
+              username: (usernameElement?.textContent || '').trim(),
+              bio: (bioElement?.textContent || '').trim(),
               profileUrl: usernameElement?.href || ''
             };
           });
@@ -311,9 +311,9 @@ async function scanFollowers(username, accessToken, accessTokenSecret) {
               }
               
               return {
-                name: nameSpan?.textContent?.trim() || '',
+                name: (nameSpan?.textContent || '').trim(),
                 username: username,
-                bio: bioDiv?.textContent?.trim() || '',
+                bio: (bioDiv?.textContent || '').trim(),
                 profileUrl: usernameLink?.href || ''
               };
             });
@@ -349,7 +349,7 @@ async function scanFollowers(username, accessToken, accessTokenSecret) {
                 const nameElement = parentElement?.querySelector('span[dir="ltr"]');
                 
                 followers.push({
-                  name: nameElement?.textContent?.trim() || '',
+                  name: (nameElement?.textContent || '').trim(),
                   username: username,
                   bio: '',
                   profileUrl: href
