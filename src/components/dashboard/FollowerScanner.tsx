@@ -203,20 +203,20 @@ export default function FollowerScanner() {
       {!xAuthorized ? (
         <div className="bg-white rounded-lg shadow p-6">
           <div className="text-center">
-            <div className="w-16 h-16 bg-black rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+            <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center mx-auto mb-3">
+              <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">
               Step 1: Authorize X Access
             </h2>
-            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+            <p className="text-gray-600 mb-4 max-w-md mx-auto">
               To scan followers, you need to authorize Followlytics to access X on your behalf. This creates a secure sandbox environment for automated scanning.
             </p>
             <button
               onClick={handleXAuthorization}
-              className="bg-black hover:bg-gray-800 text-white px-8 py-3 rounded-lg text-lg font-semibold flex items-center justify-center gap-3 mx-auto transition-colors"
+              className="bg-black hover:bg-gray-800 text-white px-6 py-2 rounded-lg font-medium flex items-center justify-center gap-2 mx-auto transition-colors"
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
