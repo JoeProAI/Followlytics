@@ -492,13 +492,37 @@ main();
     } catch (e) {
       // File might not exist, continue
     }
-    await sandbox.fs.uploadFile('twitter-scanner.js', scannerScript);
+    
+    // Try uploading with Buffer format first
+    try {
+      await sandbox.fs.uploadFile('twitter-scanner.js', Buffer.from(scannerScript, 'utf8'));
+      console.log('✅ Script uploaded successfully with Buffer format');
+    } catch (bufferError) {
+      console.log('❌ Buffer upload failed, trying string format:', bufferError instanceof Error ? bufferError.message : 'Unknown error');
+      try {
+        await sandbox.fs.uploadFile('twitter-scanner.js', scannerScript);
+        console.log('✅ Script uploaded successfully with string format');
+      } catch (stringError) {
+        console.log('❌ String upload also failed:', stringError instanceof Error ? stringError.message : 'Unknown error');
+        // Try creating file via echo command as fallback
+        const escapedScript = scannerScript.replace(/'/g, "'\"'\"'");
+        await sandbox.process.executeCommand(`echo '${escapedScript}' > twitter-scanner.js`);
+        console.log('✅ Script created via echo command fallback');
+      }
+    }
     
     // Verify the script was uploaded with correct content
     const uploadCheck = await sandbox.process.executeCommand('wc -l twitter-scanner.js');
     console.log('📋 Script upload verification:', { 
       exitCode: uploadCheck.exitCode, 
       lineCount: uploadCheck.result?.trim() 
+    });
+    
+    // Also check if file exists
+    const fileCheck = await sandbox.process.executeCommand('ls -la twitter-scanner.js');
+    console.log('📁 File existence check:', {
+      exitCode: fileCheck.exitCode,
+      output: fileCheck.result?.trim()
     });
     
     return sandbox
