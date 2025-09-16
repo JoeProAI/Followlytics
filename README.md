@@ -151,12 +151,12 @@ Visit [http://localhost:3001](http://localhost:3001) 🎉
 | ❌ Scaling difficulties | ✅ Infinite scalability |
 | ❌ Security concerns | ✅ Isolated sandboxes |
 
-## 🚀 **Deployment**
+## 🚀 **Deployment - FORCE REBUILD**
 
 ### Vercel (Recommended)
 ```bash
 npm install -g vercel
-vercel --prod
+vercel --prod --force
 ```
 
 Add environment variables in Vercel dashboard.
