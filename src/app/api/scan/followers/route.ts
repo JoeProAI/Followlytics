@@ -13,6 +13,14 @@ export async function POST(request: NextRequest) {
       'FIREBASE_PRIVATE_KEY'
     ]
     
+    console.log('Environment variable check:', {
+      DAYTONA_API_KEY: !!process.env.DAYTONA_API_KEY,
+      DAYTONA_API_URL: !!process.env.DAYTONA_API_URL,
+      FIREBASE_PROJECT_ID: !!process.env.FIREBASE_PROJECT_ID,
+      FIREBASE_CLIENT_EMAIL: !!process.env.FIREBASE_CLIENT_EMAIL,
+      FIREBASE_PRIVATE_KEY: !!process.env.FIREBASE_PRIVATE_KEY
+    })
+    
     const missingVars = requiredEnvVars.filter(varName => !process.env[varName])
     if (missingVars.length > 0) {
       console.error('Missing environment variables:', missingVars)
@@ -69,9 +77,13 @@ export async function POST(request: NextRequest) {
 
     // Start the scanning process asynchronously
     try {
+      console.log('Starting follower scan process for user:', userId)
+      
       // Get user's OAuth tokens from x_tokens collection
+      console.log('Retrieving OAuth tokens from x_tokens collection...')
       const xTokensDoc = await adminDb.collection('x_tokens').doc(userId).get()
       if (!xTokensDoc.exists) {
+        console.error('No OAuth tokens found for user:', userId)
         throw new Error('Twitter OAuth tokens not found. Please re-authorize Twitter access.')
       }
 
@@ -81,11 +93,18 @@ export async function POST(request: NextRequest) {
         accessTokenSecret: tokenData?.accessTokenSecret
       }
 
+      console.log('OAuth tokens retrieved:', {
+        hasAccessToken: !!oauthTokens.accessToken,
+        hasAccessTokenSecret: !!oauthTokens.accessTokenSecret
+      })
+
       if (!oauthTokens.accessToken || !oauthTokens.accessTokenSecret) {
+        console.error('Invalid OAuth tokens:', oauthTokens)
         throw new Error('Invalid Twitter OAuth tokens. Please re-authorize Twitter access.')
       }
 
       // Create sandbox configuration
+      console.log('Creating sandbox configuration...')
       const config = {
         userId,
         twitterUsername: xUsername,
@@ -94,7 +113,10 @@ export async function POST(request: NextRequest) {
       }
       
       // Create sandbox and execute scan with OAuth tokens
+      console.log('Creating Daytona sandbox...')
       const sandbox = await DaytonaSandboxManager.createFollowerScanSandbox(config)
+      
+      console.log('Executing follower scan...')
       const result = await DaytonaSandboxManager.executeFollowerScan(sandbox, xUsername, oauthTokens)
       
       // Update scan with results
