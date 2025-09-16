@@ -254,9 +254,9 @@ async function scanFollowers(username, accessToken, accessTokenSecret) {
     const followers = [];
     let lastHeight = 0;
     let scrollAttempts = 0;
-    const maxScrolls = 200; // Increased to capture all 800+ followers
+    const maxScrolls = 500; // Increased to capture all 800+ followers
     let consecutiveEmptyScrolls = 0;
-    const maxEmptyScrolls = 10; // Stop if no new followers found after 10 scrolls
+    const maxEmptyScrolls = 20; // Stop if no new followers found after 20 scrolls
     
     while (scrollAttempts < maxScrolls) {
       // Try multiple selectors for follower extraction
@@ -484,8 +484,22 @@ async function main() {
 main();
 `;
 
-    // Upload the scanner script to the sandbox
-    await sandbox.fs.uploadFile(Buffer.from(scannerScript), 'twitter-scanner.js')
+    // Upload the scanner script (force overwrite)
+    console.log('📤 Uploading scanner script...');
+    try {
+      // Remove existing file first to ensure fresh upload
+      await sandbox.process.executeCommand('rm -f twitter-scanner.js');
+    } catch (e) {
+      // File might not exist, continue
+    }
+    await sandbox.fs.uploadFile('twitter-scanner.js', Buffer.from(scannerScript));
+    
+    // Verify the script was uploaded with correct content
+    const uploadCheck = await sandbox.process.executeCommand('wc -l twitter-scanner.js');
+    console.log('📋 Script upload verification:', { 
+      exitCode: uploadCheck.exitCode, 
+      lineCount: uploadCheck.result?.trim() 
+    });
     
     return sandbox
   }
