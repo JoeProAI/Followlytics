@@ -256,7 +256,7 @@ async function scanFollowers(username, accessToken, accessTokenSecret) {
     let scrollAttempts = 0;
     const maxScrolls = 500; // Increased to capture all 800+ followers
     let consecutiveEmptyScrolls = 0;
-    const maxEmptyScrolls = 20; // Stop if no new followers found after 20 scrolls
+    const maxEmptyScrolls = 50; // Stop if no new followers found after 50 scrolls
     
     while (scrollAttempts < maxScrolls) {
       // Try multiple selectors for follower extraction
@@ -393,18 +393,32 @@ async function scanFollowers(username, accessToken, accessTokenSecret) {
         break;
       }
       
-      // Scroll down with more aggressive scrolling
+      // Scroll down to load more followers with multiple strategies
       await page.evaluate(() => {
+        // Strategy 1: Scroll window
         window.scrollTo(0, document.body.scrollHeight);
-        // Also try scrolling the main timeline container
+        
+        // Strategy 2: Scroll timeline container
         const timeline = document.querySelector('[data-testid="primaryColumn"]');
         if (timeline) {
           timeline.scrollTop = timeline.scrollHeight;
         }
+        
+        // Strategy 3: Scroll main content area
+        const main = document.querySelector('main[role="main"]');
+        if (main) {
+          main.scrollTop = main.scrollHeight;
+        }
+        
+        // Strategy 4: Scroll any scrollable container
+        const scrollable = document.querySelector('[style*="overflow"]');
+        if (scrollable) {
+          scrollable.scrollTop = scrollable.scrollHeight;
+        }
       });
       
-      // Shorter wait time for faster scanning, but allow content to load
-      await page.waitForTimeout(1000);
+      // Wait longer for content to load, especially for large accounts
+      await page.waitForTimeout(3000);
       
       // Wait for new content to potentially load
       try {
