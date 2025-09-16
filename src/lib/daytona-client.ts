@@ -126,20 +126,25 @@ export class DaytonaSandboxManager {
       throw new Error(`Environment setup failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
     
-    // Create the Twitter scraper script
+    // Create a simplified test script to isolate the failure point
     const scraperScript = `
-const { chromium } = require('playwright');
 const fs = require('fs');
 
-class TwitterFollowerScraper {
-  constructor() {
-    this.browser = null;
-    this.page = null;
-    this.followers = [];
-  }
+console.log('=== Twitter Scraper Test Script ===');
+console.log('Node.js version:', process.version);
+console.log('Environment check:');
+console.log('- TWITTER_USERNAME:', !!process.env.TWITTER_USERNAME);
+console.log('- TWITTER_ACCESS_TOKEN:', !!process.env.TWITTER_ACCESS_TOKEN);
+console.log('- TWITTER_ACCESS_TOKEN_SECRET:', !!process.env.TWITTER_ACCESS_TOKEN_SECRET);
 
-  async initialize() {
-    this.browser = await chromium.launch({
+async function testPlaywright() {
+  try {
+    console.log('Testing Playwright import...');
+    const { chromium } = require('playwright');
+    console.log('✓ Playwright imported successfully');
+    
+    console.log('Testing browser launch...');
+    const browser = await chromium.launch({
       headless: true,
       args: [
         '--no-sandbox',
@@ -151,102 +156,32 @@ class TwitterFollowerScraper {
         '--disable-gpu'
       ]
     });
+    console.log('✓ Browser launched successfully');
     
-    this.page = await this.browser.newPage();
+    console.log('Testing page creation...');
+    const page = await browser.newPage();
+    console.log('✓ Page created successfully');
     
-    // Set user agent to avoid detection
-    await this.page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-  }
-
-  async authenticateWithOAuth(accessToken, accessTokenSecret) {
-    // Navigate to Twitter login page
-    await this.page.goto('https://twitter.com/login', { waitUntil: 'networkidle' });
+    console.log('Testing navigation...');
+    await page.goto('https://httpbin.org/json', { waitUntil: 'networkidle' });
+    console.log('✓ Navigation successful');
     
-    // Inject OAuth tokens into localStorage for authentication
-    await this.page.evaluate((tokens) => {
-      localStorage.setItem('twitter_oauth_token', tokens.accessToken);
-      localStorage.setItem('twitter_oauth_token_secret', tokens.accessTokenSecret);
-      
-      // Also try setting as cookies for broader compatibility
-      document.cookie = \`oauth_token=\${tokens.accessToken}; domain=.twitter.com; path=/\`;
-      document.cookie = \`oauth_token_secret=\${tokens.accessTokenSecret}; domain=.twitter.com; path=/\`;
-    }, { accessToken, accessTokenSecret });
+    await browser.close();
+    console.log('✓ Browser closed successfully');
     
-    // Try to navigate to home page to verify authentication
-    await this.page.goto('https://twitter.com/home', { waitUntil: 'networkidle' });
-    await this.page.waitForTimeout(2000);
-  }
-
-  async navigateToFollowersPage(username) {
-    const followersUrl = \`https://twitter.com/\${username}/followers\`;
-    await this.page.goto(followersUrl, { waitUntil: 'networkidle' });
-    
-    // Wait for the page to load
-    await this.page.waitForTimeout(3000);
-    
-    // Check if we're logged in
-    const isLoggedIn = await this.page.locator('[data-testid="primaryColumn"]').isVisible();
-    if (!isLoggedIn) {
-      throw new Error('Not authenticated - please provide valid Twitter session cookies');
-    }
-  }
-
-  async scrapeFollowers(maxFollowers = 1000) {
-    const followers = new Set();
-    let scrollAttempts = 0;
-    const maxScrollAttempts = 50;
-    
-    while (followers.size < maxFollowers && scrollAttempts < maxScrollAttempts) {
-      // Get current follower elements
-      const followerElements = await this.page.locator('[data-testid="cellInnerDiv"]').all();
-      
-      for (const element of followerElements) {
-        try {
-          const usernameElement = await element.locator('a[href*="/"]').first();
-          const href = await usernameElement.getAttribute('href');
-          
-          if (href && href.startsWith('/') && href.length > 1) {
-            const username = href.substring(1);
-            if (username && !username.includes('/') && username.length > 0) {
-              followers.add(username);
-            }
-          }
-        } catch (error) {
-          // Skip invalid elements
-          continue;
-        }
-      }
-      
-      // Scroll down to load more followers
-      await this.page.evaluate(() => {
-        window.scrollTo(0, document.body.scrollHeight);
-      });
-      
-      // Wait for new content to load
-      await this.page.waitForTimeout(2000);
-      scrollAttempts++;
-      
-      // Progress logging
-      console.log(\`Scraped \${followers.size} followers so far...\`);
-    }
-    
-    return Array.from(followers);
-  }
-
-  async cleanup() {
-    if (this.browser) {
-      await this.browser.close();
-    }
+    return true;
+  } catch (error) {
+    console.error('✗ Playwright test failed:', error.message);
+    console.error('Stack trace:', error.stack);
+    return false;
   }
 }
 
 async function main() {
-  const scraper = new TwitterFollowerScraper();
-  
   try {
-    await scraper.initialize();
+    console.log('Starting diagnostic tests...');
     
-    // Get environment variables
+    // Test environment variables
     const username = process.env.TWITTER_USERNAME;
     const accessToken = process.env.TWITTER_ACCESS_TOKEN;
     const accessTokenSecret = process.env.TWITTER_ACCESS_TOKEN_SECRET;
@@ -259,38 +194,44 @@ async function main() {
       throw new Error('Twitter OAuth tokens are required for authentication');
     }
     
-    // Navigate to Twitter login and inject OAuth tokens
-    await scraper.authenticateWithOAuth(accessToken, accessTokenSecret);
-    await scraper.navigateToFollowersPage(username);
+    console.log('✓ Environment variables validated');
     
-    const followers = await scraper.scrapeFollowers();
+    // Test Playwright
+    const playwrightWorking = await testPlaywright();
     
-    // Save results
+    if (!playwrightWorking) {
+      throw new Error('Playwright test failed');
+    }
+    
+    // Save success result
     const result = {
-      followers,
-      followerCount: followers.length,
-      scanDate: new Date().toISOString(),
-      status: 'completed',
-      username
+      status: 'test_completed',
+      message: 'All diagnostic tests passed',
+      timestamp: new Date().toISOString(),
+      tests: {
+        environment: true,
+        playwright: true,
+        browser: true,
+        navigation: true
+      }
     };
     
     fs.writeFileSync('/tmp/followers_result.json', JSON.stringify(result, null, 2));
-    console.log(\`Successfully scraped \${followers.length} followers for @\${username}\`);
+    console.log('✓ All tests completed successfully');
     
   } catch (error) {
+    console.error('✗ Test failed:', error.message);
+    console.error('Stack trace:', error.stack);
+    
     const errorResult = {
-      followers: [],
-      followerCount: 0,
-      scanDate: new Date().toISOString(),
-      status: 'failed',
-      error: error.message
+      status: 'test_failed',
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
     };
     
     fs.writeFileSync('/tmp/followers_result.json', JSON.stringify(errorResult, null, 2));
-    console.error('Scraping failed:', error.message);
     process.exit(1);
-  } finally {
-    await scraper.cleanup();
   }
 }
 
