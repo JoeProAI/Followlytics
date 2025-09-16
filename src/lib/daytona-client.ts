@@ -4,8 +4,7 @@ import { Daytona } from '@daytonaio/sdk'
 function validateDaytonaConfig() {
   const requiredVars = {
     DAYTONA_API_KEY: process.env.DAYTONA_API_KEY,
-    DAYTONA_API_URL: process.env.DAYTONA_API_URL || 'https://app.daytona.io/api',
-    DAYTONA_TARGET: process.env.DAYTONA_TARGET || 'us'
+    DAYTONA_API_URL: process.env.DAYTONA_API_URL || 'https://app.daytona.io/api'
   }
 
   const missing = Object.entries(requiredVars)
@@ -13,8 +12,18 @@ function validateDaytonaConfig() {
     .map(([key]) => key)
 
   if (missing.length > 0) {
+    console.error('Missing Daytona environment variables:', missing)
+    console.error('Available env vars:', {
+      DAYTONA_API_KEY: !!process.env.DAYTONA_API_KEY,
+      DAYTONA_API_URL: !!process.env.DAYTONA_API_URL
+    })
     throw new Error(`Missing required Daytona environment variables: ${missing.join(', ')}`)
   }
+
+  console.log('Daytona config validated:', {
+    apiKey: requiredVars.DAYTONA_API_KEY?.substring(0, 10) + '...',
+    apiUrl: requiredVars.DAYTONA_API_URL
+  })
 
   return requiredVars
 }
@@ -28,8 +37,7 @@ function getDaytonaClient() {
       const config = validateDaytonaConfig()
       daytonaClient = new Daytona({
         apiKey: config.DAYTONA_API_KEY!,
-        apiUrl: config.DAYTONA_API_URL,
-        target: config.DAYTONA_TARGET as any
+        apiUrl: config.DAYTONA_API_URL
       })
     } catch (error) {
       console.error('Failed to initialize Daytona client:', error)
@@ -59,39 +67,64 @@ export class DaytonaSandboxManager {
    * Create a new sandbox for Twitter follower scanning
    */
   static async createFollowerScanSandbox(config: SandboxConfig) {
-    const client = getDaytonaClient()
-    const sandbox = await client.create({
-      language: 'typescript',
-      envVars: {
-        NODE_ENV: 'production',
-        USER_ID: config.userId,
-        TWITTER_USERNAME: config.twitterUsername,
-        SESSION_ID: config.sessionId,
-      },
-      // Auto-delete sandbox after 1 hour to save costs
-      autoDeleteInterval: config.autoDelete !== false ? 60 : -1,
-      // Auto-stop after 30 minutes of inactivity
-      autoStopInterval: 30,
-      labels: {
-        purpose: 'twitter-follower-scan',
+    try {
+      console.log('Creating Daytona sandbox with config:', {
         userId: config.userId,
-        sessionId: config.sessionId,
-      }
-    })
+        twitterUsername: config.twitterUsername,
+        sessionId: config.sessionId
+      })
+      
+      const client = getDaytonaClient()
+      const sandbox = await client.create({
+        language: 'javascript',
+        envVars: {
+          NODE_ENV: 'production',
+          USER_ID: config.userId,
+          TWITTER_USERNAME: config.twitterUsername,
+          SESSION_ID: config.sessionId,
+        },
+        // Auto-delete sandbox after 1 hour to save costs
+        autoDeleteInterval: config.autoDelete !== false ? 60 : -1,
+        // Auto-stop after 30 minutes of inactivity
+        autoStopInterval: 30,
+        labels: {
+          purpose: 'twitter-follower-scan',
+          userId: config.userId,
+          sessionId: config.sessionId,
+        }
+      })
 
-    return sandbox
+      console.log('Sandbox created successfully:', sandbox.id)
+      return sandbox
+    } catch (error) {
+      console.error('Failed to create Daytona sandbox:', error)
+      throw new Error(`Sandbox creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
 
   /**
    * Set up the sandbox environment with required dependencies
    */
   static async setupSandboxEnvironment(sandbox: any) {
-    // Install required packages
-    await sandbox.process.executeCommand('npm init -y')
-    await sandbox.process.executeCommand('npm install playwright @playwright/test axios')
-    
-    // Install Playwright browsers
-    await sandbox.process.executeCommand('npx playwright install chromium')
+    try {
+      console.log('Setting up sandbox environment...')
+      
+      // Install required packages
+      console.log('Initializing npm...')
+      await sandbox.process.executeCommand('npm init -y')
+      
+      console.log('Installing dependencies...')
+      await sandbox.process.executeCommand('npm install playwright @playwright/test axios')
+      
+      // Install Playwright browsers
+      console.log('Installing Playwright browsers...')
+      await sandbox.process.executeCommand('npx playwright install chromium')
+      
+      console.log('Sandbox environment setup complete')
+    } catch (error) {
+      console.error('Failed to setup sandbox environment:', error)
+      throw new Error(`Environment setup failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
     
     // Create the Twitter scraper script
     const scraperScript = `
@@ -279,6 +312,9 @@ main();
     oauthTokens?: { accessToken: string, accessTokenSecret: string }
   ): Promise<FollowerScanResult> {
     try {
+      console.log('Executing follower scan for:', twitterUsername)
+      console.log('OAuth tokens provided:', !!oauthTokens?.accessToken && !!oauthTokens?.accessTokenSecret)
+
       // Set environment variables for the scraper
       const envVars = {
         TWITTER_USERNAME: twitterUsername,
@@ -288,9 +324,11 @@ main();
 
       // Create a session for running the scraper
       const sessionId = 'follower-scan-session'
+      console.log('Creating sandbox session...')
       await sandbox.process.createSession(sessionId)
 
       // Set environment variables in the session
+      console.log('Setting environment variables...')
       for (const [key, value] of Object.entries(envVars)) {
         await sandbox.process.executeSessionCommand(sessionId, {
           command: `export ${key}="${value}"`,
@@ -299,18 +337,32 @@ main();
       }
 
       // Execute the scraper
+      console.log('Executing scraper script...')
       const result = await sandbox.process.executeSessionCommand(sessionId, {
         command: 'node twitter-scraper.js',
         async: false
       })
 
+      console.log('Scraper execution result:', {
+        exitCode: result.exitCode,
+        output: result.result?.substring(0, 500) + '...'
+      })
+
       if (result.exitCode !== 0) {
+        console.error('Scraper failed with exit code:', result.exitCode)
+        console.error('Error output:', result.result)
         throw new Error(`Scraper failed with exit code ${result.exitCode}: ${result.result}`)
       }
 
       // Download the results file
+      console.log('Downloading results file...')
       const resultsContent = await sandbox.fs.downloadFile('/tmp/followers_result.json')
       const scanResult = JSON.parse(resultsContent.toString())
+
+      console.log('Scan completed successfully:', {
+        followerCount: scanResult.followerCount,
+        status: scanResult.status
+      })
 
       return {
         followers: scanResult.followers,
@@ -321,6 +373,7 @@ main();
       }
 
     } catch (error) {
+      console.error('Follower scan execution failed:', error)
       return {
         followers: [],
         followerCount: 0,
