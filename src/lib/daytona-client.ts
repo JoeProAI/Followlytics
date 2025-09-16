@@ -261,7 +261,8 @@ main();
       hasOAuthTokens: !!(oauthTokens?.accessToken && oauthTokens?.accessTokenSecret)
     })
 
-    const sandbox = this.client.sandbox
+    const client = getDaytonaClient()
+    const sandbox = await client.get(sandboxId)
 
     // Set environment variables
     const envVars = {
@@ -277,19 +278,13 @@ main();
     })
 
     for (const [key, value] of Object.entries(envVars)) {
-      const envResult = await sandbox.process.executeSessionCommand(sessionId, {
-        command: `export ${key}="${value}"`,
-        async: false
-      })
+      const envResult = await sandbox.process.executeCommand(`export ${key}="${value}"`)
       console.log(`📝 Set ${key}:`, { exitCode: envResult.exitCode, success: envResult.exitCode === 0 })
     }
 
     // Test if the script file exists
     console.log('📋 Checking if script file exists...')
-    const lsResult = await sandbox.process.executeSessionCommand(sessionId, {
-      command: 'ls -la twitter-scraper.js',
-      async: false
-    })
+    const lsResult = await sandbox.process.executeCommand('ls -la twitter-scraper.js')
     console.log('📁 Script file check:', { 
       exitCode: lsResult.exitCode, 
       output: lsResult.result?.substring(0, 200) 
@@ -297,10 +292,7 @@ main();
 
     // Check Node.js version
     console.log('🔍 Checking Node.js environment...')
-    const nodeResult = await sandbox.process.executeSessionCommand(sessionId, {
-      command: 'node --version',
-      async: false
-    })
+    const nodeResult = await sandbox.process.executeCommand('node --version')
     console.log('🟢 Node.js version:', { 
       exitCode: nodeResult.exitCode, 
       version: nodeResult.result?.trim() 
@@ -308,20 +300,14 @@ main();
 
     // Try to read the first few lines of the script
     console.log('👀 Reading script content preview...')
-    const headResult = await sandbox.process.executeSessionCommand(sessionId, {
-      command: 'head -10 twitter-scraper.js',
-      async: false
-    })
+    const headResult = await sandbox.process.executeCommand('head -10 twitter-scraper.js')
     console.log('📄 Script preview:', { 
       exitCode: headResult.exitCode, 
       preview: headResult.result?.substring(0, 300) 
     })
 
     console.log('🚀 Executing scraper script...')
-    const result = await sandbox.process.executeSessionCommand(sessionId, {
-      command: 'node twitter-scraper.js',
-      async: false
-    })
+    const result = await sandbox.process.executeCommand('node twitter-scraper.js')
 
     console.log('📋 Script execution result:', {
       exitCode: result.exitCode,
@@ -339,10 +325,7 @@ main();
       
       // Try to get more error details
       console.log('🔍 Checking for error logs...')
-      const errorLogResult = await sandbox.process.executeSessionCommand(sessionId, {
-        command: 'cat /tmp/error.log 2>/dev/null || echo "No error log found"',
-        async: false
-      })
+      const errorLogResult = await sandbox.process.executeCommand('cat /tmp/error.log 2>/dev/null || echo "No error log found"')
       console.log('📝 Error log check:', errorLogResult.result)
       
       throw new Error(`Scraper failed with exit code ${result.exitCode}: ${result.result}`)
