@@ -83,8 +83,8 @@ export async function GET(request: NextRequest) {
     // Create custom token for client-side auth
     const customToken = await adminAuth.createCustomToken(firebaseUser.uid)
 
-    // Clear OAuth cookies
-    const response = NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/success?token=${customToken}`)
+    // Clear OAuth cookies and redirect to dashboard with success
+    const response = NextResponse.redirect(`${process.env.NEXTAUTH_URL}/dashboard?x_auth=success&token=${customToken}`)
     response.cookies.delete('oauth_token')
     response.cookies.delete('oauth_token_secret')
 

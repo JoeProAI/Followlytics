@@ -1,19 +1,42 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { signInWithCustomToken } from 'firebase/auth'
+import { auth } from '@/lib/firebase'
 import FollowerScanner from '@/components/dashboard/FollowerScanner'
 
 export default function Dashboard() {
   const { user, logout } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login')
+    const handleXAuthSuccess = async () => {
+      const xAuth = searchParams.get('x_auth')
+      const token = searchParams.get('token')
+      
+      if (xAuth === 'success' && token) {
+        try {
+          await signInWithCustomToken(auth, token)
+          // Clear URL parameters after successful auth
+          router.replace('/dashboard')
+        } catch (error) {
+          console.error('X Auth token error:', error)
+          router.push('/login?error=x_auth_token_failed')
+        }
+        return
+      }
+      
+      // Only redirect to login if no user and no X auth in progress
+      if (!user && !token) {
+        router.push('/login')
+      }
     }
-  }, [user, router])
+
+    handleXAuthSuccess()
+  }, [user, router, searchParams])
 
   if (!user) {
     return (
