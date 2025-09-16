@@ -248,80 +248,121 @@ main();
    * Execute follower scan in the sandbox
    */
   static async executeFollowerScan(
-    sandbox: any, 
-    twitterUsername: string, 
-    oauthTokens?: { accessToken: string, accessTokenSecret: string }
+    sandboxId: string,
+    sessionId: string,
+    twitterUsername: string,
+    oauthTokens?: { accessToken: string; accessTokenSecret: string }
   ): Promise<FollowerScanResult> {
-    try {
-      console.log('Executing follower scan for:', twitterUsername)
-      console.log('OAuth tokens provided:', !!oauthTokens?.accessToken && !!oauthTokens?.accessTokenSecret)
+    console.log('🔧 Starting follower scan execution...')
+    console.log('📊 Scan parameters:', {
+      sandboxId: sandboxId.substring(0, 8) + '...',
+      sessionId: sessionId.substring(0, 8) + '...',
+      twitterUsername,
+      hasOAuthTokens: !!(oauthTokens?.accessToken && oauthTokens?.accessTokenSecret)
+    })
 
-      // Set environment variables for the scraper
-      const envVars = {
-        TWITTER_USERNAME: twitterUsername,
-        TWITTER_ACCESS_TOKEN: oauthTokens?.accessToken || '',
-        TWITTER_ACCESS_TOKEN_SECRET: oauthTokens?.accessTokenSecret || ''
-      }
+    const sandbox = this.client.sandbox
 
-      // Create a session for running the scraper
-      const sessionId = 'follower-scan-session'
-      console.log('Creating sandbox session...')
-      await sandbox.process.createSession(sessionId)
+    // Set environment variables
+    const envVars = {
+      TWITTER_USERNAME: twitterUsername,
+      TWITTER_ACCESS_TOKEN: oauthTokens?.accessToken || '',
+      TWITTER_ACCESS_TOKEN_SECRET: oauthTokens?.accessTokenSecret || ''
+    }
 
-      // Set environment variables in the session
-      console.log('Setting environment variables...')
-      for (const [key, value] of Object.entries(envVars)) {
-        await sandbox.process.executeSessionCommand(sessionId, {
-          command: `export ${key}="${value}"`,
-          async: false
-        })
-      }
+    console.log('🔐 Setting environment variables:', {
+      TWITTER_USERNAME: !!envVars.TWITTER_USERNAME,
+      TWITTER_ACCESS_TOKEN: !!envVars.TWITTER_ACCESS_TOKEN,
+      TWITTER_ACCESS_TOKEN_SECRET: !!envVars.TWITTER_ACCESS_TOKEN_SECRET
+    })
 
-      // Execute the scraper
-      console.log('Executing scraper script...')
-      const result = await sandbox.process.executeSessionCommand(sessionId, {
-        command: 'node twitter-scraper.js',
+    for (const [key, value] of Object.entries(envVars)) {
+      const envResult = await sandbox.process.executeSessionCommand(sessionId, {
+        command: `export ${key}="${value}"`,
         async: false
       })
+      console.log(`📝 Set ${key}:`, { exitCode: envResult.exitCode, success: envResult.exitCode === 0 })
+    }
 
-      console.log('Scraper execution result:', {
+    // Test if the script file exists
+    console.log('📋 Checking if script file exists...')
+    const lsResult = await sandbox.process.executeSessionCommand(sessionId, {
+      command: 'ls -la twitter-scraper.js',
+      async: false
+    })
+    console.log('📁 Script file check:', { 
+      exitCode: lsResult.exitCode, 
+      output: lsResult.result?.substring(0, 200) 
+    })
+
+    // Check Node.js version
+    console.log('🔍 Checking Node.js environment...')
+    const nodeResult = await sandbox.process.executeSessionCommand(sessionId, {
+      command: 'node --version',
+      async: false
+    })
+    console.log('🟢 Node.js version:', { 
+      exitCode: nodeResult.exitCode, 
+      version: nodeResult.result?.trim() 
+    })
+
+    // Try to read the first few lines of the script
+    console.log('👀 Reading script content preview...')
+    const headResult = await sandbox.process.executeSessionCommand(sessionId, {
+      command: 'head -10 twitter-scraper.js',
+      async: false
+    })
+    console.log('📄 Script preview:', { 
+      exitCode: headResult.exitCode, 
+      preview: headResult.result?.substring(0, 300) 
+    })
+
+    console.log('🚀 Executing scraper script...')
+    const result = await sandbox.process.executeSessionCommand(sessionId, {
+      command: 'node twitter-scraper.js',
+      async: false
+    })
+
+    console.log('📋 Script execution result:', {
+      exitCode: result.exitCode,
+      hasResult: !!result.result,
+      resultLength: result.result?.length || 0,
+      resultPreview: result.result?.substring(0, 500)
+    })
+
+    if (result.exitCode !== 0) {
+      console.error('❌ Scraper failed:', {
         exitCode: result.exitCode,
-        output: result.result?.substring(0, 500) + '...'
+        result: result.result,
+        fullOutput: result.result
       })
-
-      if (result.exitCode !== 0) {
-        console.error('Scraper failed with exit code:', result.exitCode)
-        console.error('Error output:', result.result)
-        throw new Error(`Scraper failed with exit code ${result.exitCode}: ${result.result}`)
-      }
-
-      // Download the results file
-      console.log('Downloading results file...')
-      const resultsContent = await sandbox.fs.downloadFile('/tmp/followers_result.json')
-      const scanResult = JSON.parse(resultsContent.toString())
-
-      console.log('Scan completed successfully:', {
-        followerCount: scanResult.followerCount,
-        status: scanResult.status
+      
+      // Try to get more error details
+      console.log('🔍 Checking for error logs...')
+      const errorLogResult = await sandbox.process.executeSessionCommand(sessionId, {
+        command: 'cat /tmp/error.log 2>/dev/null || echo "No error log found"',
+        async: false
       })
+      console.log('📝 Error log check:', errorLogResult.result)
+      
+      throw new Error(`Scraper failed with exit code ${result.exitCode}: ${result.result}`)
+    }
 
-      return {
-        followers: scanResult.followers,
-        followerCount: scanResult.followerCount,
-        scanDate: new Date(scanResult.scanDate),
-        status: scanResult.status,
-        error: scanResult.error
-      }
+    console.log('📁 Downloading scan results...')
+    const resultsContent = await sandbox.fs.downloadFile('/tmp/followers_result.json')
+    const scanResult = JSON.parse(resultsContent.toString())
 
-    } catch (error) {
-      console.error('Follower scan execution failed:', error)
-      return {
-        followers: [],
-        followerCount: 0,
-        scanDate: new Date(),
-        status: 'failed',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      }
+    console.log('✅ Scan completed successfully:', {
+      followerCount: scanResult.followerCount,
+      status: scanResult.status
+    })
+
+    return {
+      followers: scanResult.followers,
+      followerCount: scanResult.followerCount,
+      scanDate: new Date(scanResult.scanDate),
+      status: scanResult.status,
+      error: scanResult.error
     }
   }
 
