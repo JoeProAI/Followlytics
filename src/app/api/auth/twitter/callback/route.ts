@@ -91,6 +91,11 @@ export async function GET(request: NextRequest) {
     return response
   } catch (error) {
     console.error('X OAuth callback error:', error)
-    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/login?error=x_auth_failed`)
+    // Log the specific error details for debugging
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    })
+    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/login?error=x_auth_failed&details=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`)
   }
 }
