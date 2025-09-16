@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { TwitterAuth } from '@/lib/twitter-auth'
+import { XAuth } from '@/lib/twitter-auth'
 import { adminAuth } from '@/lib/firebase-admin'
 
 export async function POST(request: NextRequest) {
@@ -16,18 +16,17 @@ export async function POST(request: NextRequest) {
 
     // Get callback URL
     const callbackUrl = `${process.env.NEXTAUTH_URL}/api/auth/twitter/callback`
-
-    // Get request token from Twitter
-    const requestToken = await TwitterAuth.getRequestToken(callbackUrl)
+    const tokens = await XAuth.getRequestToken(callbackUrl)
+    
+    const authUrl = XAuth.getAuthorizationUrl(tokens.oauth_token)
 
     // Store request token temporarily (in a real app, use Redis or database)
     // For now, we'll return it to the client to handle
-    const authUrl = TwitterAuth.getAuthorizationUrl(requestToken.oauth_token)
 
     return NextResponse.json({
       authUrl,
-      oauth_token: requestToken.oauth_token,
-      oauth_token_secret: requestToken.oauth_token_secret,
+      oauth_token: tokens.oauth_token,
+      oauth_token_secret: tokens.oauth_token_secret,
     })
   } catch (error) {
     console.error('Twitter OAuth initialization error:', error)

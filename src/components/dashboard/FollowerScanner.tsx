@@ -15,7 +15,7 @@ export default function FollowerScanner() {
   const { user } = useAuth()
   const [isScanning, setIsScanning] = useState(false)
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null)
-  const [twitterUsername, setTwitterUsername] = useState('')
+  const [xUsername, setXUsername] = useState('')
   const [recentScans, setRecentScans] = useState<any[]>([])
 
   useEffect(() => {
@@ -86,7 +86,7 @@ export default function FollowerScanner() {
   }
 
   const startFollowerScan = async () => {
-    if (!twitterUsername.trim()) {
+    if (!xUsername.trim()) {
       alert('Please enter a Twitter username')
       return
     }
@@ -106,9 +106,7 @@ export default function FollowerScanner() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          twitterUsername: twitterUsername.replace('@', ''),
-        }),
+        body: JSON.stringify({ xUsername: xUsername.trim() }),
       })
 
       if (response.ok) {
@@ -163,22 +161,24 @@ export default function FollowerScanner() {
   return (
     <div className="space-y-6">
       {/* Scan Form */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">
-          Start Follower Scan
-        </h3>
-        
+      <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+          X Follower Scanner
+        </h2>
+        <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
+          Enter an X username to scan their followers and detect unfollowers
+        </p>
         <div className="flex space-x-4">
           <div className="flex-1">
             <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-              Twitter Username
+              X Username
             </label>
             <input
               type="text"
               id="username"
-              value={twitterUsername}
-              onChange={(e) => setTwitterUsername(e.target.value)}
-              placeholder="Enter username (without @)"
+              value={xUsername}
+              onChange={(e) => setXUsername(e.target.value)}
+              placeholder="Enter X username (without @)"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={isScanning}
             />
@@ -240,7 +240,7 @@ export default function FollowerScanner() {
                       Scan Completed Successfully!
                     </h3>
                     <div className="mt-2 text-sm text-green-700">
-                      <p>Found {scanProgress.followerCount} followers for @{twitterUsername}</p>
+                      <p>Found {scanProgress.followerCount} followers for @{xUsername}</p>
                     </div>
                   </div>
                 </div>

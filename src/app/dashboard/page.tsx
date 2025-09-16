@@ -66,11 +66,11 @@ export default function Dashboard() {
           {/* Hero Section */}
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg shadow-lg p-8 mb-8 text-white">
             <div className="text-center">
-              <h2 className="text-3xl font-bold mb-4">
-                Twitter Follower Tracker
-              </h2>
-              <p className="text-xl mb-6 opacity-90">
-                Track your followers, identify unfollowers, and get detailed analytics
+              <h1 className="text-3xl font-bold mb-2">
+                Welcome to Followlytics
+              </h1>
+              <p className="text-white/90 mb-8">
+                Track your X followers and discover who unfollowed you
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
                 <div className="bg-white bg-opacity-20 rounded-lg p-4">

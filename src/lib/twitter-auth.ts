@@ -1,14 +1,14 @@
 import OAuth from 'oauth-1.0a'
 import crypto from 'crypto'
 
-// Twitter OAuth 1.0a configuration
-const oauth = OAuth({
+// X (Twitter) OAuth 1.0a configuration
+const oauth = new OAuth({
   consumer: {
-    key: process.env.TWITTER_API_KEY!,
-    secret: process.env.TWITTER_API_SECRET!,
+    key: process.env.X_API_KEY!,
+    secret: process.env.X_API_SECRET!,
   },
   signature_method: 'HMAC-SHA1',
-  hash_function(base_string, key) {
+  hash_function(base_string: string, key: string) {
     return crypto
       .createHmac('sha1', key)
       .update(base_string)
@@ -16,30 +16,30 @@ const oauth = OAuth({
   },
 })
 
-export interface TwitterTokens {
+export interface XTokens {
   oauth_token: string
   oauth_token_secret: string
-  oauth_verifier?: string
 }
 
-export interface TwitterUser {
+export interface XUser {
   id: string
-  screen_name: string
   name: string
-  followers_count: number
-  friends_count: number
+  screen_name: string
+  profile_image_url?: string
+  followers_count?: number
+  friends_count?: number
 }
 
-export class TwitterAuth {
-  private static readonly REQUEST_TOKEN_URL = 'https://api.twitter.com/oauth/request_token'
-  private static readonly AUTHORIZE_URL = 'https://api.twitter.com/oauth/authorize'
-  private static readonly ACCESS_TOKEN_URL = 'https://api.twitter.com/oauth/access_token'
-  private static readonly VERIFY_CREDENTIALS_URL = 'https://api.twitter.com/1.1/account/verify_credentials.json'
+export class XAuth {
+  private static readonly REQUEST_TOKEN_URL = 'https://api.x.com/oauth/request_token'
+  private static readonly AUTHORIZE_URL = 'https://api.x.com/oauth/authorize'
+  private static readonly ACCESS_TOKEN_URL = 'https://api.x.com/oauth/access_token'
+  private static readonly VERIFY_CREDENTIALS_URL = 'https://api.x.com/1.1/account/verify_credentials.json'
 
   /**
    * Step 1: Get request token
    */
-  static async getRequestToken(callbackUrl: string): Promise<TwitterTokens> {
+  static async getRequestToken(callbackUrl: string): Promise<XTokens> {
     const requestData = {
       url: this.REQUEST_TOKEN_URL,
       method: 'POST',
@@ -78,7 +78,7 @@ export class TwitterAuth {
    * Step 2: Generate authorization URL
    */
   static getAuthorizationUrl(oauthToken: string): string {
-    return `${this.AUTHORIZE_URL}?oauth_token=${oauthToken}`
+    return `https://api.x.com/oauth/authorize?oauth_token=${oauthToken}`
   }
 
   /**
@@ -88,7 +88,7 @@ export class TwitterAuth {
     oauthToken: string,
     oauthTokenSecret: string,
     oauthVerifier: string
-  ): Promise<TwitterTokens & { user_id: string; screen_name: string }> {
+  ): Promise<XTokens & { user_id: string; screen_name: string }> {
     const requestData = {
       url: this.ACCESS_TOKEN_URL,
       method: 'POST',
@@ -136,7 +136,7 @@ export class TwitterAuth {
   static async verifyCredentials(
     accessToken: string,
     accessTokenSecret: string
-  ): Promise<TwitterUser> {
+  ): Promise<XUser> {
     const requestData = {
       url: this.VERIFY_CREDENTIALS_URL,
       method: 'GET',

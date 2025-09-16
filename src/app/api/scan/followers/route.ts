@@ -16,30 +16,29 @@ export async function POST(request: NextRequest) {
     const userId = decodedToken.uid
 
     // Get request body
-    const { twitterUsername, twitterCookies } = await request.json()
+    const { xUsername } = await request.json()
 
-    if (!twitterUsername) {
-      return NextResponse.json({ error: 'Twitter username is required' }, { status: 400 })
+    if (!xUsername) {
+      return NextResponse.json({ error: 'X username is required' }, { status: 400 })
     }
 
-    // Check if user has Twitter connected
+    // Check if user has X connected
     const userDoc = await adminDb.collection('users').doc(userId).get()
     if (!userDoc.exists) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     const userData = userDoc.data()
-    if (!userData?.twitterConnected) {
-      return NextResponse.json({ error: 'Twitter account not connected' }, { status: 400 })
+    if (!userData?.xConnected) {
+      return NextResponse.json({ error: 'X account not connected' }, { status: 400 })
     }
 
     // Generate unique session ID for this scan
     const sessionId = uuidv4()
 
-    // Create scan record in Firestore
-    const scanData = {
+    const scanDoc = await adminDb.collection('follower_scans').add({
       userId,
-      twitterUsername,
+      xUsername,
       sessionId,
       status: 'pending',
       progress: 0,
@@ -47,22 +46,41 @@ export async function POST(request: NextRequest) {
       followers: [],
       followerCount: 0,
       sandboxId: null,
-    }
+    })
 
-    const scanRef = await adminDb.collection('follower_scans').add(scanData)
-    const scanId = scanRef.id
+    const scanId = scanDoc.id
 
     // Start the scanning process asynchronously
-    startFollowerScan(scanId, userId, twitterUsername, sessionId, twitterCookies)
-      .catch(error => {
-        console.error('Follower scan failed:', error)
-        // Update scan status to failed
-        adminDb.collection('follower_scans').doc(scanId).update({
-          status: 'failed',
-          error: error.message,
-          completedAt: new Date(),
-        })
+    try {
+      // Create sandbox configuration
+      const config = {
+        userId,
+        twitterUsername: xUsername,
+        sessionId,
+        autoDelete: true
+      }
+      
+      // Create sandbox and execute scan
+      const sandbox = await DaytonaSandboxManager.createFollowerScanSandbox(config)
+      const result = await DaytonaSandboxManager.executeFollowerScan(sandbox, xUsername, scanId)
+      
+      // Update scan with results
+      await adminDb.collection('follower_scans').doc(scanId).update({
+        status: result.status,
+        followers: result.followers,
+        followerCount: result.followerCount,
+        completedAt: new Date(),
+        error: result.error || null
       })
+    } catch (error: any) {
+      console.error('Follower scan failed:', error)
+      // Update scan status to failed
+      await adminDb.collection('follower_scans').doc(scanId).update({
+        status: 'failed',
+        error: error.message,
+        completedAt: new Date(),
+      })
+    }
 
     return NextResponse.json({
       scanId,

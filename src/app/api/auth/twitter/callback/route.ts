@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { TwitterAuth } from '@/lib/twitter-auth'
+import { XAuth } from '@/lib/twitter-auth'
 import { adminDb } from '@/lib/firebase-admin'
 import { redirect } from 'next/navigation'
 
@@ -38,34 +38,34 @@ export async function GET(request: NextRequest) {
     }
 
     // Exchange request token for access token
-    const accessTokenData = await TwitterAuth.getAccessToken(
+    const accessTokens = await XAuth.getAccessToken(
       oauthToken,
       oauthTokenSecret,
       oauthVerifier
     )
 
-    // Verify credentials to get user info
-    const twitterUser = await TwitterAuth.verifyCredentials(
-      accessTokenData.oauth_token,
-      accessTokenData.oauth_token_secret
+    // Verify credentials
+    const user = await XAuth.verifyCredentials(
+      accessTokens.oauth_token,
+      accessTokens.oauth_token_secret
     )
 
-    // Store Twitter tokens and user info in Firestore
-    await adminDb.collection('twitter_tokens').doc(userId).set({
-      accessToken: accessTokenData.oauth_token,
-      accessTokenSecret: accessTokenData.oauth_token_secret,
-      twitterUserId: accessTokenData.user_id,
-      screenName: accessTokenData.screen_name,
+    // Store X tokens and user info in Firestore
+    await adminDb.collection('x_tokens').doc(userId).set({
+      accessToken: accessTokens.oauth_token,
+      accessTokenSecret: accessTokens.oauth_token_secret,
+      xUserId: accessTokens.user_id,
+      screenName: accessTokens.screen_name,
       createdAt: new Date(),
     })
 
     // Update user document
     await adminDb.collection('users').doc(userId).update({
-      twitterConnected: true,
-      twitterUsername: accessTokenData.screen_name,
-      twitterUserId: accessTokenData.user_id,
-      followersCount: twitterUser.followers_count,
-      friendsCount: twitterUser.friends_count,
+      xConnected: true,
+      xUsername: accessTokens.screen_name,
+      xUserId: accessTokens.user_id,
+      xName: user.name,
+      xProfileImage: user.profile_image_url,
     })
 
     return redirect('/dashboard?success=twitter_connected')

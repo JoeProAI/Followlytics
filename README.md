@@ -1,6 +1,6 @@
-# 🔥 Followlytics - Twitter Follower Tracker
+# 🔥 Followlytics - X Follower Tracker
 
-> **Powered by Daytona** - The ultimate Twitter/X follower tracking system that identifies unfollowers and provides detailed analytics using secure sandbox environments.
+> **Powered by Daytona** - The ultimate X (formerly Twitter) follower tracking system that identifies unfollowers and provides detailed analytics using secure sandbox environments.
 
 ![Followlytics Dashboard](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
 ![Daytona Powered](https://img.shields.io/badge/Powered%20by-Daytona-blue)
@@ -11,16 +11,16 @@
 
 ### 🔒 **Daytona-Powered Architecture**
 - **Isolated Sandbox Environments**: Each scan runs in a secure, dedicated Daytona sandbox
-- **Browser Automation**: Playwright runs inside containers for undetectable Twitter scraping
+- **Browser Automation**: Playwright runs inside containers for undetectable X scraping
 - **Auto-cleanup**: Sandboxes automatically delete after completion to save costs
 - **Scalable**: Handle multiple concurrent scans without conflicts or detection
 
 ### ⚡ **Core Features**
-- **Real-time Follower Tracking**: Monitor Twitter followers with automated scanning
+- **Real-time Follower Tracking**: Monitor X followers with automated scanning
 - **Unfollower Detection**: Instant notifications when someone unfollows you
 - **Analytics Dashboard**: Beautiful UI with progress tracking and scan history
 - **Secure Authentication**: Firebase Auth with email/password authentication
-- **No API Limitations**: Bypass Twitter's $42k/month Enterprise API requirement
+- **No API Limitations**: Bypass X's $42k/month Enterprise API requirement
 
 ## 🏗️ **Architecture Overview**
 
@@ -30,7 +30,7 @@ graph TD
     B --> C[Daytona SDK]
     C --> D[Create Sandbox]
     D --> E[Install Playwright]
-    E --> F[Run Twitter Scraper]
+    E --> F[Run X Scraper]
     F --> G[Extract Followers]
     G --> H[Store Results]
     H --> I[Auto-delete Sandbox]
@@ -45,7 +45,7 @@ graph TD
 | **Backend** | Next.js API routes |
 | **Database** | Firebase Firestore |
 | **Authentication** | Firebase Auth |
-| **Browser Automation** | Playwright in Daytona sandboxes |
+| - **Browser Automation** | Playwright in Daytona sandboxes |
 | **Sandbox Management** | Daytona SDK |
 | **Deployment** | Vercel |
 
@@ -104,9 +104,9 @@ Visit [http://localhost:3001](http://localhost:3001) 🎉
 
 ## 🎯 **How It Works**
 
-1. **User enters Twitter username** → Beautiful dashboard form
+1. **User enters X username** → Beautiful dashboard form
 2. **Daytona creates sandbox** → Isolated environment with Playwright
-3. **Browser automation runs** → Scrapes Twitter followers page undetected
+3. **Browser automation runs** → Scrapes X followers page undetected
 4. **Results processed** → Stored in Firebase, unfollowers detected automatically
 5. **Sandbox auto-deletes** → Zero maintenance, cost-effective
 
@@ -118,7 +118,7 @@ Visit [http://localhost:3001](http://localhost:3001) 🎉
 ```typescript
 {
   userId: string
-  twitterUsername: string
+  xUsername: string
   scanDate: timestamp
   followers: string[]
   followerCount: number
@@ -132,7 +132,7 @@ Visit [http://localhost:3001](http://localhost:3001) 🎉
 ```typescript
 {
   userId: string
-  twitterUsername: string
+  xUsername: string
   previousScanId: string
   currentScanId: string
   unfollowers: string[]
@@ -190,7 +190,7 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 
 ## ⚠️ **Disclaimer**
 
-This tool is for educational and personal use only. Please ensure compliance with Twitter's Terms of Service. The use of browser automation is at your own risk.
+This tool is for educational and personal use only. Please ensure compliance with X's Terms of Service. The use of browser automation is at your own risk.
 
 ## 🆘 **Support**
 
