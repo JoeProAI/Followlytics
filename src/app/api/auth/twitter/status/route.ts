@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import getFirebaseAdmin from '@/lib/firebase-admin'
+import { getAuth } from 'firebase-admin/auth'
+import { getFirestore } from 'firebase-admin/firestore'
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,12 +30,13 @@ export async function GET(request: NextRequest) {
     const token = authHeader.split(' ')[1]
     
     // Verify the Firebase token
-    const { auth } = getFirebaseAdmin()
+    const adminApp = getFirebaseAdmin()
+    const auth = getAuth(adminApp)
     const decodedToken = await auth.verifyIdToken(token)
     const userId = decodedToken.uid
 
     // Check if user has X OAuth tokens stored
-    const { firestore } = getFirebaseAdmin()
+    const firestore = getFirestore(adminApp)
     const userDoc = await firestore.collection('users').doc(userId).get()
     
     if (!userDoc.exists) {
