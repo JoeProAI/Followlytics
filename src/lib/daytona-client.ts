@@ -254,7 +254,9 @@ async function scanFollowers(username, accessToken, accessTokenSecret) {
     const followers = [];
     let lastHeight = 0;
     let scrollAttempts = 0;
-    const maxScrolls = 5; // Limit scrolling for initial test
+    const maxScrolls = 200; // Increased to capture all 800+ followers
+    let consecutiveEmptyScrolls = 0;
+    const maxEmptyScrolls = 10; // Stop if no new followers found after 10 scrolls
     
     while (scrollAttempts < maxScrolls) {
       // Try multiple selectors for follower extraction
@@ -371,21 +373,59 @@ async function scanFollowers(username, accessToken, accessTokenSecret) {
         !followers.find(existing => existing.username === f.username)
       );
       
+      const previousCount = followers.length;
       followers.push(...validFollowers);
-      console.log(\`Collected \${followers.length} followers so far... (added \${validFollowers.length} new)\`);
+      const newFollowersAdded = validFollowers.length;
       
-      // Scroll down
-      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      await page.waitForTimeout(2000);
+      console.log(\`Collected \${followers.length} followers so far... (added \${newFollowersAdded} new)\`);
+      
+      // Track consecutive empty scrolls
+      if (newFollowersAdded === 0) {
+        consecutiveEmptyScrolls++;
+        console.log(\`No new followers found (empty scroll \${consecutiveEmptyScrolls}/\${maxEmptyScrolls})\`);
+      } else {
+        consecutiveEmptyScrolls = 0; // Reset counter when we find new followers
+      }
+      
+      // Stop if we haven't found new followers for too many scrolls
+      if (consecutiveEmptyScrolls >= maxEmptyScrolls) {
+        console.log(\`Stopping scan - no new followers found after \${maxEmptyScrolls} consecutive scrolls\`);
+        break;
+      }
+      
+      // Scroll down with more aggressive scrolling
+      await page.evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight);
+        // Also try scrolling the main timeline container
+        const timeline = document.querySelector('[data-testid="primaryColumn"]');
+        if (timeline) {
+          timeline.scrollTop = timeline.scrollHeight;
+        }
+      });
+      
+      // Shorter wait time for faster scanning, but allow content to load
+      await page.waitForTimeout(1000);
+      
+      // Wait for new content to potentially load
+      try {
+        await page.waitForSelector('[data-testid="cellInnerDiv"]', { timeout: 2000 });
+      } catch (e) {
+        // Continue if selector not found - might be at end of list
+      }
       
       const newHeight = await page.evaluate(() => document.body.scrollHeight);
       if (newHeight === lastHeight) {
-        console.log('Reached end of followers list');
+        console.log('Page height unchanged - reached end of followers list');
         break;
       }
       
       lastHeight = newHeight;
       scrollAttempts++;
+      
+      // Progress update every 20 scrolls
+      if (scrollAttempts % 20 === 0) {
+        console.log(\`📊 Progress: \${scrollAttempts}/\${maxScrolls} scrolls, \${followers.length} followers collected\`);
+      }
     }
     
     console.log(\`✓ Scan completed. Found \${followers.length} followers\`);
