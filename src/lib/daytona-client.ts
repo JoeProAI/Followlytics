@@ -504,10 +504,18 @@ main();
         console.log('✅ Script uploaded successfully with string format');
       } catch (stringError) {
         console.log('❌ String upload also failed:', stringError instanceof Error ? stringError.message : 'Unknown error');
-        // Try creating file via echo command as fallback
-        const escapedScript = scannerScript.replace(/'/g, "'\"'\"'");
-        await sandbox.process.executeCommand(`echo '${escapedScript}' > twitter-scanner.js`);
-        console.log('✅ Script created via echo command fallback');
+        // Try creating file via cat command as fallback
+        console.log('🔄 Trying cat command fallback...');
+        const catResult = await sandbox.process.executeCommand(`cat > twitter-scanner.js << 'EOF'\n${scannerScript}\nEOF`);
+        if (catResult.exitCode === 0) {
+          console.log('✅ Script created via cat command fallback');
+        } else {
+          console.log('❌ Cat command failed, trying printf fallback...');
+          // Final fallback - use printf to avoid quote issues
+          const base64Script = Buffer.from(scannerScript).toString('base64');
+          await sandbox.process.executeCommand(`echo '${base64Script}' | base64 -d > twitter-scanner.js`);
+          console.log('✅ Script created via base64 decode fallback');
+        }
       }
     }
     
