@@ -1,6 +1,6 @@
 {
   "name": "followlytics",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Twitter/X follower tracking system that identifies unfollowers and provides analytics",
   "private": true,
   "main": "index.js",
