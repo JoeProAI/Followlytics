@@ -38,29 +38,29 @@ export async function GET(request: NextRequest) {
     const decodedToken = await adminAuth.verifyIdToken(token)
     const userId = decodedToken.uid
 
-    // Check if user has X OAuth tokens stored
-    const userDoc = await adminDb.collection('users').doc(userId).get()
+    // Check if user has X OAuth tokens stored in x_tokens collection
+    const xTokensDoc = await adminDb.collection('x_tokens').doc(userId).get()
     
-    if (!userDoc.exists) {
+    if (!xTokensDoc.exists) {
       return NextResponse.json({ 
         authorized: false, 
-        message: 'User not found' 
+        message: 'X OAuth not completed - no tokens found' 
       })
     }
 
-    const userData = userDoc.data()
-    const hasXTokens = userData?.xAccessToken && userData?.xAccessTokenSecret
+    const tokenData = xTokensDoc.data()
+    const hasXTokens = tokenData?.accessToken && tokenData?.accessTokenSecret
 
     if (hasXTokens) {
       return NextResponse.json({
         authorized: true,
-        xUsername: userData.xUsername || null,
-        xUserId: userData.xUserId || null
+        xUsername: tokenData.screenName || null,
+        xUserId: tokenData.xUserId || null
       })
     } else {
       return NextResponse.json({
         authorized: false,
-        message: 'X OAuth not completed'
+        message: 'X OAuth tokens incomplete'
       })
     }
 
