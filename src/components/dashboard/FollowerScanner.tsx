@@ -87,7 +87,7 @@ export default function FollowerScanner() {
 
   const startFollowerScan = async () => {
     if (!xUsername.trim()) {
-      alert('Please enter a Twitter username')
+      alert('Please enter an X username')
       return
     }
 
@@ -137,7 +137,7 @@ export default function FollowerScanner() {
       case 'setting_up':
         return 'Installing browser automation tools...'
       case 'scanning':
-        return 'Scanning Twitter followers...'
+        return 'Scanning X followers...'
       case 'completed':
         return 'Scan completed successfully!'
       case 'failed':
@@ -196,7 +196,7 @@ export default function FollowerScanner() {
 
         <div className="mt-4 text-sm text-gray-600">
           <p>🔒 <strong>Powered by Daytona:</strong> Your scan runs in a secure, isolated sandbox environment</p>
-          <p>🤖 <strong>Browser Automation:</strong> Uses Playwright for reliable Twitter data extraction</p>
+          <p>🤖 <strong>Browser Automation:</strong> Uses Playwright for reliable X data extraction</p>
           <p>⚡ <strong>Auto-cleanup:</strong> Sandbox automatically deletes after completion</p>
         </div>
       </div>
@@ -299,7 +299,7 @@ export default function FollowerScanner() {
                 {recentScans.map((scan) => (
                   <tr key={scan.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      @{scan.twitterUsername}
+                      @{scan.xUsername || scan.twitterUsername}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${

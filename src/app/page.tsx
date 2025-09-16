@@ -10,7 +10,7 @@ export default function Home() {
         </h1>
 
         <p className="mt-3 text-2xl">
-          Track your Twitter followers and identify unfollowers
+          Track your X (formerly Twitter) followers and identify unfollowers
         </p>
 
         <div className="flex mt-6 space-x-4">
@@ -32,7 +32,7 @@ export default function Home() {
           <div className="p-6 mt-6 text-left border w-96 rounded-xl hover:text-blue-600 focus:text-blue-600">
             <h3 className="text-2xl font-bold">Track Followers &rarr;</h3>
             <p className="mt-4 text-xl">
-              Monitor your Twitter followers in real-time and get detailed analytics about your audience.
+              Monitor your X followers in real-time and get detailed analytics about your audience.
             </p>
           </div>
 
