@@ -12,7 +12,7 @@ export default function SignUp() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   
-  const { signup } = useAuth()
+  const { signUp } = useAuth()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,10 +29,10 @@ export default function SignUp() {
     try {
       setError('')
       setLoading(true)
-      await signup(email, password)
+      await signUp(email, password)
       router.push('/dashboard')
-    } catch (error: any) {
-      setError(error.message)
+    } catch {
+      setError('Failed to create account. Please try again.')
     } finally {
       setLoading(false)
     }

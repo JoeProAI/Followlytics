@@ -11,7 +11,7 @@ export default function Login() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   
-  const { login } = useAuth()
+  const { signIn } = useAuth()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -20,9 +20,9 @@ export default function Login() {
     try {
       setError('')
       setLoading(true)
-      await login(email, password)
+      await signIn(email, password)
       router.push('/dashboard')
-    } catch (error: any) {
+    } catch {
       setError('Failed to sign in. Please check your credentials.')
     } finally {
       setLoading(false)

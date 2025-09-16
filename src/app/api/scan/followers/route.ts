@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       
       // Create sandbox and execute scan
       const sandbox = await DaytonaSandboxManager.createFollowerScanSandbox(config)
-      const result = await DaytonaSandboxManager.executeFollowerScan(sandbox, xUsername, scanId)
+      const result = await DaytonaSandboxManager.executeFollowerScan(sandbox, xUsername, [])
       
       // Update scan with results
       await adminDb.collection('follower_scans').doc(scanId).update({
