@@ -4,7 +4,7 @@ import { adminAuth, adminDb } from '@/lib/firebase-admin'
 export async function GET() {
   try {
     // Test Firebase Admin SDK initialization
-    const testResult = {
+    const testResult: any = {
       adminAuthInitialized: !!adminAuth,
       adminDbInitialized: !!adminDb,
       timestamp: new Date().toISOString()
