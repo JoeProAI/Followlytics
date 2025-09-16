@@ -492,7 +492,7 @@ main();
     } catch (e) {
       // File might not exist, continue
     }
-    await sandbox.fs.uploadFile('twitter-scanner.js', Buffer.from(scannerScript));
+    await sandbox.fs.uploadFile('twitter-scanner.js', scannerScript);
     
     // Verify the script was uploaded with correct content
     const uploadCheck = await sandbox.process.executeCommand('wc -l twitter-scanner.js');
