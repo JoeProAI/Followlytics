@@ -142,123 +142,100 @@ async function setupAuthentication(page, accessToken, accessTokenSecret) {
     await page.goto('https://twitter.com', { 
       waitUntil: 'domcontentloaded',
       timeout: 15000 
-    });
-    
-    // Set authentication cookies before navigation
-    await page.context().addCookies([
-      {
-        name: 'auth_token',
-        value: accessToken,
-        domain: '.twitter.com',
-        path: '/'
-      },
-      {
-        name: 'ct0',
-        value: accessToken.substring(0, 32),
-        domain: '.twitter.com',
-        path: '/'
-      }
-    ]);
-    
-    // Inject OAuth tokens into localStorage
-    await page.evaluate((tokens) => {
-      localStorage.setItem('twitter_oauth_token', tokens.accessToken);
-      localStorage.setItem('twitter_oauth_token_secret', tokens.accessTokenSecret);
-      // Set additional auth data
-      sessionStorage.setItem('twitter_auth', JSON.stringify({
-        token: tokens.accessToken,
-        secret: tokens.accessTokenSecret
-      }));
     }, { accessToken, accessTokenSecret });
     
     console.log('✓ Authentication setup complete');
-    return true;
   } catch (error) {
-    console.error('✗ Authentication setup failed:', error.message);
-    return false;
+    console.error('Authentication setup failed:', error);
+    throw error;
   }
 }
 
-async function scanFollowers(username, accessToken, accessTokenSecret) {
+async function scanFollowers(username) {
   const browser = await chromium.launch({
     headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--disable-gpu'
-    ]
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
   
   try {
     const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     });
+    
     const page = await context.newPage();
     
-    // Setup authentication
-    const authSuccess = await setupAuthentication(page, accessToken, accessTokenSecret);
-    if (!authSuccess) {
-      throw new Error('Failed to setup authentication');
+    // Set up authentication
+    const accessToken = process.env.TWITTER_ACCESS_TOKEN;
+    const accessTokenSecret = process.env.TWITTER_ACCESS_TOKEN_SECRET;
+    
+    if (!accessToken || !accessTokenSecret) {
+      throw new Error('OAuth tokens not provided');
     }
     
-    // Navigate to user's followers page
+    await setupAuthentication(page, accessToken, accessTokenSecret);
+    
+    // Navigate to followers page
     const followersUrl = \`https://twitter.com/\${username}/followers\`;
-    console.log(\`Navigating to: \${followersUrl}\`);
+    console.log('Navigating to:', followersUrl);
     
-    await page.goto(followersUrl, { 
-      waitUntil: 'domcontentloaded',
-      timeout: 20000 
-    });
+    await page.goto(followersUrl, { waitUntil: 'networkidle', timeout: 30000 });
     
-    // Wait for followers list to load or try alternative selectors
+    // Wait for followers list to load
     console.log('Waiting for followers list...');
-    try {
-      await page.waitForSelector('[data-testid="UserCell"]', { timeout: 15000 });
-    } catch (error) {
-      console.log('Primary selector not found, trying alternatives...');
-      // Try alternative selectors for follower elements
-      const alternatives = [
-        '[data-testid="cellInnerDiv"]',
-        '[role="button"][tabindex="0"]',
-        'article[data-testid="tweet"]',
-        '.css-1dbjc4n[data-testid]'
-      ];
-      
-      let found = false;
-      for (const selector of alternatives) {
+    
+    // Try multiple selectors to find the followers list
+    let foundSelector = null;
+    const selectors = [
+      '[data-testid="UserCell"]',
+      '[data-testid="cellInnerDiv"]',
+      '[role="button"][data-testid="UserCell"]'
+    ];
+    
+    for (const selector of selectors) {
+      try {
+        await page.waitForSelector(selector, { timeout: 10000 });
+        foundSelector = selector;
+        console.log('Found followers using selector: ' + selector);
+        break;
+      } catch (e) {
+        console.log('Selector ' + selector + ' not found, trying next...');
+      }
+    }
+    
+    if (!foundSelector) {
+      // Try alternative selectors
+      const altSelectors = ['[data-testid="cellInnerDiv"]', 'article', '[role="article"]'];
+      for (const selector of altSelectors) {
         try {
           await page.waitForSelector(selector, { timeout: 5000 });
-          console.log(\`Found alternative selector: \${selector}\`);
-          found = true;
+          foundSelector = selector;
+          console.log('Primary selector not found, trying alternatives...');
+          console.log('Found alternative selector: ' + selector);
           break;
         } catch (e) {
-          continue;
+          console.log('Selector ' + selector + ' not found, trying next...');
         }
       }
       
-      if (!found) {
-        // Take a screenshot for debugging
-        await page.screenshot({ path: '/tmp/debug_screenshot.png' });
-        console.log('No follower elements found. Screenshot saved.');
+      if (!foundSelector) {
+        await page.screenshot({ path: '/tmp/followers_page_error.png' });
         throw new Error('Could not find follower list elements');
       }
     }
     
     console.log('✓ Followers page loaded');
     
-    // Scroll and collect followers
-    const followers = [];
-    let lastHeight = 0;
-    let scrollAttempts = 0;
     const maxScrolls = 500; // Increased to capture all 800+ followers
     let consecutiveEmptyScrolls = 0;
     const maxEmptyScrolls = 50; // Stop if no new followers found after 50 scrolls
     
+    let followers = [];
+    let lastHeight = 0;
+    let scrollAttempts = 0;
+    
     while (scrollAttempts < maxScrolls) {
+      console.log('=== SCROLL ATTEMPT ' + (scrollAttempts + 1) + ' ===');
+      
       // Try multiple selectors for follower extraction
       let currentFollowers = [];
       
@@ -273,127 +250,115 @@ async function scanFollowers(username, accessToken, accessTokenSecret) {
             return {
               name: (nameElement?.textContent || '').trim(),
               username: (usernameElement?.textContent || '').trim(),
-              bio: (bioElement?.textContent || '').trim(),
-              profileUrl: usernameElement?.href || ''
+              bio: (bioElement?.textContent || '').trim()
             };
-          });
+          }).filter(follower => follower.username && follower.username.startsWith('@'));
         });
-      } catch (error) {
-        console.log('Primary UserCell selector failed, trying alternatives...');
+        
+        if (currentFollowers.length > 0) {
+          console.log('Extracted ' + currentFollowers.length + ' followers using UserCell selector');
+        }
+      } catch (e) {
+        console.log('UserCell selector failed, trying alternatives...');
       }
       
-      // If primary failed, try alternative extraction methods
+      // Fallback to cellInnerDiv selector
       if (currentFollowers.length === 0) {
         try {
           currentFollowers = await page.$$eval('[data-testid="cellInnerDiv"]', (cells) => {
             return cells.map(cell => {
-              // Look for username links
-              const usernameLink = cell.querySelector('a[href*="/"]');
-              const nameSpan = cell.querySelector('span[dir="ltr"]');
-              const bioDiv = cell.querySelector('div[dir="auto"]');
+              // Try multiple approaches to extract usernames
+              const links = cell.querySelectorAll('a[href*="/"]');
+              const spans = cell.querySelectorAll('span');
               
               let username = '';
-              if (usernameLink && usernameLink.href) {
-                const match = usernameLink.href.match(/twitter\\.com\\/([^/?]+)/) || 
-                             usernameLink.href.match(/x\\.com\\/([^/?]+)/);
-                if (match && match[1] && !match[1].includes('status')) {
-                  username = '@' + match[1];
+              let name = '';
+              let bio = '';
+              
+              // Look for username in links
+              for (const link of links) {
+                const href = link.getAttribute('href') || '';
+                if (href.match(/^\/[a-zA-Z0-9_]+$/)) {
+                  username = '@' + href.substring(1);
+                  break;
                 }
               }
               
-              // Also try to find @username in text content
-              if (!username) {
-                const textContent = cell.textContent || '';
-                const atMatch = textContent.match(/@([a-zA-Z0-9_]+)/);
-                if (atMatch) {
-                  username = '@' + atMatch[1];
+              // Look for display name and bio in spans
+              for (const span of spans) {
+                const text = (span.textContent || '').trim();
+                if (text && !text.startsWith('@') && !name && text.length < 50) {
+                  name = text;
+                } else if (text && text.length > 20 && text.length < 200 && !bio) {
+                  bio = text;
                 }
               }
               
-              return {
-                name: (nameSpan?.textContent || '').trim(),
-                username: username,
-                bio: (bioDiv?.textContent || '').trim(),
-                profileUrl: usernameLink?.href || ''
-              };
-            });
+              return { name, username, bio };
+            }).filter(follower => follower.username && follower.username !== '@');
           });
-          console.log(\`Extracted \${currentFollowers.length} followers using cellInnerDiv selector\`);
-        } catch (error) {
-          console.log('cellInnerDiv selector also failed:', error.message);
+          
+          if (currentFollowers.length > 0) {
+            console.log('Extracted ' + currentFollowers.length + ' followers using cellInnerDiv selector');
+          }
+        } catch (e) {
+          console.log('cellInnerDiv selector also failed, trying final fallback...');
         }
       }
       
-      // If still no followers, try a more generic approach
+      // Final fallback - extract any @mentions from page text
       if (currentFollowers.length === 0) {
         try {
           currentFollowers = await page.evaluate(() => {
-            const followers = [];
-            // Look for any links that look like profile links
-            const profileLinks = document.querySelectorAll('a[href*="/"]');
-            
-            profileLinks.forEach(link => {
-              const href = link.href;
-              const match = href.match(/(?:twitter|x)\\.com\\/([^/?#]+)/) || href.match(/\\/([^/?#]+)$/);
-              
-              if (match && match[1] && 
-                  !match[1].includes('status') && 
-                  !match[1].includes('search') &&
-                  !match[1].includes('home') &&
-                  !match[1].includes('notifications') &&
-                  match[1].length > 0 && 
-                  match[1] !== 'i') {
-                
-                const username = '@' + match[1];
-                const parentElement = link.closest('[data-testid], [role="button"], div');
-                const nameElement = parentElement?.querySelector('span[dir="ltr"]');
-                
-                followers.push({
-                  name: (nameElement?.textContent || '').trim(),
-                  username: username,
-                  bio: '',
-                  profileUrl: href
-                });
-              }
-            });
-            
-            return followers;
+            const text = document.body.innerText;
+            const mentions = text.match(/@[a-zA-Z0-9_]+/g) || [];
+            return [...new Set(mentions)].map(username => ({
+              name: '',
+              username: username,
+              bio: ''
+            }));
           });
-          console.log(\`Extracted \${currentFollowers.length} followers using generic link approach\`);
-        } catch (error) {
-          console.log('Generic extraction failed:', error.message);
+          
+          if (currentFollowers.length > 0) {
+            console.log('Extracted ' + currentFollowers.length + ' followers using text extraction fallback');
+          }
+        } catch (e) {
+          console.log('All extraction methods failed for this scroll');
         }
       }
       
-      // Filter and add new followers
-      const validFollowers = currentFollowers.filter(f => 
-        f.username && 
-        f.username.length > 1 && 
-        !f.username.includes('undefined') &&
-        !followers.find(existing => existing.username === f.username)
-      );
+      // Add new followers to our list
+      let newFollowersAdded = 0;
+      const existingUsernames = new Set(followers.map(f => f.username));
       
-      const previousCount = followers.length;
-      followers.push(...validFollowers);
-      const newFollowersAdded = validFollowers.length;
+      for (const follower of currentFollowers) {
+        if (follower.username && !existingUsernames.has(follower.username)) {
+          followers.push(follower);
+          existingUsernames.add(follower.username);
+          newFollowersAdded++;
+        }
+      }
       
-      console.log(\`Collected \${followers.length} followers so far... (added \${newFollowersAdded} new)\`);
+      console.log('Found ' + currentFollowers.length + ' elements, added ' + newFollowersAdded + ' new followers');
+      console.log('Total followers collected: ' + followers.length);
       
       // Track consecutive empty scrolls
       if (newFollowersAdded === 0) {
         consecutiveEmptyScrolls++;
-        console.log(\`No new followers found (empty scroll \${consecutiveEmptyScrolls}/\${maxEmptyScrolls})\`);
+        console.log('No new followers found (empty scroll ' + consecutiveEmptyScrolls + '/' + maxEmptyScrolls + ')');
       } else {
         consecutiveEmptyScrolls = 0; // Reset counter when we find new followers
+        console.log('✓ Found new followers, resetting empty scroll counter');
       }
       
       // Stop if we haven't found new followers for too many scrolls
       if (consecutiveEmptyScrolls >= maxEmptyScrolls) {
-        console.log(\`Stopping scan - no new followers found after \${maxEmptyScrolls} consecutive scrolls\`);
+        console.log('Stopping scan - no new followers found after ' + maxEmptyScrolls + ' consecutive scrolls');
         break;
       }
       
       // Scroll down to load more followers with multiple strategies
+      console.log('Scrolling to load more content...');
       await page.evaluate(() => {
         // Strategy 1: Scroll window
         window.scrollTo(0, document.body.scrollHeight);
@@ -417,17 +382,16 @@ async function scanFollowers(username, accessToken, accessTokenSecret) {
         }
       });
       
-      // Wait longer for content to load, especially for large accounts
-      await page.waitForTimeout(3000);
-      
       // Wait for new content to potentially load
       try {
         await page.waitForSelector('[data-testid="cellInnerDiv"]', { timeout: 2000 });
       } catch (e) {
-        // Continue if selector not found - might be at end of list
+        console.log('No new content loaded after scroll');
       }
       
       const newHeight = await page.evaluate(() => document.body.scrollHeight);
+      console.log('Page height: ' + lastHeight + ' -> ' + newHeight);
+      
       if (newHeight === lastHeight) {
         console.log('Page height unchanged - reached end of followers list');
         break;
@@ -436,13 +400,16 @@ async function scanFollowers(username, accessToken, accessTokenSecret) {
       lastHeight = newHeight;
       scrollAttempts++;
       
-      // Progress update every 20 scrolls
-      if (scrollAttempts % 20 === 0) {
-        console.log(\`📊 Progress: \${scrollAttempts}/\${maxScrolls} scrolls, \${followers.length} followers collected\`);
+      // Log progress every 5 scrolls for better debugging
+      if (scrollAttempts % 5 === 0) {
+        console.log('=== PROGRESS UPDATE ===');
+        console.log('Scrolls completed: ' + scrollAttempts + '/' + maxScrolls);
+        console.log('Followers collected: ' + followers.length);
+        console.log('Empty scrolls: ' + consecutiveEmptyScrolls + '/' + maxEmptyScrolls);
       }
     }
     
-    console.log(\`✓ Scan completed. Found \${followers.length} followers\`);
+    console.log('✓ Scan completed. Found ' + followers.length + ' followers');
     
     return {
       followers: followers,
@@ -460,34 +427,28 @@ async function scanFollowers(username, accessToken, accessTokenSecret) {
 async function main() {
   try {
     const username = process.env.TWITTER_USERNAME;
-    const accessToken = process.env.TWITTER_ACCESS_TOKEN;
-    const accessTokenSecret = process.env.TWITTER_ACCESS_TOKEN_SECRET;
-    
-    if (!username || !accessToken || !accessTokenSecret) {
-      throw new Error('Missing required environment variables');
+    if (!username) {
+      throw new Error('TWITTER_USERNAME environment variable not set');
     }
     
-    console.log(\`Starting follower scan for: @\${username}\`);
+    console.log('Starting follower scan for: @' + username);
     
-    const result = await scanFollowers(username, accessToken, accessTokenSecret);
+    const result = await scanFollowers(username);
     
-    // Save results
+    // Save results to file
     fs.writeFileSync('/tmp/followers_result.json', JSON.stringify(result, null, 2));
-    console.log('✓ Results saved to /tmp/followers_result.json');
-    
-    console.log(\`✓ Scan completed successfully! Found \${result.followerCount} followers\`);
+    console.log('Results saved to /tmp/followers_result.json');
+    console.log('Total followers found: ' + result.followerCount);
     
   } catch (error) {
-    console.error('✗ Scanner failed:', error.message);
-    console.error('Stack trace:', error.stack);
+    console.error('Scan failed:', error);
     
-    // Save error result
     const errorResult = {
-      status: 'failed',
-      error: error.message,
-      scanDate: new Date().toISOString(),
       followers: [],
-      followerCount: 0
+      followerCount: 0,
+      scanDate: new Date().toISOString(),
+      status: 'error',
+      error: error.message
     };
     
     fs.writeFileSync('/tmp/followers_result.json', JSON.stringify(errorResult, null, 2));
