@@ -122,14 +122,19 @@ export async function POST(request: NextRequest) {
       console.log('Executing follower scan...')
       const result = await DaytonaSandboxManager.executeFollowerScan(sandbox.id, sessionId, xUsername, oauthTokens)
       
-      // Update scan with results
-      await adminDb.collection('follower_scans').doc(scanId).update({
-        status: result.status,
-        followers: result.followers,
-        followerCount: result.followerCount,
-        completedAt: new Date(),
-        error: result.error || null
-      })
+      // Update scan with results - filter out undefined values
+      const updateData: any = {
+        status: result.status || 'completed',
+        followers: result.followers || [],
+        followerCount: result.followerCount || 0,
+        completedAt: new Date()
+      }
+      
+      if (result.error) {
+        updateData.error = result.error
+      }
+      
+      await adminDb.collection('follower_scans').doc(scanId).update(updateData)
     } catch (error: any) {
       console.error('Follower scan failed:', error)
       // Update scan status to failed
