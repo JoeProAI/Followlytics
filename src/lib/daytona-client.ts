@@ -134,33 +134,47 @@ const { chromium } = require('playwright');
 console.log('=== Twitter Follower Scanner ===');
 console.log('Node.js version:', process.version);
 
-async function authenticateWithTwitter(page, accessToken, accessTokenSecret) {
+async function setupAuthentication(page, accessToken, accessTokenSecret) {
   try {
     console.log('Setting up Twitter authentication...');
     
-    // Navigate to Twitter
-    await page.goto('https://twitter.com/login', { waitUntil: 'networkidle' });
+    // First, navigate to Twitter home page to establish session
+    await page.goto('https://twitter.com', { 
+      waitUntil: 'domcontentloaded',
+      timeout: 15000 
+    });
     
-    // Inject OAuth tokens into localStorage for authentication
-    await page.evaluate((tokens) => {
-      localStorage.setItem('twitter_oauth_token', tokens.accessToken);
-      localStorage.setItem('twitter_oauth_token_secret', tokens.accessTokenSecret);
-    }, { accessToken, accessTokenSecret });
-    
-    // Set authentication cookies
+    // Set authentication cookies before navigation
     await page.context().addCookies([
       {
         name: 'auth_token',
         value: accessToken,
         domain: '.twitter.com',
         path: '/'
+      },
+      {
+        name: 'ct0',
+        value: accessToken.substring(0, 32),
+        domain: '.twitter.com',
+        path: '/'
       }
     ]);
     
-    console.log('✓ Authentication tokens set');
+    // Inject OAuth tokens into localStorage
+    await page.evaluate((tokens) => {
+      localStorage.setItem('twitter_oauth_token', tokens.accessToken);
+      localStorage.setItem('twitter_oauth_token_secret', tokens.accessTokenSecret);
+      // Set additional auth data
+      sessionStorage.setItem('twitter_auth', JSON.stringify({
+        token: tokens.accessToken,
+        secret: tokens.accessTokenSecret
+      }));
+    }, { accessToken, accessTokenSecret });
+    
+    console.log('✓ Authentication setup complete');
     return true;
   } catch (error) {
-    console.error('✗ Authentication failed:', error.message);
+    console.error('✗ Authentication setup failed:', error.message);
     return false;
   }
 }
@@ -185,20 +199,54 @@ async function scanFollowers(username, accessToken, accessTokenSecret) {
     });
     const page = await context.newPage();
     
-    // Authenticate with Twitter
-    const authSuccess = await authenticateWithTwitter(page, accessToken, accessTokenSecret);
+    // Setup authentication
+    const authSuccess = await setupAuthentication(page, accessToken, accessTokenSecret);
     if (!authSuccess) {
-      throw new Error('Failed to authenticate with Twitter');
+      throw new Error('Failed to setup authentication');
     }
     
     // Navigate to user's followers page
     const followersUrl = \`https://twitter.com/\${username}/followers\`;
     console.log(\`Navigating to: \${followersUrl}\`);
     
-    await page.goto(followersUrl, { waitUntil: 'networkidle' });
+    await page.goto(followersUrl, { 
+      waitUntil: 'domcontentloaded',
+      timeout: 20000 
+    });
     
-    // Wait for followers list to load
-    await page.waitForSelector('[data-testid="UserCell"]', { timeout: 10000 });
+    // Wait for followers list to load or try alternative selectors
+    console.log('Waiting for followers list...');
+    try {
+      await page.waitForSelector('[data-testid="UserCell"]', { timeout: 15000 });
+    } catch (error) {
+      console.log('Primary selector not found, trying alternatives...');
+      // Try alternative selectors for follower elements
+      const alternatives = [
+        '[data-testid="cellInnerDiv"]',
+        '[role="button"][tabindex="0"]',
+        'article[data-testid="tweet"]',
+        '.css-1dbjc4n[data-testid]'
+      ];
+      
+      let found = false;
+      for (const selector of alternatives) {
+        try {
+          await page.waitForSelector(selector, { timeout: 5000 });
+          console.log(\`Found alternative selector: \${selector}\`);
+          found = true;
+          break;
+        } catch (e) {
+          continue;
+        }
+      }
+      
+      if (!found) {
+        // Take a screenshot for debugging
+        await page.screenshot({ path: '/tmp/debug_screenshot.png' });
+        console.log('No follower elements found. Screenshot saved.');
+        throw new Error('Could not find follower list elements');
+      }
+    }
     
     console.log('✓ Followers page loaded');
     
