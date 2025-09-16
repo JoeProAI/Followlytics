@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { signInWithCustomToken } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 
-export default function AuthSuccess() {
+function AuthSuccessContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -37,5 +37,20 @@ export default function AuthSuccess() {
         <p className="mt-4 text-gray-600">Completing authentication...</p>
       </div>
     </div>
+  )
+}
+
+export default function AuthSuccess() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <AuthSuccessContent />
+    </Suspense>
   )
 }
