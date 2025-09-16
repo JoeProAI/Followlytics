@@ -19,6 +19,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Log environment variable status for debugging
+    console.log('Firebase config check:', {
+      projectId: !!process.env.FIREBASE_PROJECT_ID,
+      clientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: !!process.env.FIREBASE_PRIVATE_KEY
+    })
+
     // Get the authorization header
     const authHeader = request.headers.get('authorization')
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
