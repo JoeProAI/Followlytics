@@ -49,12 +49,18 @@ export async function GET(request: NextRequest) {
       firebaseUser = await adminAuth.getUserByEmail(`${xUser.screen_name}@x.followlytics.local`)
     } catch {
       // User doesn't exist, create them
-      firebaseUser = await adminAuth.createUser({
+      const createUserData: any = {
         email: `${xUser.screen_name}@x.followlytics.local`,
-        displayName: xUser.name,
-        photoURL: xUser.profile_image_url,
+        displayName: xUser.name || xUser.screen_name,
         uid: `x_${xUser.id}`,
-      })
+      }
+      
+      // Only add photoURL if it exists
+      if (xUser.profile_image_url) {
+        createUserData.photoURL = xUser.profile_image_url
+      }
+      
+      firebaseUser = await adminAuth.createUser(createUserData)
     }
 
     // Store X tokens and user info in Firestore
@@ -66,19 +72,25 @@ export async function GET(request: NextRequest) {
       createdAt: new Date(),
     })
 
-    // Update user document
-    await adminDb.collection('users').doc(firebaseUser.uid).set({
+    // Update user document - filter out undefined values
+    const userDocData: any = {
       email: firebaseUser.email,
-      displayName: xUser.name,
-      photoURL: xUser.profile_image_url,
+      displayName: xUser.name || xUser.screen_name,
       xConnected: true,
       xUsername: accessTokens.screen_name,
       xUserId: accessTokens.user_id,
-      xName: xUser.name,
-      xProfileImage: xUser.profile_image_url,
+      xName: xUser.name || xUser.screen_name,
       createdAt: new Date(),
       provider: 'x',
-    }, { merge: true })
+    }
+
+    // Only add photo fields if they exist
+    if (xUser.profile_image_url) {
+      userDocData.photoURL = xUser.profile_image_url
+      userDocData.xProfileImage = xUser.profile_image_url
+    }
+
+    await adminDb.collection('users').doc(firebaseUser.uid).set(userDocData, { merge: true })
 
     // Create custom token for client-side auth
     const customToken = await adminAuth.createCustomToken(firebaseUser.uid)
