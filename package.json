@@ -1,0 +1,44 @@
+{
+  "name": "followlytics",
+  "version": "1.0.0",
+  "description": "Twitter/X follower tracking system that identifies unfollowers and provides analytics",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "twitter",
+    "follower",
+    "tracker",
+    "analytics"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@daytonaio/sdk": "^0.27.1",
+    "@types/crypto-js": "^4.2.2",
+    "@types/node": "^24.5.0",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "@types/uuid": "^10.0.0",
+    "autoprefixer": "^10.4.21",
+    "crypto-js": "^4.2.0",
+    "eslint": "^9.35.0",
+    "eslint-config-next": "^15.5.3",
+    "firebase": "^12.2.1",
+    "firebase-admin": "^13.5.0",
+    "next": "^15.5.3",
+    "oauth-1.0a": "^2.2.6",
+    "postcss": "^8.5.6",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "tailwindcss": "^4.1.13",
+    "typescript": "^5.9.2",
+    "uuid": "^13.0.0"
+  }
+}
