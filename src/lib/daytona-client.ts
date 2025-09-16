@@ -174,11 +174,75 @@ async function scanFollowers(username) {
     
     await setupAuthentication(page, accessToken, accessTokenSecret);
     
-    // Navigate to followers page
-    const followersUrl = \`https://twitter.com/\${username}/followers\`;
-    console.log('Navigating to:', followersUrl);
+    // Set additional headers to appear more like a real browser
+    await page.setExtraHTTPHeaders({
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.5',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'DNT': '1',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1'
+    });
     
-    await page.goto(followersUrl, { waitUntil: 'networkidle', timeout: 30000 });
+    // Navigate to followers page with multiple URL attempts
+    const followersUrls = [
+      \`https://x.com/\${username}/followers\`,
+      \`https://twitter.com/\${username}/followers\`,
+      \`https://x.com/\${username}/following\`,
+      \`https://twitter.com/\${username}/following\`
+    ];
+    
+    let pageLoaded = false;
+    let lastError = null;
+    
+    for (const url of followersUrls) {
+      try {
+        console.log('Attempting to navigate to:', url);
+        await page.goto(url, { 
+          waitUntil: 'domcontentloaded', 
+          timeout: 45000 
+        });
+        
+        // Wait a bit for dynamic content to load
+        await page.waitForTimeout(3000);
+        
+        // Check if we can find any user elements
+        const hasUserElements = await page.evaluate(() => {
+          const selectors = [
+            '[data-testid="UserCell"]',
+            '[data-testid="cellInnerDiv"]',
+            'article',
+            '[role="article"]'
+          ];
+          
+          for (const selector of selectors) {
+            if (document.querySelector(selector)) {
+              return true;
+            }
+          }
+          return false;
+        });
+        
+        if (hasUserElements) {
+          console.log('✓ Successfully loaded page with user elements:', url);
+          pageLoaded = true;
+          break;
+        } else {
+          console.log('Page loaded but no user elements found, trying next URL...');
+        }
+        
+      } catch (error) {
+        console.log('Failed to load ' + url + ':', error.message);
+        lastError = error;
+        continue;
+      }
+    }
+    
+    if (!pageLoaded) {
+      console.log('All navigation attempts failed, taking screenshot for debugging...');
+      await page.screenshot({ path: '/tmp/navigation_failure.png' });
+      throw new Error('Could not load any Twitter followers/following page. Last error: ' + (lastError?.message || 'Unknown'));
+    }
     
     // Wait for followers list to load
     console.log('Waiting for followers list...');
