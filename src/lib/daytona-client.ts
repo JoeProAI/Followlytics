@@ -278,7 +278,7 @@ async function scanFollowers(username) {
               // Look for username in links
               for (const link of links) {
                 const href = link.getAttribute('href') || '';
-                if (href.match(/^\/[a-zA-Z0-9_]+$/)) {
+                if (href.match(/^\\\/[a-zA-Z0-9_]+$/)) {
                   username = '@' + href.substring(1);
                   break;
                 }
