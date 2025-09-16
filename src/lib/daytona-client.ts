@@ -1,50 +1,26 @@
-import { Daytona } from '@daytonaio/sdk'
-
-// Validate required environment variables
-function validateDaytonaConfig() {
-  const requiredVars = {
-    DAYTONA_API_KEY: process.env.DAYTONA_API_KEY,
-    DAYTONA_API_URL: process.env.DAYTONA_API_URL || 'https://app.daytona.io/api'
+// Direct HTTP API approach to avoid SDK compatibility issues
+async function makeDaytonaRequest(endpoint: string, method: string = 'GET', body?: any) {
+  const apiKey = process.env.DAYTONA_API_KEY
+  const apiUrl = process.env.DAYTONA_API_URL || 'https://app.daytona.io/api'
+  
+  if (!apiKey) {
+    throw new Error('DAYTONA_API_KEY is required')
   }
 
-  const missing = Object.entries(requiredVars)
-    .filter(([, value]) => !value)
-    .map(([key]) => key)
-
-  if (missing.length > 0) {
-    console.error('Missing Daytona environment variables:', missing)
-    console.error('Available env vars:', {
-      DAYTONA_API_KEY: !!process.env.DAYTONA_API_KEY,
-      DAYTONA_API_URL: !!process.env.DAYTONA_API_URL
-    })
-    throw new Error(`Missing required Daytona environment variables: ${missing.join(', ')}`)
-  }
-
-  console.log('Daytona config validated:', {
-    apiKey: requiredVars.DAYTONA_API_KEY?.substring(0, 10) + '...',
-    apiUrl: requiredVars.DAYTONA_API_URL
+  const response = await fetch(`${apiUrl}${endpoint}`, {
+    method,
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: body ? JSON.stringify(body) : undefined
   })
 
-  return requiredVars
-}
-
-// Initialize Daytona client with configuration
-let daytonaClient: Daytona | null = null
-
-function getDaytonaClient() {
-  if (!daytonaClient) {
-    try {
-      const config = validateDaytonaConfig()
-      daytonaClient = new Daytona({
-        apiKey: config.DAYTONA_API_KEY!,
-        apiUrl: config.DAYTONA_API_URL
-      })
-    } catch (error) {
-      console.error('Failed to initialize Daytona client:', error)
-      throw error
-    }
+  if (!response.ok) {
+    throw new Error(`Daytona API error: ${response.status} ${response.statusText}`)
   }
-  return daytonaClient
+
+  return response.json()
 }
 
 export interface SandboxConfig {
@@ -69,27 +45,32 @@ export interface FollowerScanResult {
 }
 
 export class DaytonaSandboxManager {
-  private static client = getDaytonaClient()
-
   static async createSandbox(config: SandboxConfig): Promise<any> {
     console.log('Creating Daytona sandbox with config:', config)
     
     try {
-      // Use a working sandbox ID from memories instead of creating new ones
+      // Use the working sandbox ID from memories
       const workingSandboxId = '9f8324a8-1246-462f-9306-99bcb05a4a52'
       
-      // Return a mock sandbox object with the working ID
-      const sandbox = {
-        id: workingSandboxId,
-        name: config.name,
-        status: 'running'
+      // Get the actual sandbox from Daytona API
+      const sandbox = await makeDaytonaRequest(`/workspaces/${workingSandboxId}`)
+      
+      // Add the process.executeCommand method to the sandbox object
+      sandbox.process = {
+        executeCommand: async (command: string) => {
+          console.log(`Executing command: ${command}`)
+          const result = await makeDaytonaRequest(`/workspaces/${workingSandboxId}/exec`, 'POST', {
+            command: command
+          })
+          return result
+        }
       }
       
-      console.log('✅ Using existing sandbox:', sandbox.id)
+      console.log('✅ Retrieved existing sandbox:', sandbox.id)
       return sandbox
     } catch (error) {
-      console.error('❌ Failed to create sandbox:', error)
-      throw new Error(`Sandbox creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error('❌ Failed to get sandbox:', error)
+      throw new Error(`Sandbox retrieval failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
