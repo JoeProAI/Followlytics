@@ -17,12 +17,40 @@ export default function FollowerScanner() {
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null)
   const [xUsername, setXUsername] = useState('')
   const [recentScans, setRecentScans] = useState<any[]>([])
+  const [xAuthorized, setXAuthorized] = useState(false)
+  const [checkingAuth, setCheckingAuth] = useState(true)
 
   useEffect(() => {
     if (user) {
       fetchRecentScans()
+      checkXAuthorization()
     }
   }, [user])
+
+  const checkXAuthorization = async () => {
+    try {
+      const token = await user?.getIdToken()
+      const response = await fetch('/api/auth/twitter/status', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setXAuthorized(data.authorized || false)
+      }
+    } catch (error) {
+      console.error('Failed to check X authorization:', error)
+      setXAuthorized(false)
+    } finally {
+      setCheckingAuth(false)
+    }
+  }
+
+  const handleXAuthorization = () => {
+    window.location.href = '/api/auth/twitter'
+  }
 
   useEffect(() => {
     let interval: NodeJS.Timeout
@@ -158,48 +186,102 @@ export default function FollowerScanner() {
     }
   }
 
-  return (
-    <div className="space-y-6">
-      {/* Scan Form */}
-      <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-          X Follower Scanner
-        </h2>
-        <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
-          Enter an X username to scan their followers and detect unfollowers
-        </p>
-        <div className="flex space-x-4">
-          <div className="flex-1">
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-              X Username
-            </label>
-            <input
-              type="text"
-              id="username"
-              value={xUsername}
-              onChange={(e) => setXUsername(e.target.value)}
-              placeholder="Enter X username (without @)"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              disabled={isScanning}
-            />
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={startFollowerScan}
-              disabled={isScanning}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isScanning ? 'Scanning...' : 'Start Scan'}
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-4 text-sm text-gray-600">
-          <p>🔒 <strong>Powered by Daytona:</strong> Your scan runs in a secure, isolated sandbox environment</p>
-          <p>🤖 <strong>Browser Automation:</strong> Uses Playwright for reliable X data extraction</p>
-          <p>⚡ <strong>Auto-cleanup:</strong> Sandbox automatically deletes after completion</p>
+  if (checkingAuth) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking X authorization status...</p>
         </div>
       </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* X Authorization Step */}
+      {!xAuthorized ? (
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-black rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Step 1: Authorize X Access
+            </h2>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              To scan followers, you need to authorize Followlytics to access X on your behalf. This creates a secure sandbox environment for automated scanning.
+            </p>
+            <button
+              onClick={handleXAuthorization}
+              className="bg-black hover:bg-gray-800 text-white px-8 py-3 rounded-lg text-lg font-semibold flex items-center justify-center gap-3 mx-auto transition-colors"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              </svg>
+              Authorize X Access
+            </button>
+            <p className="text-sm text-gray-500 mt-4">
+              You&apos;ll be redirected to X to grant permission, then return here to start scanning.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Authorization Success */}
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span className="text-green-800 font-medium">✓ X Access Authorized</span>
+            </div>
+          </div>
+
+          {/* Scan Form */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-4">
+              Step 2: Start Follower Scan
+            </h2>
+            <p className="text-sm text-gray-600 mb-6">
+              Enter an X username to scan their followers and detect unfollowers
+            </p>
+            <div className="flex space-x-4">
+              <div className="flex-1">
+                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+                  X Username
+                </label>
+                <input
+                  type="text"
+                  id="username"
+                  value={xUsername}
+                  onChange={(e) => setXUsername(e.target.value)}
+                  placeholder="Enter X username (without @)"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isScanning}
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={startFollowerScan}
+                  disabled={isScanning}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isScanning ? 'Scanning...' : 'Start Scan'}
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 text-sm text-gray-600">
+              <p>🔒 <strong>Powered by Daytona:</strong> Your scan runs in a secure, isolated sandbox environment</p>
+              <p>🤖 <strong>Browser Automation:</strong> Uses Playwright for reliable X data extraction</p>
+              <p>⚡ <strong>Auto-cleanup:</strong> Sandbox automatically deletes after completion</p>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Progress Display */}
       {scanProgress && (
