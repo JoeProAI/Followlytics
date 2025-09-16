@@ -638,7 +638,30 @@ main();
       .join(' ')
 
     console.log('🚀 Executing scanner script with environment variables...')
-    const result = await sandbox.process.executeCommand(`${envString} node twitter-scanner.js`)
+    
+    // Execute with timeout and better error handling
+    let result: any;
+    try {
+      // Set a 10-minute timeout for the script execution
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Script execution timed out after 10 minutes')), 10 * 60 * 1000);
+      });
+      
+      const executionPromise = sandbox.process.executeCommand(`${envString} timeout 600 node twitter-scanner.js 2>&1`);
+      
+      result = await Promise.race([executionPromise, timeoutPromise]) as any;
+    } catch (timeoutError: any) {
+      console.error('⏰ Script execution timed out:', timeoutError?.message || 'Unknown timeout error');
+      
+      // Try to get any partial results or error logs
+      const partialCheck = await sandbox.process.executeCommand('ls -la /tmp/followers_result.json 2>/dev/null || echo "No results file"');
+      console.log('📄 Partial results check:', partialCheck.result);
+      
+      const processCheck = await sandbox.process.executeCommand('ps aux | grep node || echo "No node processes"');
+      console.log('🔍 Process check:', processCheck.result);
+      
+      throw new Error(`Script execution timed out after 10 minutes: ${timeoutError?.message || 'Unknown error'}`);
+    }
 
     console.log('📋 Script execution result:', {
       exitCode: result.exitCode,
