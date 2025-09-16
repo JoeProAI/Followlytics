@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { XAuth } from '@/lib/twitter-auth'
-import { adminDb } from '@/lib/firebase-admin'
-import { redirect } from 'next/navigation'
+import { adminDb, adminAuth } from '@/lib/firebase-admin'
+import { auth } from '@/lib/firebase'
+import { signInWithCustomToken } from 'firebase/auth'
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,29 +13,17 @@ export async function GET(request: NextRequest) {
 
     // Handle user denial
     if (denied) {
-      return redirect('/dashboard?error=twitter_auth_denied')
+      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/login?error=x_auth_denied`)
     }
 
     if (!oauthToken || !oauthVerifier) {
-      return redirect('/dashboard?error=missing_oauth_params')
+      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/login?error=missing_oauth_params`)
     }
 
-    // In a real app, retrieve oauth_token_secret from secure storage
-    // For now, we'll need to pass it through the state or session
-    const state = searchParams.get('state')
-    if (!state) {
-      return redirect('/dashboard?error=missing_state')
-    }
-
-    let oauthTokenSecret: string
-    let userId: string
-    
-    try {
-      const stateData = JSON.parse(Buffer.from(state, 'base64').toString())
-      oauthTokenSecret = stateData.oauth_token_secret
-      userId = stateData.user_id
-    } catch {
-      return redirect('/dashboard?error=invalid_state')
+    // Get stored tokens from cookies
+    const oauthTokenSecret = request.cookies.get('oauth_token_secret')?.value
+    if (!oauthTokenSecret) {
+      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/login?error=missing_token_secret`)
     }
 
     // Exchange request token for access token
@@ -45,13 +34,31 @@ export async function GET(request: NextRequest) {
     )
 
     // Verify credentials
-    const user = await XAuth.verifyCredentials(
+    const xUser = await XAuth.verifyCredentials(
       accessTokens.oauth_token,
       accessTokens.oauth_token_secret
     )
 
+    if (!adminAuth || !adminDb) {
+      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/login?error=firebase_not_configured`)
+    }
+
+    // Create or get Firebase user
+    let firebaseUser
+    try {
+      firebaseUser = await adminAuth.getUserByEmail(`${xUser.screen_name}@x.followlytics.local`)
+    } catch {
+      // User doesn't exist, create them
+      firebaseUser = await adminAuth.createUser({
+        email: `${xUser.screen_name}@x.followlytics.local`,
+        displayName: xUser.name,
+        photoURL: xUser.profile_image_url,
+        uid: `x_${xUser.id}`,
+      })
+    }
+
     // Store X tokens and user info in Firestore
-    await adminDb.collection('x_tokens').doc(userId).set({
+    await adminDb.collection('x_tokens').doc(firebaseUser.uid).set({
       accessToken: accessTokens.oauth_token,
       accessTokenSecret: accessTokens.oauth_token_secret,
       xUserId: accessTokens.user_id,
@@ -60,17 +67,30 @@ export async function GET(request: NextRequest) {
     })
 
     // Update user document
-    await adminDb.collection('users').doc(userId).update({
+    await adminDb.collection('users').doc(firebaseUser.uid).set({
+      email: firebaseUser.email,
+      displayName: xUser.name,
+      photoURL: xUser.profile_image_url,
       xConnected: true,
       xUsername: accessTokens.screen_name,
       xUserId: accessTokens.user_id,
-      xName: user.name,
-      xProfileImage: user.profile_image_url,
-    })
+      xName: xUser.name,
+      xProfileImage: xUser.profile_image_url,
+      createdAt: new Date(),
+      provider: 'x',
+    }, { merge: true })
 
-    return redirect('/dashboard?success=twitter_connected')
+    // Create custom token for client-side auth
+    const customToken = await adminAuth.createCustomToken(firebaseUser.uid)
+
+    // Clear OAuth cookies
+    const response = NextResponse.redirect(`${process.env.NEXTAUTH_URL}/auth/success?token=${customToken}`)
+    response.cookies.delete('oauth_token')
+    response.cookies.delete('oauth_token_secret')
+
+    return response
   } catch (error) {
-    console.error('Twitter OAuth callback error:', error)
-    return redirect('/dashboard?error=twitter_auth_failed')
+    console.error('X OAuth callback error:', error)
+    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/login?error=x_auth_failed`)
   }
 }

@@ -2,6 +2,34 @@ import { NextRequest, NextResponse } from 'next/server'
 import { XAuth } from '@/lib/twitter-auth'
 import { adminAuth } from '@/lib/firebase-admin'
 
+export async function GET(request: NextRequest) {
+  try {
+    // Get callback URL
+    const callbackUrl = `${process.env.NEXTAUTH_URL}/api/auth/twitter/callback`
+    const tokens = await XAuth.getRequestToken(callbackUrl)
+    
+    const authUrl = XAuth.getAuthorizationUrl(tokens.oauth_token)
+
+    // Store tokens in session/cookies for callback
+    const response = NextResponse.redirect(authUrl)
+    response.cookies.set('oauth_token', tokens.oauth_token, { 
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 600 // 10 minutes
+    })
+    response.cookies.set('oauth_token_secret', tokens.oauth_token_secret, { 
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 600 // 10 minutes
+    })
+
+    return response
+  } catch (error) {
+    console.error('X OAuth initialization error:', error)
+    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/login?error=oauth_failed`)
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Verify user authentication
@@ -11,6 +39,10 @@ export async function POST(request: NextRequest) {
     }
 
     const idToken = authHeader.split('Bearer ')[1]
+    if (!adminAuth) {
+      return NextResponse.json({ error: 'Firebase Admin not configured' }, { status: 500 })
+    }
+
     const decodedToken = await adminAuth.verifyIdToken(idToken)
     const userId = decodedToken.uid
 
@@ -20,18 +52,15 @@ export async function POST(request: NextRequest) {
     
     const authUrl = XAuth.getAuthorizationUrl(tokens.oauth_token)
 
-    // Store request token temporarily (in a real app, use Redis or database)
-    // For now, we'll return it to the client to handle
-
     return NextResponse.json({
       authUrl,
       oauth_token: tokens.oauth_token,
       oauth_token_secret: tokens.oauth_token_secret,
     })
   } catch (error) {
-    console.error('Twitter OAuth initialization error:', error)
+    console.error('X OAuth initialization error:', error)
     return NextResponse.json(
-      { error: 'Failed to initialize Twitter OAuth' },
+      { error: 'Failed to initialize X OAuth' },
       { status: 500 }
     )
   }
