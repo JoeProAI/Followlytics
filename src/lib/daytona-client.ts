@@ -184,65 +184,11 @@ async function scanFollowers(username) {
       'Upgrade-Insecure-Requests': '1'
     });
     
-    // Navigate to followers page with multiple URL attempts
-    const followersUrls = [
-      \`https://x.com/\${username}/followers\`,
-      \`https://twitter.com/\${username}/followers\`,
-      \`https://x.com/\${username}/following\`,
-      \`https://twitter.com/\${username}/following\`
-    ];
+    // Navigate to followers page
+    const followersUrl = \`https://twitter.com/\${username}/followers\`;
+    console.log('Navigating to:', followersUrl);
     
-    let pageLoaded = false;
-    let lastError = null;
-    
-    for (const url of followersUrls) {
-      try {
-        console.log('Attempting to navigate to:', url);
-        await page.goto(url, { 
-          waitUntil: 'domcontentloaded', 
-          timeout: 45000 
-        });
-        
-        // Wait a bit for dynamic content to load
-        await page.waitForTimeout(3000);
-        
-        // Check if we can find any user elements
-        const hasUserElements = await page.evaluate(() => {
-          const selectors = [
-            '[data-testid="UserCell"]',
-            '[data-testid="cellInnerDiv"]',
-            'article',
-            '[role="article"]'
-          ];
-          
-          for (const selector of selectors) {
-            if (document.querySelector(selector)) {
-              return true;
-            }
-          }
-          return false;
-        });
-        
-        if (hasUserElements) {
-          console.log('✓ Successfully loaded page with user elements:', url);
-          pageLoaded = true;
-          break;
-        } else {
-          console.log('Page loaded but no user elements found, trying next URL...');
-        }
-        
-      } catch (error) {
-        console.log('Failed to load ' + url + ':', error.message);
-        lastError = error;
-        continue;
-      }
-    }
-    
-    if (!pageLoaded) {
-      console.log('All navigation attempts failed, taking screenshot for debugging...');
-      await page.screenshot({ path: '/tmp/navigation_failure.png' });
-      throw new Error('Could not load any Twitter followers/following page. Last error: ' + (lastError?.message || 'Unknown'));
-    }
+    await page.goto(followersUrl, { waitUntil: 'networkidle', timeout: 30000 });
     
     // Wait for followers list to load
     console.log('Waiting for followers list...');
@@ -638,30 +584,7 @@ main();
       .join(' ')
 
     console.log('🚀 Executing scanner script with environment variables...')
-    
-    // Execute with timeout and better error handling
-    let result: any;
-    try {
-      // Set a 10-minute timeout for the script execution
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Script execution timed out after 10 minutes')), 10 * 60 * 1000);
-      });
-      
-      const executionPromise = sandbox.process.executeCommand(`${envString} timeout 600 node twitter-scanner.js 2>&1`);
-      
-      result = await Promise.race([executionPromise, timeoutPromise]) as any;
-    } catch (timeoutError: any) {
-      console.error('⏰ Script execution timed out:', timeoutError?.message || 'Unknown timeout error');
-      
-      // Try to get any partial results or error logs
-      const partialCheck = await sandbox.process.executeCommand('ls -la /tmp/followers_result.json 2>/dev/null || echo "No results file"');
-      console.log('📄 Partial results check:', partialCheck.result);
-      
-      const processCheck = await sandbox.process.executeCommand('ps aux | grep node || echo "No node processes"');
-      console.log('🔍 Process check:', processCheck.result);
-      
-      throw new Error(`Script execution timed out after 10 minutes: ${timeoutError?.message || 'Unknown error'}`);
-    }
+    const result = await sandbox.process.executeCommand(`${envString} node twitter-scanner.js`)
 
     console.log('📋 Script execution result:', {
       exitCode: result.exitCode,
