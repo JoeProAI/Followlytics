@@ -2,39 +2,28 @@ import { initializeApp, getApps, cert } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 import { getFirestore } from 'firebase-admin/firestore'
 
-// Validate Firebase environment variables
-function validateFirebaseConfig() {
-  const requiredVars = {
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY
-  }
-
-  const missing = Object.entries(requiredVars)
-    .filter(([key, value]) => !value)
-    .map(([key]) => key)
-
-  if (missing.length > 0) {
-    throw new Error(`Missing Firebase Admin SDK environment variables: ${missing.join(', ')}`)
-  }
-
-  return requiredVars
-}
-
 // Initialize Firebase Admin with error handling
 let adminApp: any = null
 
 function getFirebaseAdminApp() {
   if (!adminApp) {
     try {
-      const config = validateFirebaseConfig()
+      let serviceAccount: any
+      
+      // Try to use FIREBASE_SERVICE_ACCOUNT_JSON first (new approach)
+      if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON)
+      } else {
+        // Fallback to individual environment variables
+        serviceAccount = {
+          projectId: process.env.FIREBASE_PROJECT_ID!,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, '\n'),
+        }
+      }
       
       const firebaseAdminConfig = {
-        credential: cert({
-          projectId: config.projectId,
-          clientEmail: config.clientEmail,
-          privateKey: config.privateKey?.replace(/\\n/g, '\n'),
-        }),
+        credential: cert(serviceAccount),
       }
 
       adminApp = getApps().find(app => app.name === 'admin') || 
