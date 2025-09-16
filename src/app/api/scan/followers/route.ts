@@ -116,8 +116,11 @@ export async function POST(request: NextRequest) {
       console.log('Creating Daytona sandbox...')
       const sandbox = await DaytonaSandboxManager.createFollowerScanSandbox(config)
       
+      console.log('Setting up sandbox environment...')
+      await DaytonaSandboxManager.setupSandboxEnvironment(sandbox)
+      
       console.log('Executing follower scan...')
-      const result = await DaytonaSandboxManager.executeFollowerScan(sandbox, xUsername, oauthTokens)
+      const result = await DaytonaSandboxManager.executeFollowerScan(sandbox.id, sessionId, xUsername, oauthTokens)
       
       // Update scan with results
       await adminDb.collection('follower_scans').doc(scanId).update({
@@ -197,7 +200,8 @@ async function startFollowerScan(
 
     // Execute the follower scan
     const scanResult = await DaytonaSandboxManager.executeFollowerScan(
-      sandbox,
+      sandbox.id,
+      sessionId,
       twitterUsername,
       oauthTokens
     )
