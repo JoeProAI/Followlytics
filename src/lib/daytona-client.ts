@@ -127,11 +127,11 @@ export class DaytonaSandboxManager {
     }
     
     // Create a simplified test script to isolate the failure point
-    const scraperScript = `
+    const scannerScript = `
 const fs = require('fs');
 const { chromium } = require('playwright');
 
-console.log('=== Twitter Follower Scraper ===');
+console.log('=== Twitter Follower Scanner ===');
 console.log('Node.js version:', process.version);
 
 async function authenticateWithTwitter(page, accessToken, accessTokenSecret) {
@@ -165,7 +165,7 @@ async function authenticateWithTwitter(page, accessToken, accessTokenSecret) {
   }
 }
 
-async function scrapeFollowers(username, accessToken, accessTokenSecret) {
+async function scanFollowers(username, accessToken, accessTokenSecret) {
   const browser = await chromium.launch({
     headless: true,
     args: [
@@ -180,10 +180,10 @@ async function scrapeFollowers(username, accessToken, accessTokenSecret) {
   });
   
   try {
-    const page = await browser.newPage();
-    
-    // Set user agent
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+    const context = await browser.newContext({
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    });
+    const page = await context.newPage();
     
     // Authenticate with Twitter
     const authSuccess = await authenticateWithTwitter(page, accessToken, accessTokenSecret);
@@ -248,7 +248,7 @@ async function scrapeFollowers(username, accessToken, accessTokenSecret) {
       scrollAttempts++;
     }
     
-    console.log(\`✓ Scraping completed. Found \${followers.length} followers\`);
+    console.log(\`✓ Scan completed. Found \${followers.length} followers\`);
     
     return {
       followers: followers,
@@ -275,7 +275,7 @@ async function main() {
     
     console.log(\`Starting follower scan for: @\${username}\`);
     
-    const result = await scrapeFollowers(username, accessToken, accessTokenSecret);
+    const result = await scanFollowers(username, accessToken, accessTokenSecret);
     
     // Save results
     fs.writeFileSync('/tmp/followers_result.json', JSON.stringify(result, null, 2));
@@ -284,7 +284,7 @@ async function main() {
     console.log(\`✓ Scan completed successfully! Found \${result.followerCount} followers\`);
     
   } catch (error) {
-    console.error('✗ Scraper failed:', error.message);
+    console.error('✗ Scanner failed:', error.message);
     console.error('Stack trace:', error.stack);
     
     // Save error result
@@ -304,8 +304,8 @@ async function main() {
 main();
 `;
 
-    // Upload the scraper script to the sandbox
-    await sandbox.fs.uploadFile(Buffer.from(scraperScript), 'twitter-scraper.js')
+    // Upload the scanner script to the sandbox
+    await sandbox.fs.uploadFile(Buffer.from(scannerScript), 'twitter-scanner.js')
     
     return sandbox
   }
@@ -345,7 +345,7 @@ main();
 
     // Test if the script file exists
     console.log('📋 Checking if script file exists...')
-    const lsResult = await sandbox.process.executeCommand('ls -la twitter-scraper.js')
+    const lsResult = await sandbox.process.executeCommand('ls -la twitter-scanner.js')
     console.log('📁 Script file check:', { 
       exitCode: lsResult.exitCode, 
       output: lsResult.result?.substring(0, 200) 
@@ -361,7 +361,7 @@ main();
 
     // Try to read the first few lines of the script
     console.log('👀 Reading script content preview...')
-    const headResult = await sandbox.process.executeCommand('head -10 twitter-scraper.js')
+    const headResult = await sandbox.process.executeCommand('head -10 twitter-scanner.js')
     console.log('📄 Script preview:', { 
       exitCode: headResult.exitCode, 
       preview: headResult.result?.substring(0, 300) 
@@ -372,8 +372,8 @@ main();
       .map(([key, value]) => `${key}="${value}"`)
       .join(' ')
 
-    console.log('🚀 Executing scraper script with environment variables...')
-    const result = await sandbox.process.executeCommand(`${envString} node twitter-scraper.js`)
+    console.log('🚀 Executing scanner script with environment variables...')
+    const result = await sandbox.process.executeCommand(`${envString} node twitter-scanner.js`)
 
     console.log('📋 Script execution result:', {
       exitCode: result.exitCode,
@@ -383,7 +383,7 @@ main();
     })
 
     if (result.exitCode !== 0) {
-      console.error('❌ Scraper failed:', {
+      console.error('❌ Scanner failed:', {
         exitCode: result.exitCode,
         result: result.result,
         fullOutput: result.result
@@ -394,7 +394,7 @@ main();
       const errorLogResult = await sandbox.process.executeCommand('cat /tmp/error.log 2>/dev/null || echo "No error log found"')
       console.log('📝 Error log check:', errorLogResult.result)
       
-      throw new Error(`Scraper failed with exit code ${result.exitCode}: ${result.result}`)
+      throw new Error(`Scanner failed with exit code ${result.exitCode}: ${result.result}`)
     }
 
     console.log('📁 Checking for scan results file...')
