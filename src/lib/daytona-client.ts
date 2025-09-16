@@ -208,7 +208,7 @@ async function scanFollowers(username) {
     
     console.log('📋 Page analysis:', pageInfo);
     
-    // If we're on a login page, try to handle it
+    // Handle different error scenarios
     if (pageInfo.hasLoginForm || pageInfo.title.includes('Login')) {
       console.log('🔐 Detected login page, trying to authenticate...');
       
@@ -226,6 +226,72 @@ async function scanFollowers(username) {
         };
       });
       console.log('📋 Page after x.com navigation:', newPageInfo);
+    } else if (pageInfo.bodyText.includes('Something went wrong') || pageInfo.bodyText.includes('Try again')) {
+      console.log('⚠️ Detected Twitter error page, attempting recovery...');
+      
+      // Wait a bit and try refreshing
+      await page.waitForTimeout(5000);
+      
+      // Try clicking "Try again" button if it exists
+      try {
+        const tryAgainButton = await page.$('text=Try again');
+        if (tryAgainButton) {
+          console.log('🔄 Clicking "Try again" button...');
+          await tryAgainButton.click();
+          await page.waitForTimeout(3000);
+        }
+      } catch (e) {
+        console.log('No "Try again" button found, trying page refresh...');
+      }
+      
+      // Try refreshing the page
+      await page.reload({ waitUntil: 'networkidle', timeout: 30000 });
+      await page.screenshot({ path: '/tmp/page_after_refresh.png' });
+      
+      // If still error, try different URL approaches
+      const retryUrls = [
+        \`https://x.com/\${username}\`,
+        \`https://twitter.com/\${username}\`,
+        \`https://mobile.twitter.com/\${username}/followers\`
+      ];
+      
+      for (const retryUrl of retryUrls) {
+        try {
+          console.log('🔄 Trying alternative URL:', retryUrl);
+          await page.goto(retryUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+          await page.waitForTimeout(3000);
+          
+          // If we're on profile page, try to navigate to followers
+          if (retryUrl.includes(username) && !retryUrl.includes('followers')) {
+            try {
+              const followersLink = await page.$('a[href*="/followers"]');
+              if (followersLink) {
+                console.log('📍 Found followers link, clicking...');
+                await followersLink.click();
+                await page.waitForTimeout(3000);
+              }
+            } catch (e) {
+              console.log('Could not find followers link, continuing...');
+            }
+          }
+          
+          // Check if we have follower elements now
+          const hasFollowers = await page.evaluate(() => {
+            return !!document.querySelector('[data-testid="UserCell"]') || 
+                   !!document.querySelector('article') ||
+                   !!document.querySelector('[role="article"]');
+          });
+          
+          if (hasFollowers) {
+            console.log('✅ Found follower elements with alternative approach!');
+            break;
+          }
+          
+        } catch (e) {
+          console.log('Failed with URL ' + retryUrl + ':', e.message);
+          continue;
+        }
+      }
     }
     
     // Try multiple selectors to find the followers list
