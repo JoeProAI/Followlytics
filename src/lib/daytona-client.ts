@@ -8,7 +8,7 @@ function validateDaytonaConfig() {
   }
 
   const missing = Object.entries(requiredVars)
-    .filter(([key, value]) => !value)
+    .filter(([, value]) => !value)
     .map(([key]) => key)
 
   if (missing.length > 0) {
@@ -71,7 +71,7 @@ export interface FollowerScanResult {
 export class DaytonaSandboxManager {
   private static client = getDaytonaClient()
 
-  static async createSandbox(config: SandboxConfig) {
+  static async createSandbox(config: SandboxConfig): Promise<any> {
     console.log('Creating Daytona sandbox with config:', config)
     
     try {
@@ -90,7 +90,7 @@ export class DaytonaSandboxManager {
     }
   }
 
-  static async setupSandboxEnvironment(sandbox: any) {
+  static async setupSandboxEnvironment(sandbox: any): Promise<void> {
     console.log('Setting up sandbox environment...')
     
     try {
@@ -235,9 +235,9 @@ const strategies = [
         });
         
         return { browser, page };
-      } catch (e) {
+      } catch (error) {
         console.log('Puppeteer not available, skipping...');
-        throw e;
+        throw error;
       }
     }
   },
@@ -323,8 +323,8 @@ async function scanWithStrategy(strategy) {
         } else {
           console.log(\`⚠️ Error page detected on \${url}\`);
         }
-      } catch (e) {
-        console.log(\`❌ Failed to load \${url}: \${e.message}\`);
+      } catch (error: any) {
+        console.log(\`❌ Failed to load \${url}: \${error.message}\`);
       }
     }
     
@@ -354,7 +354,7 @@ async function scanWithStrategy(strategy) {
         foundSelector = selector;
         console.log(\`✓ Found elements with selector: \${selector}\`);
         break;
-      } catch (e) {
+      } catch (error) {
         console.log(\`Selector \${selector} not found\`);
       }
     }
@@ -422,7 +422,7 @@ async function scanWithStrategy(strategy) {
             if (username && username.length > 0) {
               extracted.push({ username, displayName: displayName || username });
             }
-          } catch (e) {
+          } catch (error) {
             // Ignore extraction errors for individual elements
           }
         });
@@ -681,7 +681,7 @@ scanTwitterFollowers()
     throw new Error('All upload methods failed')
   }
 
-  static async cleanupSandbox(sandbox: any) {
+  static async cleanupSandbox(sandbox: any): Promise<void> {
     try {
       console.log('🧹 Cleaning up sandbox...')
       await this.client.sandbox.delete(sandbox.id)
