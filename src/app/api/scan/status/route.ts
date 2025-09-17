@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
       apiUrl: process.env.DAYTONA_API_URL!
     })
 
-    // Get the sandbox
-    const sandbox = await daytona.sandbox.get(sandboxId)
+    // Get the sandbox using the correct SDK method
+    const sandbox = await daytona.get(sandboxId)
     
     if (!sandbox) {
       return NextResponse.json({ 
@@ -33,12 +33,12 @@ export async function GET(request: NextRequest) {
     // Check if extraction is complete by looking for results file
     try {
       const resultResponse = await sandbox.process.executeCommand('cat /tmp/followers_result.json 2>/dev/null || echo "not_found"')
-      const resultContent = resultResponse.result || resultResponse.stdout || ''
+      const resultContent = resultResponse.result || ''
       
       if (resultContent === 'not_found' || resultContent.trim() === '') {
         // Check extraction log for progress
         const logResponse = await sandbox.process.executeCommand('tail -10 /tmp/extraction.log 2>/dev/null || echo "no_log"')
-        const logContent = logResponse.result || logResponse.stdout || ''
+        const logContent = logResponse.result || ''
         
         return NextResponse.json({
           status: 'in_progress',
