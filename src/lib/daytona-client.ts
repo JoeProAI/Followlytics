@@ -773,12 +773,12 @@ scanTwitterFollowers()
       console.error('❌ Failed to retrieve scan results:', error)
       
       // Handle error message safely
-      let errorMessage = 'Unknown error'
-      if (error instanceof Error) {
-        errorMessage = error.message
-      } else if (typeof error === 'string') {
-        errorMessage = error as string
+      const getErrorMessage = (err: unknown): string => {
+        if (err instanceof Error) return err.message
+        if (typeof err === 'string') return err
+        return 'Unknown error'
       }
+      const errorMessage = getErrorMessage(error)
       
       // Return a fallback result
       return {
