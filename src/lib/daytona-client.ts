@@ -772,6 +772,14 @@ scanTwitterFollowers()
     } catch (error: unknown) {
       console.error('❌ Failed to retrieve scan results:', error)
       
+      // Handle error message safely
+      let errorMessage = 'Unknown error'
+      if (error instanceof Error) {
+        errorMessage = error.message
+      } else if (typeof error === 'string') {
+        errorMessage = error as string
+      }
+      
       // Return a fallback result
       return {
         followers: [],
@@ -779,7 +787,7 @@ scanTwitterFollowers()
         scanDate: new Date().toISOString(),
         status: 'execution_failed',
         username: username,
-        error: `Scanner execution failed: ${error instanceof Error ? error.message : String(error)}`,
+        error: `Scanner execution failed: ${errorMessage}`,
         executionTime: Date.now() - startTime
       }
     }
