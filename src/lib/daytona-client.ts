@@ -65,9 +65,13 @@ export class DaytonaSandboxManager {
       await sandbox.process.executeCommand('npm init -y')
       await sandbox.process.executeCommand('npm install playwright puppeteer --save')
       
-      // Install Playwright browsers
+      // Install multiple browsers for different strategies
       console.log('Installing Playwright browsers...')
-      await sandbox.process.executeCommand('npx playwright install chromium')
+      await sandbox.process.executeCommand('npx playwright install chromium firefox webkit')
+      
+      // Install Puppeteer browser (separate from Playwright)
+      console.log('Installing Puppeteer browser...')
+      await sandbox.process.executeCommand('npx puppeteer browsers install chrome')
       
       console.log('✅ Sandbox environment setup complete')
     } catch (error) {
@@ -205,6 +209,36 @@ const strategies = [
         console.log('Puppeteer not available, skipping...');
         throw error;
       }
+    }
+  },
+  {
+    name: 'Firefox-Stealth',
+    execute: async () => {
+      const { firefox } = require('playwright');
+      
+      const browser = await firefox.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox'
+        ]
+      });
+      
+      const context = await browser.newContext({
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0',
+        viewport: { width: 1366, height: 768 },
+        locale: 'en-US',
+        timezoneId: 'America/New_York'
+      });
+      
+      const page = await context.newPage();
+      
+      // Remove automation indicators
+      await page.addInitScript(() => {
+        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+      });
+      
+      return { browser, page };
     }
   },
   {
