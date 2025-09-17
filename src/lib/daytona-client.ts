@@ -762,13 +762,13 @@ const puppeteer = require('puppeteer');
       const base64Script = Buffer.from(simpleScrollScript).toString('base64')
       await sandbox.process.executeCommand(`echo '${base64Script}' | base64 -d > /tmp/simple_scroll.js`)
       
-      // Install puppeteer quickly
-      console.log('📦 Installing Puppeteer...')
-      await sandbox.process.executeCommand('cd /tmp && npm init -y && npm install puppeteer')
+      // Install puppeteer quickly (with no timeout)
+      console.log('📦 Installing Puppeteer (no timeout)...')
+      await sandbox.process.executeCommand('cd /tmp && npm init -y && npm install puppeteer', { timeout: 0 })
       
-      // Run the simple script
-      console.log('🚀 Running simple scroll extraction...')
-      const result = await sandbox.process.executeCommand('cd /tmp && node simple_scroll.js')
+      // Run the simple script (with no timeout)
+      console.log('🚀 Running simple scroll extraction (no timeout)...')
+      const result = await sandbox.process.executeCommand('cd /tmp && node simple_scroll.js', { timeout: 0 })
       
       console.log('📊 Simple script output:', result.result)
       
@@ -865,10 +865,10 @@ verifyFollowerCount().then(count => {
 }).catch(console.error);
 `;
 
-        // Run verification
+        // Run verification (with no timeout)
         const verificationBase64 = Buffer.from(verificationScript).toString('base64')
         await sandbox.process.executeCommand(`echo '${verificationBase64}' | base64 -d > /tmp/verify_count.js`)
-        await sandbox.process.executeCommand('cd /tmp && node verify_count.js')
+        await sandbox.process.executeCommand('cd /tmp && node verify_count.js', { timeout: 0 })
         
         // Get verification results
         const verificationResponse = await sandbox.process.executeCommand('cat /tmp/api_verification.json 2>/dev/null || echo "{}"')
