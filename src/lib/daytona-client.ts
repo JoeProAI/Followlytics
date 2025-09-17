@@ -606,8 +606,18 @@ scanTwitterFollowers()
       throw new Error(`Script upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
 
-    console.log('🚀 Starting SIMPLIFIED follower scan for @' + username)
-    console.log('⚡ Skipping GUI automation - testing basic browser extraction first...')
+    console.log('🚀 Starting REAL GUI automation with Twitter login for @' + username)
+    console.log('🖥️ Setting up desktop environment for human-like interaction...')
+    
+    try {
+      // Use Daytona's computerUse for REAL GUI automation
+      const result = await DaytonaSandboxManager.performRealGUIFollowerExtraction(sandbox, username, accessToken, accessTokenSecret)
+      return result
+      
+    } catch (error: unknown) {
+      console.error('❌ GUI automation failed:', error)
+      throw error
+    }
 
     // Prepare environment variables for the scan
     const envVars = {
@@ -779,58 +789,142 @@ scanTwitterFollowers()
     }
   }
 
-  private static async performGUIFollowerExtraction(sandbox: any, username: string, accessToken: string, accessTokenSecret: string): Promise<any> {
-    console.log('🖱️ Starting GUI automation for follower extraction...')
+  private static async performRealGUIFollowerExtraction(sandbox: any, username: string, accessToken: string, accessTokenSecret: string): Promise<any> {
+    console.log('🖥️ Starting REAL GUI automation with Twitter login...')
     
     try {
-      // Take initial screenshot
-      await sandbox.process.executeCommand('export DISPLAY=:1 && import -window root /tmp/desktop_start.png')
+      // Step 1: Setup desktop environment with optimized commands
+      console.log('🖥️ Setting up virtual desktop...')
+      await sandbox.process.executeCommand('export DISPLAY=:99 && Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset &')
+      await sandbox.process.executeCommand('sleep 3')
       
-      // Use computerUse to navigate to Twitter login
-      console.log('🔐 Navigating to Twitter login...')
+      // Step 2: Install GUI tools in one command for speed
+      console.log('📦 Installing GUI tools...')
+      await sandbox.process.executeCommand('apt-get update -qq && apt-get install -y -qq firefox-esr xvfb x11-utils imagemagick xdotool')
       
-      // Simulate opening Twitter in Firefox (already running)
-      await sandbox.process.executeCommand('export DISPLAY=:1 && xdotool search --name "Firefox" windowactivate')
-      await sandbox.process.executeCommand('sleep 2')
-      
-      // Navigate to Twitter login page
-      await sandbox.process.executeCommand('export DISPLAY=:1 && xdotool key ctrl+l')
-      await sandbox.process.executeCommand('sleep 1')
-      await sandbox.process.executeCommand('export DISPLAY=:1 && xdotool type "https://twitter.com/login"')
-      await sandbox.process.executeCommand('export DISPLAY=:1 && xdotool key Return')
+      // Step 3: Start Firefox with specific profile for automation
+      console.log('🌐 Starting Firefox...')
+      await sandbox.process.executeCommand('export DISPLAY=:99 && firefox-esr --new-instance --no-remote --profile /tmp/firefox-profile &')
       await sandbox.process.executeCommand('sleep 5')
       
-      // Take screenshot after navigation
-      await sandbox.process.executeCommand('export DISPLAY=:1 && import -window root /tmp/twitter_login.png')
+      // Step 4: Take initial screenshot
+      await sandbox.process.executeCommand('export DISPLAY=:99 && import -window root /tmp/desktop_start.png')
       
-      // Here we would normally automate the login process
-      // For now, let's create a mock result showing the GUI approach works
-      console.log('🎯 GUI automation successfully navigated to Twitter')
-      console.log('📸 Screenshots captured for verification')
+      // Step 5: Navigate to Twitter and login using OAuth
+      console.log('🔐 Navigating to Twitter with OAuth authentication...')
       
-      // Create a successful result with GUI automation
-      const result = {
-        followers: [
-          { username: 'gui_follower_1', displayName: 'GUI Test User 1' },
-          { username: 'gui_follower_2', displayName: 'GUI Test User 2' },
-          { username: 'gui_follower_3', displayName: 'GUI Test User 3' }
-        ],
-        followerCount: 3,
-        scanDate: new Date().toISOString(),
-        status: 'gui_automation_success',
-        username: username,
-        strategy: 'GUI-Automation',
-        screenshots: ['/tmp/desktop_start.png', '/tmp/twitter_login.png']
-      }
+      // Create a script that uses OAuth tokens to authenticate and extract followers
+      const authScript = `
+const puppeteer = require('puppeteer');
+
+(async () => {
+  console.log('🚀 Starting authenticated Twitter extraction...');
+  
+  const browser = await puppeteer.launch({
+    headless: false,
+    executablePath: '/usr/bin/firefox-esr',
+    args: ['--display=:99', '--no-sandbox', '--disable-setuid-sandbox']
+  });
+  
+  const page = await browser.newPage();
+  
+  // Set OAuth tokens in browser storage
+  await page.evaluateOnNewDocument(() => {
+    localStorage.setItem('twitter_oauth_token', '${accessToken}');
+    localStorage.setItem('twitter_oauth_token_secret', '${accessTokenSecret}');
+  });
+  
+  // Navigate to followers page directly with authentication
+  console.log('📍 Navigating to followers page...');
+  await page.goto('https://twitter.com/${username}/followers', { waitUntil: 'networkidle2' });
+  
+  // Wait for page to load
+  await page.waitForTimeout(5000);
+  
+  // Extract followers by scrolling and collecting
+  console.log('📜 Scrolling and extracting followers...');
+  const followers = [];
+  
+  for (let i = 0; i < 10; i++) {
+    // Scroll down
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForTimeout(2000);
+    
+    // Extract visible followers
+    const newFollowers = await page.evaluate(() => {
+      const followerElements = document.querySelectorAll('[data-testid="UserCell"]');
+      const extracted = [];
       
-      // Save results
-      await sandbox.fs.uploadFile('/tmp/followers_result.json', JSON.stringify(result, null, 2))
+      followerElements.forEach(element => {
+        const usernameElement = element.querySelector('[data-testid="UserName"] a');
+        const displayNameElement = element.querySelector('[data-testid="UserName"] span');
+        
+        if (usernameElement && displayNameElement) {
+          const username = usernameElement.href.split('/').pop();
+          const displayName = displayNameElement.textContent;
+          
+          if (username && displayName) {
+            extracted.push({ username, displayName });
+          }
+        }
+      });
+      
+      return extracted;
+    });
+    
+    followers.push(...newFollowers);
+    console.log(\`📊 Extracted \${followers.length} followers so far...\`);
+    
+    if (followers.length > 50) break; // Stop at reasonable number for testing
+  }
+  
+  // Remove duplicates
+  const uniqueFollowers = followers.filter((follower, index, self) => 
+    index === self.findIndex(f => f.username === follower.username)
+  );
+  
+  console.log(\`✅ Final extraction: \${uniqueFollowers.length} unique followers\`);
+  
+  // Save results
+  const result = {
+    followers: uniqueFollowers,
+    followerCount: uniqueFollowers.length,
+    scanDate: new Date().toISOString(),
+    status: 'gui_success',
+    username: '${username}',
+    strategy: 'Real-GUI-Automation'
+  };
+  
+  require('fs').writeFileSync('/tmp/followers_result.json', JSON.stringify(result, null, 2));
+  
+  await browser.close();
+  console.log('🎯 GUI extraction completed successfully!');
+})().catch(console.error);
+`;
+      
+      // Save and execute the authentication script
+      await sandbox.fs.uploadFile('/tmp/auth_extract.js', authScript)
+      
+      // Install puppeteer and run the script
+      console.log('📦 Installing Puppeteer...')
+      await sandbox.process.executeCommand('cd /tmp && npm init -y && npm install puppeteer')
+      
+      console.log('🚀 Executing authenticated extraction...')
+      const extractResult = await sandbox.process.executeCommand('cd /tmp && export DISPLAY=:99 && node auth_extract.js')
+      
+      console.log('📊 Extraction output:', extractResult.result)
+      
+      // Read the results
+      const resultFile = await sandbox.fs.readFile('/tmp/followers_result.json')
+      const result = JSON.parse(resultFile)
+      
+      console.log('✅ GUI extraction completed: ' + result.followerCount + ' followers found')
       
       return result
       
     } catch (error: unknown) {
       console.error('❌ GUI automation failed:', error)
-      throw new Error(`GUI automation failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error('GUI automation failed: ' + (error instanceof Error ? error.message : 'Unknown error'))
     }
   }
 
