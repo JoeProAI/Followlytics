@@ -636,9 +636,9 @@ scanTwitterFollowers()
     }
   }
 
-  // Simple and reliable script upload using command line only
+  // Simple and reliable script upload using base64 encoding
   private static async uploadScriptWithFallback(sandbox: any, scriptContent: string, filename: string): Promise<void> {
-    console.log(`📤 Uploading script using command line approach...`)
+    console.log(`📤 Uploading script using base64 approach...`)
     
     try {
       // Use a simple, reliable working directory
@@ -647,35 +647,16 @@ scanTwitterFollowers()
       console.log('📁 Creating working directory:', workDir)
       await sandbox.process.executeCommand(`mkdir -p "${workDir}"`)
       
-      // Write the script file using a simple approach
-      console.log('📄 Writing script file...')
+      // Encode the script content as base64 to avoid shell escaping issues
+      console.log('📄 Encoding script content...')
+      const base64Content = Buffer.from(scriptContent, 'utf8').toString('base64')
       
-      // Split the content into smaller chunks to avoid command line limits
-      const maxChunkSize = 2000
-      const chunks = []
-      for (let i = 0; i < scriptContent.length; i += maxChunkSize) {
-        chunks.push(scriptContent.slice(i, i + maxChunkSize))
-      }
+      // Write the base64 content and decode it
+      console.log('📄 Writing and decoding script file...')
+      const writeCommand = `echo "${base64Content}" | base64 -d > "${workDir}/${filename}"`
       
-      // Create empty file first
-      await sandbox.process.executeCommand(`touch "${workDir}/${filename}"`)
-      
-      // Write chunks one by one
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i]
-        // Escape the chunk content for shell
-        const escapedChunk = chunk.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$').replace(/`/g, '\\`')
-        
-        const appendCmd = i === 0 
-          ? `printf "%s" "${escapedChunk}" > "${workDir}/${filename}"`
-          : `printf "%s" "${escapedChunk}" >> "${workDir}/${filename}"`
-        
-        await sandbox.process.executeCommand(appendCmd)
-        
-        if (i % 5 === 0) {
-          console.log(`📝 Written chunk ${i + 1}/${chunks.length}`)
-        }
-      }
+      const writeResult = await sandbox.process.executeCommand(writeCommand)
+      console.log('📝 File write result:', writeResult)
       
       // Verify the file was created
       const verifyResult = await sandbox.process.executeCommand(`ls -la "${workDir}/${filename}"`)
@@ -688,6 +669,10 @@ scanTwitterFollowers()
       // Check first few lines
       const contentCheck = await sandbox.process.executeCommand(`head -n 3 "${workDir}/${filename}"`)
       console.log('📄 Content preview:', contentCheck)
+      
+      // Verify it's valid JavaScript
+      const syntaxCheck = await sandbox.process.executeCommand(`node -c "${workDir}/${filename}"`)
+      console.log('🔍 JavaScript syntax check:', syntaxCheck)
       
     } catch (error) {
       console.error('❌ File upload failed:', error)
