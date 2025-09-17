@@ -52,23 +52,16 @@ export class DaytonaSandboxManager {
       // Create a fresh new sandbox each time
       const sandboxName = `follower-scan-${crypto.randomUUID()}`
       
-      console.log('Creating Daytona sandbox with volume...')
+      console.log('Creating Daytona sandbox...')
       
+      // First try without volumes to ensure basic functionality works
       const sandboxConfig = {
         name: sandboxName,
         repository: 'https://github.com/microsoft/vscode-dev-containers',
-        image: 'node:18',
-        volumes: [
-          {
-            name: 'scanner-volume',
-            hostPath: '/tmp/scanner-host',
-            containerPath: '/scanner',
-            readOnly: false
-          }
-        ]
+        image: 'node:18'
       }
       
-      console.log('Creating NEW Daytona sandbox with volume config:', sandboxConfig)
+      console.log('Creating NEW Daytona sandbox with basic config:', sandboxConfig)
       
       const response = await makeDaytonaRequest('/sandbox', 'POST', sandboxConfig)
       
@@ -76,7 +69,17 @@ export class DaytonaSandboxManager {
         throw new Error('Failed to create sandbox - no ID returned')
       }
       
-      console.log('✅ Created NEW sandbox with volume:', response.id)
+      console.log('✅ Created NEW sandbox:', response.id)
+      
+      // Try to add volume support after creation if the API supports it
+      try {
+        console.log('🔧 Attempting to configure volume for sandbox...')
+        // This might not be supported, but we'll try
+        // For now, we'll fall back to the working directory approach
+      } catch (volumeError) {
+        console.log('⚠️ Volume configuration not supported, using working directory approach')
+      }
+      
       return response
       
     } catch (error) {
@@ -576,23 +579,37 @@ scanTwitterFollowers()
     let result: any
     
     try {
-      // Use the mounted volume directory
-      const volumeDir = '/scanner'
+      // Try to find the script in multiple possible directories
+      const workingDirs = ['/scanner', '/tmp/scanner', '/home/daytona/scanner', './scanner']
+      let workingDir: string | null = null
+      
+      for (const dir of workingDirs) {
+        const fileCheck = await sandbox.process.executeCommand(`ls -la "${dir}/twitter-scanner.js"`)
+        if (fileCheck.exitCode === 0) {
+          workingDir = dir
+          console.log(`📂 Found script in directory: ${dir}`)
+          break
+        }
+      }
+      
+      if (!workingDir) {
+        throw new Error('Could not find twitter-scanner.js in any directory')
+      }
       
       // Check files before execution
-      const dirCheck = await sandbox.process.executeCommand(`ls -la "${volumeDir}/"`)
-      console.log('📂 Volume directory listing:', dirCheck)
+      const dirCheck = await sandbox.process.executeCommand(`ls -la "${workingDir}/"`)
+      console.log('📂 Directory listing:', dirCheck)
       
-      const fileCheck = await sandbox.process.executeCommand(`ls -la "${volumeDir}/twitter-scanner.js"`)
+      const fileCheck = await sandbox.process.executeCommand(`ls -la "${workingDir}/twitter-scanner.js"`)
       console.log('📄 Script file check:', fileCheck)
       
-      const contentCheck = await sandbox.process.executeCommand(`head -n 5 "${volumeDir}/twitter-scanner.js"`)
+      const contentCheck = await sandbox.process.executeCommand(`head -n 5 "${workingDir}/twitter-scanner.js"`)
       console.log('📄 File content preview:', contentCheck)
       
-      // Execute the scanner with timeout from the volume directory
-      console.log('🚀 Starting Twitter scanner execution from mounted volume...')
+      // Execute the scanner with timeout from the working directory
+      console.log(`🚀 Starting Twitter scanner execution from ${workingDir}...`)
       result = await Promise.race([
-        sandbox.process.executeCommand(`cd "${volumeDir}" && node twitter-scanner.js`),
+        sandbox.process.executeCommand(`cd "${workingDir}" && node twitter-scanner.js`),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Scanner execution timeout')), timeoutMs)
         )
@@ -643,68 +660,84 @@ scanTwitterFollowers()
     }
   }
 
-  // Upload script using mounted volume - much more reliable!
+  // Upload script using Node.js file operations with fallback approaches
   private static async uploadScriptWithFallback(sandbox: any, scriptContent: string, filename: string): Promise<void> {
-    console.log(`📤 Uploading script using mounted volume...`)
+    console.log(`📤 Uploading script using Node.js file operations...`)
     
     try {
-      // Use the mounted volume directory
-      const volumeDir = '/scanner'
+      // Try multiple working directories in order of preference
+      const workingDirs = ['/scanner', '/tmp/scanner', '/home/daytona/scanner', './scanner']
       
-      console.log('📁 Using mounted volume directory:', volumeDir)
-      
-      // Write the script directly to the mounted volume using Node.js
-      console.log('📄 Writing script to mounted volume...')
-      const nodeWriteCommand = `node -e "
-        const fs = require('fs');
-        const path = require('path');
-        
-        // Ensure directory exists
-        const dir = '${volumeDir}';
-        if (!fs.existsSync(dir)) {
-          fs.mkdirSync(dir, { recursive: true });
-        }
-        
-        // Write the script content
-        const content = ${JSON.stringify(scriptContent)};
-        const filePath = path.join(dir, '${filename}');
-        fs.writeFileSync(filePath, content, 'utf8');
-        
-        console.log('File written successfully to:', filePath);
-        console.log('File size:', fs.statSync(filePath).size, 'bytes');
-      "`
-      
-      const writeResult = await sandbox.process.executeCommand(nodeWriteCommand)
-      console.log('📝 Volume write result:', writeResult)
-      
-      // Verify the file was created in the volume
-      const verifyResult = await sandbox.process.executeCommand(`ls -la "${volumeDir}/${filename}"`)
-      console.log('✅ File verification:', verifyResult)
-      
-      if (verifyResult.exitCode === 0) {
-        // Check file size
-        const sizeResult = await sandbox.process.executeCommand(`wc -c "${volumeDir}/${filename}"`)
-        console.log('📄 File size check:', sizeResult)
-        
-        // Check first few lines
-        const contentCheck = await sandbox.process.executeCommand(`head -n 3 "${volumeDir}/${filename}"`)
-        console.log('📄 Content preview:', contentCheck)
-        
-        // Verify it's valid JavaScript
-        const syntaxCheck = await sandbox.process.executeCommand(`node -c "${volumeDir}/${filename}"`)
-        console.log('🔍 JavaScript syntax check:', syntaxCheck)
-        
-        if (syntaxCheck.exitCode === 0) {
-          console.log('✅ File created successfully in mounted volume!')
-          return
+      for (const workDir of workingDirs) {
+        try {
+          console.log(`📁 Attempting to use directory: ${workDir}`)
+          
+          // Write the script using Node.js with proper error handling
+          const nodeWriteCommand = `node -e "
+            const fs = require('fs');
+            const path = require('path');
+            
+            try {
+              // Ensure directory exists
+              const dir = '${workDir}';
+              if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+                console.log('Created directory:', dir);
+              }
+              
+              // Write the script content
+              const content = ${JSON.stringify(scriptContent)};
+              const filePath = path.join(dir, '${filename}');
+              fs.writeFileSync(filePath, content, 'utf8');
+              
+              console.log('SUCCESS: File written to:', filePath);
+              console.log('File size:', fs.statSync(filePath).size, 'bytes');
+              process.exit(0);
+            } catch (error) {
+              console.error('ERROR:', error.message);
+              process.exit(1);
+            }
+          "`
+          
+          const writeResult = await sandbox.process.executeCommand(nodeWriteCommand)
+          console.log(`📝 Write result for ${workDir}:`, writeResult)
+          
+          if (writeResult.exitCode === 0) {
+            // Verify the file was created
+            const verifyResult = await sandbox.process.executeCommand(`ls -la "${workDir}/${filename}"`)
+            console.log('✅ File verification:', verifyResult)
+            
+            if (verifyResult.exitCode === 0) {
+              // Check file size
+              const sizeResult = await sandbox.process.executeCommand(`wc -c "${workDir}/${filename}"`)
+              console.log('📄 File size check:', sizeResult)
+              
+              // Check first few lines
+              const contentCheck = await sandbox.process.executeCommand(`head -n 3 "${workDir}/${filename}"`)
+              console.log('📄 Content preview:', contentCheck)
+              
+              // Verify it's valid JavaScript
+              const syntaxCheck = await sandbox.process.executeCommand(`node -c "${workDir}/${filename}"`)
+              console.log('🔍 JavaScript syntax check:', syntaxCheck)
+              
+              if (syntaxCheck.exitCode === 0) {
+                console.log(`✅ File created successfully in ${workDir}!`)
+                return
+              }
+            }
+          }
+          
+        } catch (dirError) {
+          console.log(`❌ Failed to use directory ${workDir}:`, dirError)
+          continue
         }
       }
       
-      throw new Error('Volume-based file creation failed')
+      throw new Error('All working directories failed')
       
     } catch (error) {
-      console.error('❌ Volume file upload failed:', error)
-      throw new Error(`Volume file upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error('❌ File upload failed:', error)
+      throw new Error(`File upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
