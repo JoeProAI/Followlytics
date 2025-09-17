@@ -354,12 +354,12 @@ async function scanWithStrategy(strategy) {
       throw new Error('No follower elements or usernames found');
     }
     
-    // Extract followers with scrolling
+    // Extract followers with scrolling (reduced for faster execution)
     let followers = [];
-    const maxScrolls = 100;
+    const maxScrolls = 20; // Reduced from 100 to 20 for faster execution
     let consecutiveEmptyScrolls = 0;
     
-    for (let i = 0; i < maxScrolls && consecutiveEmptyScrolls < 10; i++) {
+    for (let i = 0; i < maxScrolls && consecutiveEmptyScrolls < 5; i++) {
       const newFollowers = await page.evaluate((selector) => {
         const elements = document.querySelectorAll(selector);
         const extracted = [];
@@ -403,6 +403,12 @@ async function scanWithStrategy(strategy) {
         followers.push(...uniqueNewFollowers);
         consecutiveEmptyScrolls = 0;
         console.log(\`📜 \${strategy.name} scroll \${i + 1}: found \${uniqueNewFollowers.length} new followers (total: \${followers.length})\`);
+        
+        // Early termination if we have enough followers
+        if (followers.length >= 50) {
+          console.log(\`✅ Early termination: Found \${followers.length} followers, stopping for faster execution\`);
+          break;
+        }
       } else {
         consecutiveEmptyScrolls++;
       }
@@ -447,8 +453,14 @@ async function scanTwitterFollowers() {
       }
       
       // If we get a good result, we can stop early
-      if (result.followerCount > 50) {
-        console.log(\`🎯 Strategy \${strategy.name} found \${result.followerCount} followers - using this result\`);
+      if (result.followerCount > 10) {
+        console.log(\`✅ Good result found with \${result.followerCount} followers, stopping early\`);
+        break;
+      }
+      
+      // Also break if we get any successful result to save time
+      if (result.status === 'success' && result.followerCount > 0) {
+        console.log(\`✅ Successful result found with \${result.followerCount} followers, stopping for faster execution\`);
         break;
       }
       
@@ -540,8 +552,8 @@ scanTwitterFollowers()
 
     console.log('🚀 Executing multi-browser Twitter scanner...')
     
-    // Execute the scanner with timeout
-    const timeoutMs = 10 * 60 * 1000 // 10 minutes
+    // Execute the scanner with timeout (reduced for Vercel limits)
+    const timeoutMs = 4 * 60 * 1000 // 4 minutes (within Vercel's 5-minute limit)
     const startTime = Date.now()
     let result: any
     
@@ -565,12 +577,30 @@ scanTwitterFollowers()
       const executeCommand = `cd ${workingDir} && ${envString} node twitter-scanner.js`
       console.log(`🔧 Execute command: ${executeCommand}`)
       
-      result = await Promise.race([
-        sandbox.process.executeCommand(executeCommand),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Scanner execution timeout')), timeoutMs)
-        )
-      ])
+      // Execute with progress monitoring
+      const progressInterval = setInterval(async () => {
+        try {
+          const progressCheck = await sandbox.process.executeCommand('ps aux | grep node || echo "No node processes"')
+          console.log('🔄 Progress check:', progressCheck.result?.substring(0, 200) + '...')
+          
+          // Check if results file is being created
+          const fileCheck = await sandbox.process.executeCommand('ls -la /tmp/followers_result.json 2>/dev/null || echo "Results file not yet created"')
+          console.log('📄 Results file status:', fileCheck.result)
+        } catch (e) {
+          console.log('Progress check failed:', e)
+        }
+      }, 30000) // Check every 30 seconds
+
+      try {
+        result = await Promise.race([
+          sandbox.process.executeCommand(executeCommand),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Scanner execution timeout')), timeoutMs)
+          )
+        ])
+      } finally {
+        clearInterval(progressInterval)
+      }
       
       console.log('✅ Scanner execution completed')
       console.log('📊 Scanner output:', result)
