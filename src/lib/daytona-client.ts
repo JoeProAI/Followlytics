@@ -563,22 +563,23 @@ scanTwitterFollowers()
 
     console.log('🚀 Executing multi-browser Twitter scanner...')
     
-    // First, check where we are and where the file is
+    // Change to the scanner directory and check files
+    await sandbox.process.executeCommand('cd /home/scanner')
     const pwdResult = await sandbox.process.executeCommand('pwd')
-    const lsResult = await sandbox.process.executeCommand('ls -la')
-    const fileResult = await sandbox.process.executeCommand('ls -la twitter-scanner.js || echo "File not found"')
+    const lsResult = await sandbox.process.executeCommand('ls -la /home/scanner/')
+    const fileResult = await sandbox.process.executeCommand('ls -la /home/scanner/twitter-scanner.js')
     
     console.log('📁 Current directory:', pwdResult)
     console.log('📂 Directory listing:', lsResult)
     console.log('📄 Script file check:', fileResult)
     
-    // Execute the scanner with timeout
+    // Execute the scanner with timeout from the correct directory
     const timeoutMs = 10 * 60 * 1000 // 10 minutes
     const startTime = Date.now()
     
     try {
       const result = await Promise.race([
-        sandbox.process.executeCommand('node ./twitter-scanner.js'),
+        sandbox.process.executeCommand('cd /home/scanner && node twitter-scanner.js'),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Scanner execution timeout')), timeoutMs)
         )
@@ -634,9 +635,12 @@ scanTwitterFollowers()
     console.log(`📤 Uploading script using Daytona file API...`)
     
     try {
-      // Use Daytona's file upload API
+      // First, change to a proper working directory
+      await sandbox.process.executeCommand('cd /home && mkdir -p scanner && cd scanner')
+      
+      // Use Daytona's file upload API with proper path
       const uploadResponse = await makeDaytonaRequest(
-        `/toolbox/${sandbox.id}/toolbox/files/upload?path=${filename}`,
+        `/toolbox/${sandbox.id}/toolbox/files/upload?path=/home/scanner/${filename}`,
         'POST',
         {
           content: scriptContent,
@@ -647,21 +651,28 @@ scanTwitterFollowers()
       console.log('✅ File uploaded via API:', uploadResponse)
       
       // Verify the file was created
-      const fileCheck = await sandbox.process.executeCommand(`ls -la ${filename}`)
+      const fileCheck = await sandbox.process.executeCommand(`ls -la /home/scanner/${filename}`)
       console.log('📄 File verification:', fileCheck)
       
     } catch (apiError) {
       console.log('❌ API upload failed, trying command line method:', apiError)
       
-      // Fallback to command line method
+      // Fallback to command line method with proper directory
       try {
-        // Use base64 encoding to avoid shell escaping issues
-        const base64Content = Buffer.from(scriptContent).toString('base64')
-        await sandbox.process.executeCommand(`echo "${base64Content}" | base64 -d > ${filename}`)
+        // Ensure we're in the right directory and create the file properly
+        await sandbox.process.executeCommand('cd /home && mkdir -p scanner && cd scanner')
+        
+        // Write the script content directly using printf to avoid encoding issues
+        const escapedContent = scriptContent.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$').replace(/`/g, '\\`')
+        await sandbox.process.executeCommand(`printf '%s' "${escapedContent}" > /home/scanner/${filename}`)
         
         // Verify the file was created
-        const fileCheck = await sandbox.process.executeCommand(`ls -la ${filename}`)
+        const fileCheck = await sandbox.process.executeCommand(`ls -la /home/scanner/${filename}`)
         console.log('✅ Command line upload succeeded:', fileCheck)
+        
+        // Also check file content
+        const contentCheck = await sandbox.process.executeCommand(`head -n 3 /home/scanner/${filename}`)
+        console.log('📄 File content check:', contentCheck)
         
       } catch (cmdError) {
         console.error('❌ Both upload methods failed:', { apiError, cmdError })
