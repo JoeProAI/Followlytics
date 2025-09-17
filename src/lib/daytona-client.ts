@@ -564,7 +564,13 @@ scanTwitterFollowers()
     console.log('🚀 Executing multi-browser Twitter scanner...')
     
     // First, check where we are and where the file is
-    await sandbox.process.executeCommand('pwd && ls -la && ls -la twitter-scanner.js')
+    const pwdResult = await sandbox.process.executeCommand('pwd')
+    const lsResult = await sandbox.process.executeCommand('ls -la')
+    const fileResult = await sandbox.process.executeCommand('ls -la twitter-scanner.js || echo "File not found"')
+    
+    console.log('📁 Current directory:', pwdResult)
+    console.log('📂 Directory listing:', lsResult)
+    console.log('📄 Script file check:', fileResult)
     
     // Execute the scanner with timeout
     const timeoutMs = 10 * 60 * 1000 // 10 minutes
@@ -623,53 +629,45 @@ scanTwitterFollowers()
     }
   }
 
-  // Robust script upload with multiple fallback methods
+  // Robust script upload using Daytona file upload API
   private static async uploadScriptWithFallback(sandbox: any, scriptContent: string, filename: string): Promise<void> {
-    const methods = [
-      {
-        name: 'Direct file write',
-        execute: async () => {
-          await sandbox.process.executeCommand(`cat > ${filename} << 'SCRIPT_EOF'\n${scriptContent}\nSCRIPT_EOF`)
+    console.log(`📤 Uploading script using Daytona file API...`)
+    
+    try {
+      // Use Daytona's file upload API
+      const uploadResponse = await makeDaytonaRequest(
+        `/toolbox/${sandbox.id}/toolbox/files/upload?path=${filename}`,
+        'POST',
+        {
+          content: scriptContent,
+          mode: '644'
         }
-      },
-      {
-        name: 'Base64 upload',
-        execute: async () => {
-          const base64Content = Buffer.from(scriptContent).toString('base64')
-          await sandbox.process.executeCommand(`echo "${base64Content}" | base64 -d > ${filename}`)
-        }
-      },
-      {
-        name: 'Echo method',
-        execute: async () => {
-          // Split into smaller chunks to avoid command line length limits
-          const chunks = scriptContent.match(/.{1,1000}/g) || []
-          await sandbox.process.executeCommand(`echo -n "" > ${filename}`) // Create empty file
-          
-          for (const chunk of chunks) {
-            const escapedChunk = chunk.replace(/'/g, "'\"'\"'")
-            await sandbox.process.executeCommand(`echo -n '${escapedChunk}' >> ${filename}`)
-          }
-        }
-      }
-    ]
-
-    for (const method of methods) {
+      )
+      
+      console.log('✅ File uploaded via API:', uploadResponse)
+      
+      // Verify the file was created
+      const fileCheck = await sandbox.process.executeCommand(`ls -la ${filename}`)
+      console.log('📄 File verification:', fileCheck)
+      
+    } catch (apiError) {
+      console.log('❌ API upload failed, trying command line method:', apiError)
+      
+      // Fallback to command line method
       try {
-        console.log(`📤 Trying upload method: ${method.name}`)
-        await method.execute()
+        // Use base64 encoding to avoid shell escaping issues
+        const base64Content = Buffer.from(scriptContent).toString('base64')
+        await sandbox.process.executeCommand(`echo "${base64Content}" | base64 -d > ${filename}`)
         
-        // Verify the file was created and has content
-        const fileCheck = await sandbox.process.executeCommand(`ls -la ${filename} && head -n 5 ${filename}`)
-        console.log(`✅ ${method.name} succeeded:`, fileCheck)
-        return
+        // Verify the file was created
+        const fileCheck = await sandbox.process.executeCommand(`ls -la ${filename}`)
+        console.log('✅ Command line upload succeeded:', fileCheck)
         
-      } catch (error) {
-        console.log(`❌ ${method.name} failed:`, error)
+      } catch (cmdError) {
+        console.error('❌ Both upload methods failed:', { apiError, cmdError })
+        throw new Error('All upload methods failed')
       }
     }
-    
-    throw new Error('All upload methods failed')
   }
 
   static async cleanupSandbox(sandbox: any): Promise<void> {
