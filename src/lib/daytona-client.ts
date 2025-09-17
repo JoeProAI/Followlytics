@@ -289,7 +289,7 @@ async function scanWithStrategy(strategy) {
         } else {
           console.log(\`⚠️ Error page detected on \${url}\`);
         }
-      } catch (error: any) {
+      } catch (error) {
         console.log(\`❌ Failed to load \${url}: \${error.message}\`);
       }
     }
