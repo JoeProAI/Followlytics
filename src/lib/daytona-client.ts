@@ -394,60 +394,67 @@ async function scanWithStrategy(strategy) {
         };
       }
 
-      // Extract followers using DOM parsing
+      // Extract followers using DOM parsing with scrolling
       const followers = [];
-      const followerElements = await page.$$('[data-testid="UserCell"]');
-      
-      for (const element of followerElements) {
-        try {
-            let username = null;
-            let displayName = null;
-            
-            // Extract username from links with better parsing
-            const usernameLinks = element.querySelectorAll('a[href*="/"]');
-            for (const link of usernameLinks) {
-              if (link.href) {
-                const match = link.href.match(/(?:twitter\\.com|x\\.com)\\/([^/?#]+)/);
-                if (match && match[1] && 
-                    match[1] !== 'home' && 
-                    match[1] !== 'explore' && 
-                    match[1] !== 'i' && 
-                    match[1] !== 'search' &&
-                    !match[1].includes('status') &&
-                    match[1].length > 1) {
-                  username = match[1];
+      const maxScrolls = 3; // VERY LIMITED - just test if we get ANY followers
+      let consecutiveEmptyScrolls = 0;
+
+      for (let i = 0; i < maxScrolls && consecutiveEmptyScrolls < 2; i++) {
+        // Extract followers from current view
+        const newFollowers = await page.evaluate((selector) => {
+          const followerElements = document.querySelectorAll(selector || '[data-testid="UserCell"]');
+          const extracted = [];
+          
+          followerElements.forEach(element => {
+            try {
+              let username = null;
+              let displayName = null;
+              
+              // Extract username from links with better parsing
+              const usernameLinks = element.querySelectorAll('a[href*="/"]');
+              for (const link of usernameLinks) {
+                if (link.href) {
+                  const match = link.href.match(/(?:twitter\\.com|x\\.com)\\/([^/?#]+)/);
+                  if (match && match[1] && 
+                      match[1] !== 'home' && 
+                      match[1] !== 'explore' && 
+                      match[1] !== 'i' && 
+                      match[1] !== 'search' &&
+                      !match[1].includes('status') &&
+                      match[1].length > 1) {
+                    username = match[1];
+                    break;
+                  }
+                }
+              }
+              
+              // Extract display name from multiple possible locations
+              const nameSelectors = [
+                '[data-testid="UserName"] span',
+                '[dir="ltr"] span',
+                '.css-1jxf684',
+                'span[style*="font-weight"]'
+              ];
+              
+              for (const selector of nameSelectors) {
+                const nameElement = element.querySelector(selector);
+                if (nameElement && nameElement.textContent?.trim()) {
+                  displayName = nameElement.textContent.trim();
                   break;
                 }
               }
-            }
-            
-            // Extract display name from multiple possible locations
-            const nameSelectors = [
-              '[data-testid="UserName"] span',
-              '[dir="ltr"] span',
-              '.css-1jxf684',
-              'span[style*="font-weight"]'
-            ];
-            
-            for (const selector of nameSelectors) {
-              const nameElement = element.querySelector(selector);
-              if (nameElement && nameElement.textContent?.trim()) {
-                displayName = nameElement.textContent.trim();
-                break;
+              
+              // Only add if we have a valid, unique username
+              if (username && username.length > 1) {
+                extracted.push({ username, displayName: displayName || username });
               }
+            } catch (error) {
+              // Ignore extraction errors for individual elements
             }
-            
-            // Only add if we have a valid, unique username
-            if (username && username.length > 1 && username !== process.env.TWITTER_USERNAME) {
-              extracted.push({ username, displayName: displayName || username });
-            }
-          } catch (error) {
-            // Ignore extraction errors for individual elements
-          }
-        });
-        
-        return extracted;
-      }, foundSelector);
+          });
+          
+          return extracted;
+        }, foundSelector);
       
       const existingUsernames = new Set(followers.map(f => f.username));
       const uniqueNewFollowers = newFollowers.filter(f => !existingUsernames.has(f.username));
