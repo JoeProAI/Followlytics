@@ -391,10 +391,20 @@ async function scanWithStrategy(strategy, username, accessToken, accessTokenSecr
       }
 
       // Extract followers using DOM parsing with scrolling (use existing followers array)
-      const maxScrolls = 5; // Increased for better results
+      const maxScrolls = 10; // Increased for more followers
       let consecutiveEmptyScrolls = 0;
 
       for (let i = 0; i < maxScrolls && consecutiveEmptyScrolls < 3; i++) {
+        console.log(\`📜 Starting scroll \${i + 1}/\${maxScrolls}\`);
+        
+        // Scroll down FIRST to load new content
+        await page.evaluate(() => {
+          window.scrollTo(0, document.body.scrollHeight);
+        });
+        
+        // Wait for new content to load
+        await page.waitForTimeout(2000);
+        
         // Extract followers from current view
         const newFollowers = await page.evaluate((selector) => {
           const followerElements = document.querySelectorAll(selector || '[data-testid="UserCell"]');
@@ -481,11 +491,8 @@ async function scanWithStrategy(strategy, username, accessToken, accessTokenSecr
         }
       } else {
         consecutiveEmptyScrolls++;
+        console.log(\`⚠️ No new followers found in scroll \${i + 1}, consecutive empty: \${consecutiveEmptyScrolls}\`);
       }
-      
-      // Scroll down faster
-      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      await page.waitForTimeout(1000); // Reduced wait time for faster scrolling
     }
   }
     console.log(\`✅ \${strategy.name} completed: \${followers.length} followers found\`);
