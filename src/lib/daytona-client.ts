@@ -636,9 +636,9 @@ scanTwitterFollowers()
     }
   }
 
-  // Simple and reliable script upload using base64 encoding
+  // Simple and reliable script upload using direct file creation
   private static async uploadScriptWithFallback(sandbox: any, scriptContent: string, filename: string): Promise<void> {
-    console.log(`📤 Uploading script using base64 approach...`)
+    console.log(`📤 Uploading script using direct file creation...`)
     
     try {
       // Use a simple, reliable working directory
@@ -647,32 +647,60 @@ scanTwitterFollowers()
       console.log('📁 Creating working directory:', workDir)
       await sandbox.process.executeCommand(`mkdir -p "${workDir}"`)
       
-      // Encode the script content as base64 to avoid shell escaping issues
-      console.log('📄 Encoding script content...')
-      const base64Content = Buffer.from(scriptContent, 'utf8').toString('base64')
+      // Try multiple approaches to create the file
+      console.log('📄 Attempting file creation with multiple methods...')
       
-      // Write the base64 content and decode it
-      console.log('📄 Writing and decoding script file...')
-      const writeCommand = `echo "${base64Content}" | base64 -d > "${workDir}/${filename}"`
+      // Method 1: Use Node.js to write the file
+      console.log('🔧 Method 1: Using Node.js fs.writeFileSync...')
+      const nodeWriteCommand = `node -e "
+        const fs = require('fs');
+        const content = ${JSON.stringify(scriptContent)};
+        fs.writeFileSync('${workDir}/${filename}', content, 'utf8');
+        console.log('File written successfully');
+      "`
       
-      const writeResult = await sandbox.process.executeCommand(writeCommand)
-      console.log('📝 File write result:', writeResult)
+      const nodeResult = await sandbox.process.executeCommand(nodeWriteCommand)
+      console.log('📝 Node.js write result:', nodeResult)
       
       // Verify the file was created
       const verifyResult = await sandbox.process.executeCommand(`ls -la "${workDir}/${filename}"`)
-      console.log('✅ File upload succeeded:', verifyResult)
+      console.log('✅ File verification:', verifyResult)
       
-      // Check file size
-      const sizeResult = await sandbox.process.executeCommand(`wc -c "${workDir}/${filename}"`)
-      console.log('📄 File size check:', sizeResult)
+      if (verifyResult.exitCode === 0) {
+        // Check file size
+        const sizeResult = await sandbox.process.executeCommand(`wc -c "${workDir}/${filename}"`)
+        console.log('📄 File size check:', sizeResult)
+        
+        // Check first few lines
+        const contentCheck = await sandbox.process.executeCommand(`head -n 3 "${workDir}/${filename}"`)
+        console.log('📄 Content preview:', contentCheck)
+        
+        // Verify it's valid JavaScript
+        const syntaxCheck = await sandbox.process.executeCommand(`node -c "${workDir}/${filename}"`)
+        console.log('🔍 JavaScript syntax check:', syntaxCheck)
+        
+        if (syntaxCheck.exitCode === 0) {
+          console.log('✅ File created successfully with Node.js method!')
+          return
+        }
+      }
       
-      // Check first few lines
-      const contentCheck = await sandbox.process.executeCommand(`head -n 3 "${workDir}/${filename}"`)
-      console.log('📄 Content preview:', contentCheck)
+      // Method 2: Fallback to base64 with proper piping
+      console.log('🔧 Method 2: Using base64 with proper shell redirection...')
+      const base64Content = Buffer.from(scriptContent, 'utf8').toString('base64')
       
-      // Verify it's valid JavaScript
-      const syntaxCheck = await sandbox.process.executeCommand(`node -c "${workDir}/${filename}"`)
-      console.log('🔍 JavaScript syntax check:', syntaxCheck)
+      // Write base64 to temp file first, then decode
+      const tempFile = `${workDir}/temp_script.b64`
+      await sandbox.process.executeCommand(`echo '${base64Content}' > "${tempFile}"`)
+      await sandbox.process.executeCommand(`base64 -d "${tempFile}" > "${workDir}/${filename}"`)
+      await sandbox.process.executeCommand(`rm -f "${tempFile}"`)
+      
+      const verifyResult2 = await sandbox.process.executeCommand(`ls -la "${workDir}/${filename}"`)
+      console.log('✅ Base64 method result:', verifyResult2)
+      
+      if (verifyResult2.exitCode !== 0) {
+        throw new Error('All file creation methods failed')
+      }
       
     } catch (error) {
       console.error('❌ File upload failed:', error)
