@@ -314,8 +314,8 @@ async function scanWithStrategy(strategy) {
       try {
         console.log(\`🔍 Trying URL: \${url}\`);
         await page.goto(url, { 
-          waitUntil: 'networkidle',
-          timeout: 45000 
+          waitUntil: 'domcontentloaded', // Faster than networkidle
+          timeout: 30000 // Reduced timeout
         });
         
         // Check if page loaded successfully
@@ -397,12 +397,12 @@ async function scanWithStrategy(strategy) {
       throw new Error('No follower elements or usernames found');
     }
     
-    // Extract followers with scrolling (extended timeout allows more scrolling)
+    // Extract followers with scrolling (optimized to avoid Daytona API timeout)
     let followers = [];
-    const maxScrolls = 150; // Increased for more complete extraction
+    const maxScrolls = 50; // Reduced to prevent Daytona API timeout
     let consecutiveEmptyScrolls = 0;
     
-    for (let i = 0; i < maxScrolls && consecutiveEmptyScrolls < 10; i++) {
+    for (let i = 0; i < maxScrolls && consecutiveEmptyScrolls < 5; i++) {
       const newFollowers = await page.evaluate((selector) => {
         const elements = document.querySelectorAll(selector);
         const extracted = [];
@@ -466,9 +466,13 @@ async function scanWithStrategy(strategy) {
         consecutiveEmptyScrolls = 0;
         console.log(\`📜 \${strategy.name} scroll \${i + 1}: found \${uniqueNewFollowers.length} new followers (total: \${followers.length})\`);
         
-        // Continue until we get all followers (no early termination)
-        if (followers.length >= 1000) {
-          console.log(\`✅ Large account detected: Found \${followers.length} followers, continuing to get all\`);
+        // Early termination to prevent Daytona API timeout
+        if (followers.length >= 100) {
+          console.log(\`✅ Good progress: Found \${followers.length} followers, continuing\`);
+        }
+        if (followers.length >= 200) {
+          console.log(\`✅ Substantial result: Found \${followers.length} followers, stopping to avoid timeout\`);
+          break;
         }
       } else {
         consecutiveEmptyScrolls++;
@@ -533,14 +537,14 @@ async function scanTwitterFollowers() {
         bestResult = result;
       }
       
-      // Stop if we get a substantial result (500+ followers) 
-      if (result.followerCount >= 500) {
-        console.log(\`✅ Substantial result found with \${result.followerCount} followers, stopping\`);
+      // Stop if we get a good result (100+ followers) to avoid Daytona timeout
+      if (result.followerCount >= 100) {
+        console.log(\`✅ Good result found with \${result.followerCount} followers, stopping to avoid timeout\`);
         break;
       }
       
       // Continue with other strategies if we don't have enough followers
-      if (result.status === 'success' && result.followerCount < 500) {
+      if (result.status === 'success' && result.followerCount < 100) {
         console.log(\`⚠️ Partial result with \${result.followerCount} followers, trying other strategies for more\`);
       }
       
