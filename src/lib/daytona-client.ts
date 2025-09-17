@@ -264,7 +264,8 @@ const strategies = [
     }
   }
 ];
-  
+
+async function scanWithStrategy(strategy, username, accessToken, accessTokenSecret) {
   if (!username || !accessToken || !accessTokenSecret) {
     throw new Error('Missing required environment variables');
   }
