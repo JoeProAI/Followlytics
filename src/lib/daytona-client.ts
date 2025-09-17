@@ -44,7 +44,7 @@ export class DaytonaSandboxManager {
       console.log('✅ Created NEW sandbox:', sandbox.id)
       return sandbox
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ Sandbox creation failed:', error)
       throw new Error(`Sandbox creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
@@ -74,7 +74,7 @@ export class DaytonaSandboxManager {
       await sandbox.process.executeCommand('npx puppeteer browsers install chrome')
       
       console.log('✅ Sandbox environment setup complete')
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to setup sandbox environment:', error)
       throw new Error(`Environment setup failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
@@ -618,7 +618,7 @@ scanTwitterFollowers()
     try {
       await this.uploadScriptWithFallback(sandbox, scannerScript, 'twitter-scanner.js')
       console.log('✅ Scanner script uploaded successfully')
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ Failed to upload scanner script:', error)
       throw new Error(`Script upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
@@ -647,11 +647,11 @@ scanTwitterFollowers()
       
       // Use computerUse to navigate to Twitter
       console.log('🔍 Using GUI automation to navigate to Twitter...')
-      const result = await this.performGUIFollowerExtraction(sandbox, username, accessToken, accessTokenSecret)
+      const result = await DaytonaSandboxManager.performGUIFollowerExtraction(sandbox, username, accessToken, accessTokenSecret)
       
       return result
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ GUI automation failed:', error)
       throw error
     }
@@ -671,8 +671,8 @@ scanTwitterFollowers()
 
     console.log('🚀 GUI automation completed successfully')
     
-    // Return early - no need for the old browser automation
-    return
+    // This should never be reached due to the return above
+    throw new Error('GUI automation path should have returned already')
 
     // The rest of the old browser automation code is no longer needed
     // GUI automation handles everything above
@@ -741,7 +741,7 @@ scanTwitterFollowers()
       console.log('✅ Scanner execution completed')
       console.log('📊 Scanner output:', result)
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ Scanner execution failed:', error)
       
       // Try to get any partial results
@@ -769,7 +769,7 @@ scanTwitterFollowers()
       
       return scanResult
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ Failed to retrieve scan results:', error)
       
       // Return a fallback result
@@ -819,13 +819,13 @@ scanTwitterFollowers()
         throw new Error(`JavaScript syntax check failed: ${result.result}`)
       }
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ File upload failed:', error)
       throw new Error(`File upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
-  private async performGUIFollowerExtraction(sandbox: any, username: string, accessToken: string, accessTokenSecret: string): Promise<any> {
+  private static async performGUIFollowerExtraction(sandbox: any, username: string, accessToken: string, accessTokenSecret: string): Promise<any> {
     console.log('🖱️ Starting GUI automation for follower extraction...')
     
     try {
@@ -874,7 +874,7 @@ scanTwitterFollowers()
       
       return result
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ GUI automation failed:', error)
       throw new Error(`GUI automation failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
@@ -885,7 +885,7 @@ scanTwitterFollowers()
       console.log('🧹 Cleaning up sandbox:', sandbox.id)
       await sandbox.delete()
       console.log('✅ Sandbox deleted successfully')
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ Sandbox cleanup failed:', error)
       // Don't throw error for cleanup failures
     }
