@@ -635,17 +635,27 @@ scanTwitterFollowers()
     console.log(`📤 Uploading script using Daytona file API...`)
     
     try {
-      // Use Daytona's file upload API with proper path
-      const uploadResponse = await makeDaytonaRequest(
-        `/toolbox/${sandbox.id}/toolbox/files/upload?path=/home/scanner/${filename}`,
-        'POST',
-        {
-          content: scriptContent,
-          mode: '644'
-        }
-      )
+      // First create the directory
+      await sandbox.process.executeCommand('mkdir -p /home/scanner')
       
-      console.log('✅ File uploaded via API:', uploadResponse)
+      // Use Daytona's file upload API - send as form data
+      const formData = new FormData()
+      formData.append('file', new Blob([scriptContent], { type: 'text/javascript' }), filename)
+      
+      const uploadResponse = await fetch(`${process.env.DAYTONA_API_URL}/toolbox/${sandbox.id}/toolbox/files/upload?path=/home/scanner/${filename}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.DAYTONA_API_KEY}`
+        },
+        body: formData
+      })
+      
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`)
+      }
+      
+      const result = await uploadResponse.text()
+      console.log('✅ File uploaded via API:', result)
       
       // Verify the file was created
       const fileCheck = await sandbox.process.executeCommand(`ls -la /home/scanner/${filename}`)
@@ -654,18 +664,34 @@ scanTwitterFollowers()
     } catch (apiError) {
       console.log('❌ API upload failed, trying command line method:', apiError)
       
-      // Fallback to command line method using here document
+      // Fallback to command line method using smaller chunks
       try {
         // Create directory first
         await sandbox.process.executeCommand('mkdir -p /home/scanner')
         
-        // Write file using here document to avoid shell parsing issues
-        const writeCommand = `cat > /home/scanner/${filename} << 'SCRIPT_END'
-${scriptContent}
-SCRIPT_END`
+        // Split script into smaller chunks to avoid command line limits
+        const chunkSize = 1000
+        const chunks = []
+        for (let i = 0; i < scriptContent.length; i += chunkSize) {
+          chunks.push(scriptContent.slice(i, i + chunkSize))
+        }
         
-        const result = await sandbox.process.executeCommand(writeCommand)
-        console.log('✅ File write result:', result)
+        // Create empty file first
+        await sandbox.process.executeCommand(`touch /home/scanner/${filename}`)
+        
+        // Write chunks one by one
+        for (let i = 0; i < chunks.length; i++) {
+          const chunk = chunks[i].replace(/'/g, "'\"'\"'") // Escape single quotes
+          const appendCmd = i === 0 
+            ? `echo '${chunk}' > /home/scanner/${filename}`
+            : `echo '${chunk}' >> /home/scanner/${filename}`
+          
+          await sandbox.process.executeCommand(appendCmd)
+          
+          if (i % 10 === 0) {
+            console.log(`📝 Written chunk ${i + 1}/${chunks.length}`)
+          }
+        }
         
         // Verify the file was created
         const verifyResult = await sandbox.process.executeCommand(`ls -la /home/scanner/${filename}`)
