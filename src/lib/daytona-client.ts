@@ -937,15 +937,19 @@ const puppeteer = require('puppeteer');
       const verifyResult = await sandbox.process.executeCommand('ls -la /tmp/oauth_extract.js')
       console.log('📋 Script verification:', verifyResult.result)
       
-      // Puppeteer is already installed, just run the script
+      // Install puppeteer in /tmp directory
+      console.log('📦 Installing Puppeteer in /tmp...')
+      await sandbox.process.executeCommand('cd /tmp && npm init -y && npm install puppeteer')
+      
+      // Run the script
       console.log('🚀 Executing simple OAuth extraction...')
       const extractResult = await sandbox.process.executeCommand('cd /tmp && node oauth_extract.js')
       
       console.log('📊 Extraction output:', extractResult.result)
       
-      // Read the results
-      const resultFile = await sandbox.fs.readFile('/tmp/followers_result.json')
-      const result = JSON.parse(resultFile)
+      // Read the results using command instead of SDK
+      const resultResponse = await sandbox.process.executeCommand('cat /tmp/followers_result.json')
+      const result = JSON.parse(resultResponse.result || '{}')
       
       console.log('✅ Simple OAuth extraction completed: ' + result.followerCount + ' followers found')
       console.log('📋 Page status was:', result.pageStatus)
