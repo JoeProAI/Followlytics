@@ -928,8 +928,14 @@ const puppeteer = require('puppeteer');
 })().catch(console.error);
 `;
       
-      // Save and execute the simple OAuth script
-      await sandbox.fs.uploadFile('/tmp/oauth_extract.js', oauthScript)
+      // Save and execute the simple OAuth script using command approach (more reliable)
+      console.log('📤 Creating OAuth script via command...')
+      const base64Script = Buffer.from(oauthScript).toString('base64')
+      await sandbox.process.executeCommand(`echo '${base64Script}' | base64 -d > /tmp/oauth_extract.js`)
+      
+      // Verify the script was created
+      const verifyResult = await sandbox.process.executeCommand('ls -la /tmp/oauth_extract.js')
+      console.log('📋 Script verification:', verifyResult.result)
       
       // Puppeteer is already installed, just run the script
       console.log('🚀 Executing simple OAuth extraction...')
