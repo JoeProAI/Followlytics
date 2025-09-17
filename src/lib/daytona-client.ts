@@ -662,9 +662,9 @@ const puppeteer = require('puppeteer');
   const page = await browser.newPage();
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
   
-  // Navigate to followers page
+  // Navigate to followers page (using x.com URL)
   console.log('📍 Navigating to followers page...');
-  await page.goto('https://twitter.com/${username}/followers', { waitUntil: 'networkidle0' });
+  await page.goto('https://x.com/${username}/followers', { waitUntil: 'networkidle0' });
   
   // Inject OAuth tokens
   await page.evaluate((token, secret) => {
@@ -728,8 +728,8 @@ const puppeteer = require('puppeteer');
       window.scrollTo(0, document.body.scrollHeight);
     });
     
-    // Wait for new content (reduced wait time) - using compatible method
-    await page.waitFor(1000);
+    // Wait for new content (reduced wait time) - using setTimeout
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Stop if no new followers for several scrolls
     if (newFollowers.length === 0 && i > 10) {
