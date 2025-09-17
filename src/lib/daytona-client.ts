@@ -683,32 +683,72 @@ const puppeteer = require('puppeteer');
   for (let i = 0; i < maxScrolls; i++) {
     console.log(\`📜 Scroll \${i + 1}/\${maxScrolls}\`);
     
-    // Extract current followers
-    const currentFollowers = await page.evaluate(() => {
-      const elements = document.querySelectorAll('[data-testid="cellInnerDiv"], [data-testid="UserCell"]');
+    // Extract current followers with proper filtering
+    const currentFollowers = await page.evaluate((targetUsername) => {
+      const elements = document.querySelectorAll('[data-testid="UserCell"]');
       const extracted = [];
       
-      elements.forEach(element => {
-        const links = element.querySelectorAll('a[href*="/"]');
-        links.forEach(link => {
+      console.log(\`🔍 Found \${elements.length} UserCell elements\`);
+      
+      elements.forEach((element, index) => {
+        // Look for profile links specifically
+        const profileLinks = element.querySelectorAll('a[href*="/"][href$=""]');
+        
+        profileLinks.forEach(link => {
           if (link.href) {
-            const match = link.href.match(/(?:twitter\\.com|x\\.com)\\/([^/?#]+)/);
-            if (match && match[1] && 
-                match[1] !== 'home' && 
-                match[1] !== 'explore' && 
-                match[1] !== 'i' &&
-                match[1].length > 1) {
-              extracted.push({
-                username: match[1],
-                displayName: link.textContent?.trim() || match[1]
-              });
+            // Match profile URLs that end with just the username (not status, photo, etc.)
+            const match = link.href.match(/(?:x\\.com|twitter\\.com)\\/([^/?#]+)$/);
+            if (match && match[1]) {
+              const username = match[1];
+              
+              // Filter out the target user and common non-user pages
+              if (username !== targetUsername && 
+                  username !== 'home' && 
+                  username !== 'explore' && 
+                  username !== 'i' &&
+                  username !== 'messages' &&
+                  username !== 'notifications' &&
+                  username !== 'search' &&
+                  username.length > 1 &&
+                  !username.includes('status') &&
+                  !username.includes('photo') &&
+                  !username.includes('hashtag')) {
+                
+                // Get display name from the element
+                let displayName = username;
+                
+                // Look for the display name in span elements
+                const nameSpans = element.querySelectorAll('span');
+                for (const span of nameSpans) {
+                  const spanText = span.textContent?.trim();
+                  if (spanText && 
+                      spanText.length > 0 && 
+                      spanText.length < 50 && 
+                      !spanText.includes('@') && 
+                      !spanText.includes('http') &&
+                      spanText !== username &&
+                      !spanText.includes('Follow') &&
+                      !spanText.includes('Following')) {
+                    displayName = spanText;
+                    break;
+                  }
+                }
+                
+                extracted.push({
+                  username: username,
+                  displayName: displayName
+                });
+                
+                console.log(\`✅ Found follower: @\${username} (\${displayName})\`);
+              }
             }
           }
         });
       });
       
+      console.log(\`📊 Extracted \${extracted.length} followers from this scroll\`);
       return extracted;
-    });
+    }, '${username}');
     
     // Add unique followers
     const existingUsernames = new Set(followers.map(f => f.username));
