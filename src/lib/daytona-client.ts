@@ -624,16 +624,16 @@ scanTwitterFollowers()
       throw new Error(`Script upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
 
-    console.log('🚀 Starting REAL GUI automation with Twitter login for @' + username)
-    console.log('🖥️ Setting up desktop environment for human-like interaction...')
+    console.log('🔐 Starting SIMPLE OAuth authentication for @' + username)
+    console.log('⚡ Using lightweight approach - no GUI complexity...')
     
     try {
-      // Use Daytona's computerUse for REAL GUI automation
-      const result = await DaytonaSandboxManager.performRealGUIFollowerExtraction(sandbox, username, accessToken, accessTokenSecret)
+      // Use simple OAuth + headless browser approach
+      const result = await DaytonaSandboxManager.performSimpleOAuthExtraction(sandbox, username, accessToken, accessTokenSecret)
       return result
       
     } catch (error: unknown) {
-      console.error('❌ GUI automation failed:', error)
+      console.error('❌ OAuth extraction failed:', error)
       throw error
     }
 
@@ -807,128 +807,133 @@ scanTwitterFollowers()
     }
   }
 
-  private static async performRealGUIFollowerExtraction(sandbox: any, username: string, accessToken: string, accessTokenSecret: string): Promise<any> {
-    console.log('🖥️ Starting REAL GUI automation with Twitter login...')
+  private static async performSimpleOAuthExtraction(sandbox: any, username: string, accessToken: string, accessTokenSecret: string): Promise<any> {
+    console.log('🔐 Starting OAuth-first Twitter extraction (no heavy GUI setup)...')
     
     try {
-      // Step 1: Setup desktop environment with optimized commands
-      console.log('🖥️ Setting up virtual desktop...')
-      await sandbox.process.executeCommand('export DISPLAY=:99 && Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset &')
-      await sandbox.process.executeCommand('sleep 3')
+      // Skip heavy GUI setup - use lightweight OAuth approach
+      console.log('⚡ Using lightweight OAuth authentication approach...')
       
-      // Step 2: Install GUI tools in one command for speed
-      console.log('📦 Installing GUI tools...')
-      await sandbox.process.executeCommand('apt-get update -qq && apt-get install -y -qq firefox-esr xvfb x11-utils imagemagick xdotool')
-      
-      // Step 3: Start Firefox with specific profile for automation
-      console.log('🌐 Starting Firefox...')
-      await sandbox.process.executeCommand('export DISPLAY=:99 && firefox-esr --new-instance --no-remote --profile /tmp/firefox-profile &')
-      await sandbox.process.executeCommand('sleep 5')
-      
-      // Step 4: Take initial screenshot
-      await sandbox.process.executeCommand('export DISPLAY=:99 && import -window root /tmp/desktop_start.png')
-      
-      // Step 5: Navigate to Twitter and login using OAuth
-      console.log('🔐 Navigating to Twitter with OAuth authentication...')
-      
-      // Create a script that uses OAuth tokens to authenticate and extract followers
-      const authScript = `
+      // Create a SIMPLE script that just uses OAuth tokens with headless Puppeteer
+      const oauthScript = `
 const puppeteer = require('puppeteer');
 
 (async () => {
-  console.log('🚀 Starting authenticated Twitter extraction...');
+  console.log('🔐 Starting SIMPLE OAuth Twitter extraction...');
   
+  // Use headless Puppeteer (already installed, no GUI setup needed)
   const browser = await puppeteer.launch({
-    headless: false,
-    executablePath: '/usr/bin/firefox-esr',
-    args: ['--display=:99', '--no-sandbox', '--disable-setuid-sandbox']
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage'
+    ]
   });
   
   const page = await browser.newPage();
   
-  // Set OAuth tokens in browser storage
-  await page.evaluateOnNewDocument(() => {
-    localStorage.setItem('twitter_oauth_token', '${accessToken}');
-    localStorage.setItem('twitter_oauth_token_secret', '${accessTokenSecret}');
+  // Set realistic user agent
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+  
+  // Navigate to Twitter first to establish domain
+  console.log('🌐 Establishing Twitter domain context...');
+  await page.goto('https://twitter.com', { waitUntil: 'domcontentloaded' });
+  
+  // Inject OAuth tokens
+  console.log('🔑 Injecting OAuth tokens...');
+  await page.evaluate((token, secret) => {
+    localStorage.setItem('twitter_oauth_token', token);
+    localStorage.setItem('twitter_oauth_token_secret', secret);
+    localStorage.setItem('oauth_token', token);
+    localStorage.setItem('oauth_token_secret', secret);
+    console.log('✅ OAuth tokens injected');
+  }, '${accessToken}', '${accessTokenSecret}');
+  
+  // Navigate directly to followers page
+  console.log('📍 Navigating to followers page with OAuth...');
+  await page.goto('https://twitter.com/${username}/followers', { 
+    waitUntil: 'domcontentloaded',
+    timeout: 30000 
   });
   
-  // Navigate to followers page directly with authentication
-  console.log('📍 Navigating to followers page...');
-  await page.goto('https://twitter.com/${username}/followers', { waitUntil: 'networkidle2' });
+  // Wait and check page status
+  await page.waitForTimeout(3000);
   
-  // Wait for page to load
-  await page.waitForTimeout(5000);
+  const pageStatus = await page.evaluate(() => ({
+    title: document.title,
+    hasLogin: !!document.querySelector('input[name="session[username_or_email]"]'),
+    hasFollowers: !!document.querySelector('[data-testid="UserCell"]'),
+    bodyText: document.body.innerText.substring(0, 300)
+  }));
   
-  // Extract followers by scrolling and collecting
-  console.log('📜 Scrolling and extracting followers...');
+  console.log('📋 Page status:', pageStatus);
+  
+  // Extract followers (even if limited)
   const followers = [];
   
-  for (let i = 0; i < 10; i++) {
-    // Scroll down
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.waitForTimeout(2000);
+  try {
+    // Wait for any follower elements
+    await page.waitForSelector('[data-testid="UserCell"], [data-testid="cellInnerDiv"]', { timeout: 10000 });
     
-    // Extract visible followers
-    const newFollowers = await page.evaluate(() => {
-      const followerElements = document.querySelectorAll('[data-testid="UserCell"]');
-      const extracted = [];
+    console.log('📜 Extracting visible followers...');
+    const extractedFollowers = await page.evaluate(() => {
+      const elements = document.querySelectorAll('[data-testid="UserCell"], [data-testid="cellInnerDiv"]');
+      const results = [];
       
-      followerElements.forEach(element => {
-        const usernameElement = element.querySelector('[data-testid="UserName"] a');
-        const displayNameElement = element.querySelector('[data-testid="UserName"] span');
-        
-        if (usernameElement && displayNameElement) {
-          const username = usernameElement.href.split('/').pop();
-          const displayName = displayNameElement.textContent;
+      elements.forEach(element => {
+        try {
+          const usernameLink = element.querySelector('a[href*="/"]');
+          const nameSpan = element.querySelector('span[dir="ltr"]');
           
-          if (username && displayName) {
-            extracted.push({ username, displayName });
+          if (usernameLink && usernameLink.href) {
+            const match = usernameLink.href.match(/(?:twitter\\.com|x\\.com)\\/([^/?#]+)/);
+            if (match && match[1] && match[1] !== 'home' && match[1] !== 'explore') {
+              results.push({
+                username: match[1],
+                displayName: nameSpan ? nameSpan.textContent.trim() : match[1]
+              });
+            }
           }
+        } catch (e) {
+          // Skip problematic elements
         }
       });
       
-      return extracted;
+      return results;
     });
     
-    followers.push(...newFollowers);
-    console.log(\`📊 Extracted \${followers.length} followers so far...\`);
+    followers.push(...extractedFollowers);
+    console.log(\`✅ Extracted \${followers.length} followers\`);
     
-    if (followers.length > 50) break; // Stop at reasonable number for testing
+  } catch (e) {
+    console.log('⚠️ No follower elements found, checking for login requirement...');
   }
-  
-  // Remove duplicates
-  const uniqueFollowers = followers.filter((follower, index, self) => 
-    index === self.findIndex(f => f.username === follower.username)
-  );
-  
-  console.log(\`✅ Final extraction: \${uniqueFollowers.length} unique followers\`);
   
   // Save results
   const result = {
-    followers: uniqueFollowers,
-    followerCount: uniqueFollowers.length,
+    followers: followers,
+    followerCount: followers.length,
     scanDate: new Date().toISOString(),
-    status: 'gui_success',
+    status: followers.length > 0 ? 'oauth_success' : 'needs_login',
     username: '${username}',
-    strategy: 'Real-GUI-Automation'
+    strategy: 'Simple-OAuth',
+    pageStatus: pageStatus
   };
   
   require('fs').writeFileSync('/tmp/followers_result.json', JSON.stringify(result, null, 2));
   
   await browser.close();
-  console.log('🎯 GUI extraction completed successfully!');
+  console.log('🎯 Simple OAuth extraction completed!');
 })().catch(console.error);
 `;
       
-      // Save and execute the authentication script
-      await sandbox.fs.uploadFile('/tmp/auth_extract.js', authScript)
+      // Save and execute the simple OAuth script
+      await sandbox.fs.uploadFile('/tmp/oauth_extract.js', oauthScript)
       
-      // Install puppeteer and run the script
-      console.log('📦 Installing Puppeteer...')
-      await sandbox.process.executeCommand('cd /tmp && npm init -y && npm install puppeteer')
-      
-      console.log('🚀 Executing authenticated extraction...')
-      const extractResult = await sandbox.process.executeCommand('cd /tmp && export DISPLAY=:99 && node auth_extract.js')
+      // Puppeteer is already installed, just run the script
+      console.log('🚀 Executing simple OAuth extraction...')
+      const extractResult = await sandbox.process.executeCommand('cd /tmp && node oauth_extract.js')
       
       console.log('📊 Extraction output:', extractResult.result)
       
@@ -936,7 +941,8 @@ const puppeteer = require('puppeteer');
       const resultFile = await sandbox.fs.readFile('/tmp/followers_result.json')
       const result = JSON.parse(resultFile)
       
-      console.log('✅ GUI extraction completed: ' + result.followerCount + ' followers found')
+      console.log('✅ Simple OAuth extraction completed: ' + result.followerCount + ' followers found')
+      console.log('📋 Page status was:', result.pageStatus)
       
       return result
       
