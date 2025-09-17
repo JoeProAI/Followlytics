@@ -391,7 +391,15 @@ async function scanWithStrategy(strategy) {
           username: username,
           strategy: strategy.name,
           note: 'Extracted via text analysis'
-          try {
+        };
+      }
+
+      // Extract followers using DOM parsing
+      const followers = [];
+      const followerElements = await page.$$('[data-testid="UserCell"]');
+      
+      for (const element of followerElements) {
+        try {
             let username = null;
             let displayName = null;
             
