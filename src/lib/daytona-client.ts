@@ -683,6 +683,43 @@ const puppeteer = require('puppeteer');
   for (let i = 0; i < maxScrolls; i++) {
     console.log(\`📜 Scroll \${i + 1}/\${maxScrolls}\`);
     
+    // Take screenshot to see what's on the page
+    const screenshotPath = \`/tmp/screenshot_scroll_\${i + 1}.png\`;
+    await page.screenshot({ 
+      path: screenshotPath, 
+      fullPage: false,
+      clip: { x: 0, y: 0, width: 1200, height: 800 }
+    });
+    console.log(\`📸 Screenshot saved: \${screenshotPath}\`);
+    
+    // Debug: Check what elements are actually on the page
+    const pageDebug = await page.evaluate(() => {
+      const userCells = document.querySelectorAll('[data-testid="UserCell"]');
+      const cellInnerDivs = document.querySelectorAll('[data-testid="cellInnerDiv"]');
+      const allLinks = document.querySelectorAll('a[href*="/"]');
+      const profileLinks = [];
+      
+      allLinks.forEach(link => {
+        if (link.href && (link.href.includes('x.com/') || link.href.includes('twitter.com/'))) {
+          profileLinks.push({
+            href: link.href,
+            text: link.textContent?.trim()
+          });
+        }
+      });
+      
+      return {
+        userCells: userCells.length,
+        cellInnerDivs: cellInnerDivs.length,
+        totalLinks: allLinks.length,
+        profileLinks: profileLinks.slice(0, 10), // First 10 profile links
+        pageTitle: document.title,
+        currentUrl: window.location.href
+      };
+    });
+    
+    console.log(\`🔍 Page debug info:\`, JSON.stringify(pageDebug, null, 2));
+    
     // Extract current followers with proper filtering
     const currentFollowers = await page.evaluate((targetUsername) => {
       const elements = document.querySelectorAll('[data-testid="UserCell"]');
@@ -778,21 +815,38 @@ const puppeteer = require('puppeteer');
     }
   }
   
-  console.log(\`✅ Final result: \${followers.length} followers extracted\`);
+  console.log(\`📈 Final result: \${followers.length} followers extracted\`);
   
-  // Save results
+  // List all screenshots taken
+  const screenshotList = [];
+  for (let i = 1; i <= maxScrolls; i++) {
+    const screenshotPath = \`/tmp/screenshot_scroll_\${i}.png\`;
+    try {
+      const fs = require('fs');
+      if (fs.existsSync(screenshotPath)) {
+        screenshotList.push(screenshotPath);
+      }
+    } catch (e) {
+      // Screenshot doesn't exist, skip
+    }
+  }
+  
+  // Save results with screenshot info
   const result = {
     followers: followers,
     followerCount: followers.length,
     scanDate: new Date().toISOString(),
     status: followers.length > 0 ? 'success' : 'failed',
     username: '${username}',
-    strategy: 'Simple-Aggressive-Scroll'
+    strategy: 'Simple-Aggressive-Scroll-Background-With-Screenshots',
+    screenshots: screenshotList,
+    totalScreenshots: screenshotList.length
   };
   
   require('fs').writeFileSync('/tmp/followers_result.json', JSON.stringify(result, null, 2));
   
   await browser.close();
+  console.log(' Simple scroll extraction completed!');
   console.log('🎯 Simple scroll extraction completed!');
 })().catch(console.error);
 `;
