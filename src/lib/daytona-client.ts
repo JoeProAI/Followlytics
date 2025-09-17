@@ -778,6 +778,116 @@ const puppeteer = require('puppeteer');
       
       console.log('✅ Simple scroll completed:', scanResult.followerCount, 'followers')
       
+      // Add API verification of actual follower count
+      try {
+        console.log('🔍 Verifying actual follower count via Twitter API...')
+        const verificationScript = `
+const https = require('https');
+const crypto = require('crypto');
+
+// OAuth 1.0a signature generation
+function generateOAuthSignature(method, url, params, consumerSecret, tokenSecret) {
+  const sortedParams = Object.keys(params).sort().map(key => \`\${key}=\${encodeURIComponent(params[key])}\`).join('&');
+  const baseString = \`\${method}&\${encodeURIComponent(url)}&\${encodeURIComponent(sortedParams)}\`;
+  const signingKey = \`\${encodeURIComponent(consumerSecret)}&\${encodeURIComponent(tokenSecret || '')}\`;
+  return crypto.createHmac('sha1', signingKey).update(baseString).digest('base64');
+}
+
+async function verifyFollowerCount() {
+  const consumerKey = 'rR0QYeVEdOabCthwyQ2vxy7ra';
+  const consumerSecret = 'yhgT1ayY84BrQ9jg4isLJxPt7GCXWd9lTnxjCleD7HcMyWciRi';
+  const accessToken = '${accessToken}';
+  const accessTokenSecret = '${accessTokenSecret}';
+  
+  const method = 'GET';
+  const url = 'https://api.twitter.com/1.1/users/show.json';
+  
+  const oauthParams = {
+    oauth_consumer_key: consumerKey,
+    oauth_token: accessToken,
+    oauth_signature_method: 'HMAC-SHA1',
+    oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
+    oauth_nonce: crypto.randomBytes(16).toString('hex'),
+    oauth_version: '1.0',
+    screen_name: '${username}'
+  };
+  
+  const signature = generateOAuthSignature(method, url, oauthParams, consumerSecret, accessTokenSecret);
+  oauthParams.oauth_signature = signature;
+  
+  const authHeader = 'OAuth ' + Object.keys(oauthParams)
+    .map(key => \`\${key}="\${encodeURIComponent(oauthParams[key])}"\`)
+    .join(', ');
+  
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'api.twitter.com',
+      path: \`/1.1/users/show.json?screen_name=\${username}\`,
+      method: 'GET',
+      headers: {
+        'Authorization': authHeader,
+        'User-Agent': 'Followlytics/1.0'
+      }
+    };
+    
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const user = JSON.parse(data);
+          console.log(\`📊 API Verification - Actual follower count: \${user.followers_count}\`);
+          resolve(user.followers_count);
+        } catch (e) {
+          console.log('❌ API verification failed:', data);
+          resolve(null);
+        }
+      });
+    });
+    
+    req.on('error', (e) => {
+      console.log('❌ API request failed:', e.message);
+      resolve(null);
+    });
+    
+    req.end();
+  });
+}
+
+verifyFollowerCount().then(count => {
+  if (count) {
+    console.log(\`✅ Twitter API confirms: \${count} actual followers\`);
+    require('fs').writeFileSync('/tmp/api_verification.json', JSON.stringify({
+      actualFollowerCount: count,
+      verificationDate: new Date().toISOString()
+    }));
+  }
+}).catch(console.error);
+`;
+
+        // Run verification
+        const verificationBase64 = Buffer.from(verificationScript).toString('base64')
+        await sandbox.process.executeCommand(`echo '${verificationBase64}' | base64 -d > /tmp/verify_count.js`)
+        await sandbox.process.executeCommand('cd /tmp && node verify_count.js')
+        
+        // Get verification results
+        const verificationResponse = await sandbox.process.executeCommand('cat /tmp/api_verification.json 2>/dev/null || echo "{}"')
+        const verification = JSON.parse(verificationResponse.result || '{}')
+        
+        if (verification.actualFollowerCount) {
+          scanResult.apiVerification = {
+            actualFollowerCount: verification.actualFollowerCount,
+            extractedCount: scanResult.followerCount,
+            accuracy: Math.round((scanResult.followerCount / verification.actualFollowerCount) * 100),
+            verificationDate: verification.verificationDate
+          }
+          console.log(`🎯 VERIFICATION: Extracted ${scanResult.followerCount} out of ${verification.actualFollowerCount} actual followers (${scanResult.apiVerification.accuracy}% accuracy)`)
+        }
+        
+      } catch (verificationError) {
+        console.log('⚠️ API verification failed, but extraction succeeded:', verificationError)
+      }
+      
       return scanResult
       
     } catch (error: unknown) {
