@@ -480,7 +480,7 @@ async function scanWithStrategy(strategy) {
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
       await page.waitForTimeout(1000); // Reduced wait time for faster scrolling
     }
-    
+  }
     console.log(\`✅ \${strategy.name} completed: \${followers.length} followers found\`);
     
     return {
