@@ -677,7 +677,7 @@ const puppeteer = require('puppeteer');
   
   console.log('📜 Starting aggressive scrolling for 800+ followers...');
   const followers = [];
-  const maxScrolls = 50; // Much more aggressive scrolling
+  const maxScrolls = 30; // Reduced to avoid timeouts but still aggressive
   
   for (let i = 0; i < maxScrolls; i++) {
     console.log(\`📜 Scroll \${i + 1}/\${maxScrolls}\`);
@@ -727,8 +727,8 @@ const puppeteer = require('puppeteer');
       window.scrollTo(0, document.body.scrollHeight);
     });
     
-    // Wait for new content
-    await page.waitForTimeout(1500);
+    // Wait for new content (reduced wait time)
+    await page.waitForTimeout(1000);
     
     // Stop if no new followers for several scrolls
     if (newFollowers.length === 0 && i > 10) {
@@ -762,13 +762,13 @@ const puppeteer = require('puppeteer');
       const base64Script = Buffer.from(simpleScrollScript).toString('base64')
       await sandbox.process.executeCommand(`echo '${base64Script}' | base64 -d > /tmp/simple_scroll.js`)
       
-      // Install puppeteer quickly (with no timeout)
-      console.log('📦 Installing Puppeteer (no timeout)...')
-      await sandbox.process.executeCommand('cd /tmp && npm init -y && npm install puppeteer', { timeout: 0 })
+      // Install puppeteer quickly (with extended timeout)
+      console.log('📦 Installing Puppeteer (extended timeout)...')
+      await sandbox.process.executeCommand('cd /tmp && npm init -y && npm install puppeteer')
       
-      // Run the simple script (with no timeout)
-      console.log('🚀 Running simple scroll extraction (no timeout)...')
-      const result = await sandbox.process.executeCommand('cd /tmp && node simple_scroll.js', { timeout: 0 })
+      // Run the simple script (with extended timeout)
+      console.log('🚀 Running simple scroll extraction (extended timeout)...')
+      const result = await sandbox.process.executeCommand('cd /tmp && node simple_scroll.js')
       
       console.log('📊 Simple script output:', result.result)
       
@@ -865,10 +865,10 @@ verifyFollowerCount().then(count => {
 }).catch(console.error);
 `;
 
-        // Run verification (with no timeout)
+        // Run verification (with extended timeout)
         const verificationBase64 = Buffer.from(verificationScript).toString('base64')
         await sandbox.process.executeCommand(`echo '${verificationBase64}' | base64 -d > /tmp/verify_count.js`)
-        await sandbox.process.executeCommand('cd /tmp && node verify_count.js', { timeout: 0 })
+        await sandbox.process.executeCommand('cd /tmp && node verify_count.js')
         
         // Get verification results
         const verificationResponse = await sandbox.process.executeCommand('cat /tmp/api_verification.json 2>/dev/null || echo "{}"')
