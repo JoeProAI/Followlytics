@@ -388,12 +388,12 @@ async function scanWithStrategy(strategy) {
       throw new Error('No follower elements or usernames found');
     }
     
-    // Extract followers with scrolling (reduced for faster execution)
+    // Extract followers with scrolling (increased for complete extraction)
     let followers = [];
-    const maxScrolls = 20; // Reduced from 100 to 20 for faster execution
+    const maxScrolls = 200; // Increased to get all followers
     let consecutiveEmptyScrolls = 0;
     
-    for (let i = 0; i < maxScrolls && consecutiveEmptyScrolls < 5; i++) {
+    for (let i = 0; i < maxScrolls && consecutiveEmptyScrolls < 10; i++) {
       const newFollowers = await page.evaluate((selector) => {
         const elements = document.querySelectorAll(selector);
         const extracted = [];
@@ -403,23 +403,42 @@ async function scanWithStrategy(strategy) {
             let username = null;
             let displayName = null;
             
-            // Extract username from links
-            const usernameLink = element.querySelector('a[href*="/"]');
-            if (usernameLink && usernameLink.href) {
-              const match = usernameLink.href.match(/(?:twitter\\.com|x\\.com)\\/([^/?]+)/);
-              if (match && match[1] !== 'home' && match[1] !== 'explore') {
-                username = match[1];
+            // Extract username from links with better parsing
+            const usernameLinks = element.querySelectorAll('a[href*="/"]');
+            for (const link of usernameLinks) {
+              if (link.href) {
+                const match = link.href.match(/(?:twitter\\.com|x\\.com)\\/([^/?#]+)/);
+                if (match && match[1] && 
+                    match[1] !== 'home' && 
+                    match[1] !== 'explore' && 
+                    match[1] !== 'i' && 
+                    match[1] !== 'search' &&
+                    !match[1].includes('status') &&
+                    match[1].length > 1) {
+                  username = match[1];
+                  break;
+                }
               }
             }
             
-            // Extract display name
-            const nameElement = element.querySelector('[dir="ltr"]') || 
-                              element.querySelector('span');
-            if (nameElement) {
-              displayName = nameElement.textContent?.trim();
+            // Extract display name from multiple possible locations
+            const nameSelectors = [
+              '[data-testid="UserName"] span',
+              '[dir="ltr"] span',
+              '.css-1jxf684',
+              'span[style*="font-weight"]'
+            ];
+            
+            for (const selector of nameSelectors) {
+              const nameElement = element.querySelector(selector);
+              if (nameElement && nameElement.textContent?.trim()) {
+                displayName = nameElement.textContent.trim();
+                break;
+              }
             }
             
-            if (username && username.length > 0) {
+            // Only add if we have a valid, unique username
+            if (username && username.length > 1 && username !== process.env.TWITTER_USERNAME) {
               extracted.push({ username, displayName: displayName || username });
             }
           } catch (error) {
@@ -438,10 +457,9 @@ async function scanWithStrategy(strategy) {
         consecutiveEmptyScrolls = 0;
         console.log(\`📜 \${strategy.name} scroll \${i + 1}: found \${uniqueNewFollowers.length} new followers (total: \${followers.length})\`);
         
-        // Early termination if we have enough followers
-        if (followers.length >= 50) {
-          console.log(\`✅ Early termination: Found \${followers.length} followers, stopping for faster execution\`);
-          break;
+        // Continue until we get all followers (no early termination)
+        if (followers.length >= 1000) {
+          console.log(\`✅ Large account detected: Found \${followers.length} followers, continuing to get all\`);
         }
       } else {
         consecutiveEmptyScrolls++;
@@ -506,16 +524,15 @@ async function scanTwitterFollowers() {
         bestResult = result;
       }
       
-      // If we get a good result, we can stop early
-      if (result.followerCount > 10) {
-        console.log(\`✅ Good result found with \${result.followerCount} followers, stopping early\`);
+      // Only stop if we get a substantial result (800+ followers)
+      if (result.followerCount >= 800) {
+        console.log(\`✅ Complete result found with \${result.followerCount} followers, stopping\`);
         break;
       }
       
-      // Also break if we get any successful result to save time
-      if (result.status === 'success' && result.followerCount > 0) {
-        console.log(\`✅ Successful result found with \${result.followerCount} followers, stopping for faster execution\`);
-        break;
+      // Continue with other strategies if we don't have enough followers
+      if (result.status === 'success' && result.followerCount < 800) {
+        console.log(\`⚠️ Partial result with \${result.followerCount} followers, trying other strategies for more\`);
       }
       
     } catch (error) {
@@ -608,8 +625,8 @@ scanTwitterFollowers()
 
     console.log('🚀 Executing multi-browser Twitter scanner...')
     
-    // Execute the scanner with timeout (reduced for Vercel limits)
-    const timeoutMs = 4 * 60 * 1000 // 4 minutes (within Vercel's 5-minute limit)
+    // Execute the scanner with timeout (increased for complete extraction)
+    const timeoutMs = 8 * 60 * 1000 // 8 minutes for full follower extraction
     const startTime = Date.now()
     let result: any
     
