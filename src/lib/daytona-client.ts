@@ -50,30 +50,37 @@ export class DaytonaSandboxManager {
     
     try {
       // Create a fresh new sandbox each time
-      const createPayload = {
-        name: config.name,
-        repository: config.repository || 'https://github.com/microsoft/vscode-dev-containers',
-        image: config.image || 'node:18'
+      const sandboxName = `follower-scan-${crypto.randomUUID()}`
+      
+      console.log('Creating Daytona sandbox with volume...')
+      
+      const sandboxConfig = {
+        name: sandboxName,
+        repository: 'https://github.com/microsoft/vscode-dev-containers',
+        image: 'node:18',
+        volumes: [
+          {
+            name: 'scanner-volume',
+            hostPath: '/tmp/scanner-host',
+            containerPath: '/scanner',
+            readOnly: false
+          }
+        ]
       }
       
-      console.log('Creating new sandbox:', createPayload)
-      const sandbox = await makeDaytonaRequest('/sandbox', 'POST', createPayload)
+      console.log('Creating NEW Daytona sandbox with volume config:', sandboxConfig)
       
-      // Add the process.executeCommand method to the sandbox object
-      sandbox.process = {
-        executeCommand: async (command: string) => {
-          console.log(`Executing command in sandbox ${sandbox.id}: ${command}`)
-          const result = await makeDaytonaRequest(`/toolbox/${sandbox.id}/toolbox/process/execute`, 'POST', {
-            command: command
-          })
-          return result
-        }
+      const response = await makeDaytonaRequest('/sandbox', 'POST', sandboxConfig)
+      
+      if (!response || !response.id) {
+        throw new Error('Failed to create sandbox - no ID returned')
       }
       
-      console.log('✅ Created NEW sandbox:', sandbox.id)
-      return sandbox
+      console.log('✅ Created NEW sandbox with volume:', response.id)
+      return response
+      
     } catch (error) {
-      console.error('❌ Failed to create sandbox:', error)
+      console.error('❌ Sandbox creation failed:', error)
       throw new Error(`Sandbox creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
@@ -569,23 +576,23 @@ scanTwitterFollowers()
     let result: any
     
     try {
-      // Use the same simple working directory
-      const workDir = '/tmp/scanner'
+      // Use the mounted volume directory
+      const volumeDir = '/scanner'
       
       // Check files before execution
-      const dirCheck = await sandbox.process.executeCommand(`ls -la "${workDir}/"`)
-      console.log('📂 Directory listing:', dirCheck)
+      const dirCheck = await sandbox.process.executeCommand(`ls -la "${volumeDir}/"`)
+      console.log('📂 Volume directory listing:', dirCheck)
       
-      const fileCheck = await sandbox.process.executeCommand(`ls -la "${workDir}/twitter-scanner.js"`)
+      const fileCheck = await sandbox.process.executeCommand(`ls -la "${volumeDir}/twitter-scanner.js"`)
       console.log('📄 Script file check:', fileCheck)
       
-      const contentCheck = await sandbox.process.executeCommand(`head -n 5 "${workDir}/twitter-scanner.js"`)
+      const contentCheck = await sandbox.process.executeCommand(`head -n 5 "${volumeDir}/twitter-scanner.js"`)
       console.log('📄 File content preview:', contentCheck)
       
-      // Execute the scanner with timeout from the working directory
-      console.log('🚀 Starting Twitter scanner execution...')
+      // Execute the scanner with timeout from the volume directory
+      console.log('🚀 Starting Twitter scanner execution from mounted volume...')
       result = await Promise.race([
-        sandbox.process.executeCommand(`cd "${workDir}" && node twitter-scanner.js`),
+        sandbox.process.executeCommand(`cd "${volumeDir}" && node twitter-scanner.js`),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Scanner execution timeout')), timeoutMs)
         )
@@ -636,75 +643,68 @@ scanTwitterFollowers()
     }
   }
 
-  // Simple and reliable script upload using direct file creation
+  // Upload script using mounted volume - much more reliable!
   private static async uploadScriptWithFallback(sandbox: any, scriptContent: string, filename: string): Promise<void> {
-    console.log(`📤 Uploading script using direct file creation...`)
+    console.log(`📤 Uploading script using mounted volume...`)
     
     try {
-      // Use a simple, reliable working directory
-      const workDir = '/tmp/scanner'
+      // Use the mounted volume directory
+      const volumeDir = '/scanner'
       
-      console.log('📁 Creating working directory:', workDir)
-      await sandbox.process.executeCommand(`mkdir -p "${workDir}"`)
+      console.log('📁 Using mounted volume directory:', volumeDir)
       
-      // Try multiple approaches to create the file
-      console.log('📄 Attempting file creation with multiple methods...')
-      
-      // Method 1: Use Node.js to write the file
-      console.log('🔧 Method 1: Using Node.js fs.writeFileSync...')
+      // Write the script directly to the mounted volume using Node.js
+      console.log('📄 Writing script to mounted volume...')
       const nodeWriteCommand = `node -e "
         const fs = require('fs');
+        const path = require('path');
+        
+        // Ensure directory exists
+        const dir = '${volumeDir}';
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        
+        // Write the script content
         const content = ${JSON.stringify(scriptContent)};
-        fs.writeFileSync('${workDir}/${filename}', content, 'utf8');
-        console.log('File written successfully');
+        const filePath = path.join(dir, '${filename}');
+        fs.writeFileSync(filePath, content, 'utf8');
+        
+        console.log('File written successfully to:', filePath);
+        console.log('File size:', fs.statSync(filePath).size, 'bytes');
       "`
       
-      const nodeResult = await sandbox.process.executeCommand(nodeWriteCommand)
-      console.log('📝 Node.js write result:', nodeResult)
+      const writeResult = await sandbox.process.executeCommand(nodeWriteCommand)
+      console.log('📝 Volume write result:', writeResult)
       
-      // Verify the file was created
-      const verifyResult = await sandbox.process.executeCommand(`ls -la "${workDir}/${filename}"`)
+      // Verify the file was created in the volume
+      const verifyResult = await sandbox.process.executeCommand(`ls -la "${volumeDir}/${filename}"`)
       console.log('✅ File verification:', verifyResult)
       
       if (verifyResult.exitCode === 0) {
         // Check file size
-        const sizeResult = await sandbox.process.executeCommand(`wc -c "${workDir}/${filename}"`)
+        const sizeResult = await sandbox.process.executeCommand(`wc -c "${volumeDir}/${filename}"`)
         console.log('📄 File size check:', sizeResult)
         
         // Check first few lines
-        const contentCheck = await sandbox.process.executeCommand(`head -n 3 "${workDir}/${filename}"`)
+        const contentCheck = await sandbox.process.executeCommand(`head -n 3 "${volumeDir}/${filename}"`)
         console.log('📄 Content preview:', contentCheck)
         
         // Verify it's valid JavaScript
-        const syntaxCheck = await sandbox.process.executeCommand(`node -c "${workDir}/${filename}"`)
+        const syntaxCheck = await sandbox.process.executeCommand(`node -c "${volumeDir}/${filename}"`)
         console.log('🔍 JavaScript syntax check:', syntaxCheck)
         
         if (syntaxCheck.exitCode === 0) {
-          console.log('✅ File created successfully with Node.js method!')
+          console.log('✅ File created successfully in mounted volume!')
           return
         }
       }
       
-      // Method 2: Fallback to base64 with proper piping
-      console.log('🔧 Method 2: Using base64 with proper shell redirection...')
-      const base64Content = Buffer.from(scriptContent, 'utf8').toString('base64')
-      
-      // Write base64 to temp file first, then decode
-      const tempFile = `${workDir}/temp_script.b64`
-      await sandbox.process.executeCommand(`echo '${base64Content}' > "${tempFile}"`)
-      await sandbox.process.executeCommand(`base64 -d "${tempFile}" > "${workDir}/${filename}"`)
-      await sandbox.process.executeCommand(`rm -f "${tempFile}"`)
-      
-      const verifyResult2 = await sandbox.process.executeCommand(`ls -la "${workDir}/${filename}"`)
-      console.log('✅ Base64 method result:', verifyResult2)
-      
-      if (verifyResult2.exitCode !== 0) {
-        throw new Error('All file creation methods failed')
-      }
+      throw new Error('Volume-based file creation failed')
       
     } catch (error) {
-      console.error('❌ File upload failed:', error)
-      throw new Error(`File upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error('❌ Volume file upload failed:', error)
+      throw new Error(`Volume file upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
