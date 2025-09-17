@@ -3,6 +3,9 @@ import { adminAuth, adminDb } from '@/lib/firebase-admin'
 import { DaytonaSandboxManager, SandboxConfig } from '@/lib/daytona-client'
 import { v4 as uuidv4 } from 'uuid'
 
+// Set maximum duration to 10 minutes for follower scanning
+export const maxDuration = 600
+
 export async function POST(request: NextRequest) {
   try {
     // Check environment variables first

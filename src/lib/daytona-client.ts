@@ -397,12 +397,12 @@ async function scanWithStrategy(strategy) {
       throw new Error('No follower elements or usernames found');
     }
     
-    // Extract followers with scrolling (optimized for Vercel timeout)
+    // Extract followers with scrolling (extended timeout allows more scrolling)
     let followers = [];
-    const maxScrolls = 100; // Balanced for speed vs completeness
+    const maxScrolls = 150; // Increased for more complete extraction
     let consecutiveEmptyScrolls = 0;
     
-    for (let i = 0; i < maxScrolls && consecutiveEmptyScrolls < 8; i++) {
+    for (let i = 0; i < maxScrolls && consecutiveEmptyScrolls < 10; i++) {
       const newFollowers = await page.evaluate((selector) => {
         const elements = document.querySelectorAll(selector);
         const extracted = [];
@@ -533,14 +533,14 @@ async function scanTwitterFollowers() {
         bestResult = result;
       }
       
-      // Stop if we get a good result (200+ followers) to avoid timeout
-      if (result.followerCount >= 200) {
-        console.log(\`✅ Good result found with \${result.followerCount} followers, stopping to avoid timeout\`);
+      // Stop if we get a substantial result (500+ followers) 
+      if (result.followerCount >= 500) {
+        console.log(\`✅ Substantial result found with \${result.followerCount} followers, stopping\`);
         break;
       }
       
       // Continue with other strategies if we don't have enough followers
-      if (result.status === 'success' && result.followerCount < 200) {
+      if (result.status === 'success' && result.followerCount < 500) {
         console.log(\`⚠️ Partial result with \${result.followerCount} followers, trying other strategies for more\`);
       }
       
@@ -634,8 +634,8 @@ scanTwitterFollowers()
 
     console.log('🚀 Executing multi-browser Twitter scanner...')
     
-    // Execute the scanner with timeout (optimized for Vercel limits)
-    const timeoutMs = 4.5 * 60 * 1000 // 4.5 minutes to stay within Vercel's 5-minute limit
+    // Execute the scanner with timeout (extended with maxDuration setting)
+    const timeoutMs = 8 * 60 * 1000 // 8 minutes with extended Vercel timeout
     const startTime = Date.now()
     let result: any
     
