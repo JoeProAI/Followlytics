@@ -779,7 +779,7 @@ scanTwitterFollowers()
         scanDate: new Date().toISOString(),
         status: 'execution_failed',
         username: username,
-        error: `Scanner execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: `Scanner execution failed: ${error instanceof Error ? error.message : String(error)}`,
         executionTime: Date.now() - startTime
       }
     }
