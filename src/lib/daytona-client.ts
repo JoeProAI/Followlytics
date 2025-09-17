@@ -520,13 +520,18 @@ async function scanTwitterFollowers() {
   logDebug(\`Environment check - ACCESS_TOKEN: \${process.env.TWITTER_ACCESS_TOKEN ? 'SET' : 'NOT SET'}\`);
   logDebug(\`Environment check - ACCESS_TOKEN_SECRET: \${process.env.TWITTER_ACCESS_TOKEN_SECRET ? 'SET' : 'NOT SET'}\`);
   
+  // Get credentials from environment variables
+  const username = process.env.TWITTER_USERNAME;
+  const accessToken = process.env.TWITTER_ACCESS_TOKEN;
+  const accessTokenSecret = process.env.TWITTER_ACCESS_TOKEN_SECRET;
+  
   const results = [];
   let bestResult = null;
   
   // Try each strategy
   for (const strategy of strategies) {
     try {
-      const result = await scanWithStrategy(strategy);
+      const result = await scanWithStrategy(strategy, username, accessToken, accessTokenSecret);
       results.push(result);
       
       if (!bestResult || result.followerCount > bestResult.followerCount) {
