@@ -1,27 +1,11 @@
-// Direct HTTP API approach to avoid SDK compatibility issues
-async function makeDaytonaRequest(endpoint: string, method: string = 'GET', body?: any) {
-  const apiKey = process.env.DAYTONA_API_KEY
-  const apiUrl = process.env.DAYTONA_API_URL || 'https://app.daytona.io/api'
-  
-  if (!apiKey) {
-    throw new Error('DAYTONA_API_KEY is required')
-  }
+import { Daytona } from '@daytonaio/sdk'
 
-  const response = await fetch(`${apiUrl}${endpoint}`, {
-    method,
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: body ? JSON.stringify(body) : undefined
-  })
-
-  if (!response.ok) {
-    throw new Error(`Daytona API error: ${response.status} ${response.statusText}`)
-  }
-
-  return response.json()
-}
+// Initialize Daytona SDK
+const daytona = new Daytona({
+  apiKey: process.env.DAYTONA_API_KEY,
+  apiUrl: process.env.DAYTONA_API_URL || 'https://app.daytona.io/api',
+  target: process.env.DAYTONA_TARGET || 'us'
+})
 
 export interface SandboxConfig {
   name: string
@@ -49,38 +33,16 @@ export class DaytonaSandboxManager {
     console.log('Creating NEW Daytona sandbox with config:', config)
     
     try {
-      // Create a fresh new sandbox each time
-      const sandboxName = `follower-scan-${crypto.randomUUID()}`
+      console.log('🚀 Creating sandbox using official Daytona SDK...')
       
-      console.log('Creating Daytona sandbox...')
+      // Create sandbox using the official SDK
+      const sandbox = await daytona.create({
+        language: 'typescript', // Use TypeScript environment
+        envVars: config.envVars || {}
+      })
       
-      // First try without volumes to ensure basic functionality works
-      const sandboxConfig = {
-        name: sandboxName,
-        repository: 'https://github.com/microsoft/vscode-dev-containers',
-        image: 'node:18'
-      }
-      
-      console.log('Creating NEW Daytona sandbox with basic config:', sandboxConfig)
-      
-      const response = await makeDaytonaRequest('/sandbox', 'POST', sandboxConfig)
-      
-      if (!response || !response.id) {
-        throw new Error('Failed to create sandbox - no ID returned')
-      }
-      
-      console.log('✅ Created NEW sandbox:', response.id)
-      
-      // Try to add volume support after creation if the API supports it
-      try {
-        console.log('🔧 Attempting to configure volume for sandbox...')
-        // This might not be supported, but we'll try
-        // For now, we'll fall back to the working directory approach
-      } catch (volumeError) {
-        console.log('⚠️ Volume configuration not supported, using working directory approach')
-      }
-      
-      return response
+      console.log('✅ Created NEW sandbox:', sandbox.id)
+      return sandbox
       
     } catch (error) {
       console.error('❌ Sandbox creation failed:', error)
@@ -92,54 +54,20 @@ export class DaytonaSandboxManager {
     console.log('Setting up sandbox environment...')
     
     try {
-      // Debug: Check sandbox object structure
       console.log('🔍 Sandbox object keys:', Object.keys(sandbox))
-      console.log('🔍 Sandbox object:', JSON.stringify(sandbox, null, 2))
       
       // Wait for sandbox to be fully ready
       console.log('⏳ Waiting for sandbox to be ready...')
       await new Promise(resolve => setTimeout(resolve, 5000)) // Wait 5 seconds
       
-      // Create process interface using the correct Daytona API endpoint
-      console.log('🔧 Creating process interface with correct API endpoint...')
-      sandbox.process = {
-        executeCommand: async (command: string) => {
-          console.log(`🚀 Executing command: ${command}`)
-          
-          try {
-            // Use the correct Daytona API endpoint from documentation
-            const result = await makeDaytonaRequest(`/toolbox/${sandbox.id}/toolbox/process/execute`, 'POST', {
-              command: command,
-              workingDirectory: '/workspace'
-            })
-            
-            console.log(`✅ Command executed successfully`)
-            return {
-              exitCode: result.exitCode || 0,
-              result: result.stdout || result.result || '',
-              stdout: result.stdout || '',
-              stderr: result.stderr || ''
-            }
-          } catch (error) {
-            console.log(`❌ Command execution failed:`, error)
-            return {
-              exitCode: 1,
-              result: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-              stdout: '',
-              stderr: error instanceof Error ? error.message : 'Unknown error'
-            }
-          }
-        }
-      }
-      
-      // Install Node.js dependencies
+      // Install Node.js dependencies using SDK
       console.log('Installing Node.js dependencies...')
-      await sandbox.process.executeCommand('npm init -y')
-      await sandbox.process.executeCommand('npm install playwright puppeteer --save')
+      await sandbox.process.exec('npm init -y')
+      await sandbox.process.exec('npm install playwright puppeteer --save')
       
       // Install Playwright browsers
       console.log('Installing Playwright browsers...')
-      await sandbox.process.executeCommand('npx playwright install chromium')
+      await sandbox.process.exec('npx playwright install chromium')
       
       console.log('✅ Sandbox environment setup complete')
     } catch (error) {
@@ -619,37 +547,20 @@ scanTwitterFollowers()
     let result: any
     
     try {
-      // Try to find the script in multiple possible directories
-      const workingDirs = ['/scanner', '/tmp/scanner', '/home/daytona/scanner', './scanner']
-      let workingDir: string | null = null
+      const workingDir = 'scanner'
       
-      for (const dir of workingDirs) {
-        const fileCheck = await sandbox.process.executeCommand(`ls -la "${dir}/twitter-scanner.js"`)
-        if (fileCheck.exitCode === 0) {
-          workingDir = dir
-          console.log(`📂 Found script in directory: ${dir}`)
-          break
-        }
-      }
+      // Check files before execution using SDK
+      console.log('📂 Checking directory contents...')
+      const files = await sandbox.fs.list_files(workingDir)
+      console.log('📂 Directory listing:', files.map((f: any) => f.name))
       
-      if (!workingDir) {
-        throw new Error('Could not find twitter-scanner.js in any directory')
-      }
-      
-      // Check files before execution
-      const dirCheck = await sandbox.process.executeCommand(`ls -la "${workingDir}/"`)
-      console.log('📂 Directory listing:', dirCheck)
-      
-      const fileCheck = await sandbox.process.executeCommand(`ls -la "${workingDir}/twitter-scanner.js"`)
-      console.log('📄 Script file check:', fileCheck)
-      
-      const contentCheck = await sandbox.process.executeCommand(`head -n 5 "${workingDir}/twitter-scanner.js"`)
-      console.log('📄 File content preview:', contentCheck)
+      const fileInfo = await sandbox.fs.get_file_info(`${workingDir}/twitter-scanner.js`)
+      console.log('📄 Script file info:', fileInfo)
       
       // Execute the scanner with timeout from the working directory
       console.log(`🚀 Starting Twitter scanner execution from ${workingDir}...`)
       result = await Promise.race([
-        sandbox.process.executeCommand(`cd "${workingDir}" && node twitter-scanner.js`),
+        sandbox.process.exec(`cd ${workingDir} && node twitter-scanner.js`),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Scanner execution timeout')), timeoutMs)
         )
@@ -700,80 +611,34 @@ scanTwitterFollowers()
     }
   }
 
-  // Upload script using Node.js file operations with fallback approaches
+  // Upload script using Daytona SDK file system operations
   private static async uploadScriptWithFallback(sandbox: any, scriptContent: string, filename: string): Promise<void> {
-    console.log(`📤 Uploading script using Node.js file operations...`)
+    console.log(`📤 Uploading script using Daytona SDK file system...`)
     
     try {
-      // Try multiple working directories in order of preference
-      const workingDirs = ['/scanner', '/tmp/scanner', '/home/daytona/scanner', './scanner']
+      // Create directory for the scanner
+      const workDir = 'scanner'
       
-      for (const workDir of workingDirs) {
-        try {
-          console.log(`📁 Attempting to use directory: ${workDir}`)
-          
-          // Write the script using Node.js with proper error handling
-          const nodeWriteCommand = `node -e "
-            const fs = require('fs');
-            const path = require('path');
-            
-            try {
-              // Ensure directory exists
-              const dir = '${workDir}';
-              if (!fs.existsSync(dir)) {
-                fs.mkdirSync(dir, { recursive: true });
-                console.log('Created directory:', dir);
-              }
-              
-              // Write the script content
-              const content = ${JSON.stringify(scriptContent)};
-              const filePath = path.join(dir, '${filename}');
-              fs.writeFileSync(filePath, content, 'utf8');
-              
-              console.log('SUCCESS: File written to:', filePath);
-              console.log('File size:', fs.statSync(filePath).size, 'bytes');
-              process.exit(0);
-            } catch (error) {
-              console.error('ERROR:', error.message);
-              process.exit(1);
-            }
-          "`
-          
-          const writeResult = await sandbox.process.executeCommand(nodeWriteCommand)
-          console.log(`📝 Write result for ${workDir}:`, writeResult)
-          
-          if (writeResult.exitCode === 0) {
-            // Verify the file was created
-            const verifyResult = await sandbox.process.executeCommand(`ls -la "${workDir}/${filename}"`)
-            console.log('✅ File verification:', verifyResult)
-            
-            if (verifyResult.exitCode === 0) {
-              // Check file size
-              const sizeResult = await sandbox.process.executeCommand(`wc -c "${workDir}/${filename}"`)
-              console.log('📄 File size check:', sizeResult)
-              
-              // Check first few lines
-              const contentCheck = await sandbox.process.executeCommand(`head -n 3 "${workDir}/${filename}"`)
-              console.log('📄 Content preview:', contentCheck)
-              
-              // Verify it's valid JavaScript
-              const syntaxCheck = await sandbox.process.executeCommand(`node -c "${workDir}/${filename}"`)
-              console.log('🔍 JavaScript syntax check:', syntaxCheck)
-              
-              if (syntaxCheck.exitCode === 0) {
-                console.log(`✅ File created successfully in ${workDir}!`)
-                return
-              }
-            }
-          }
-          
-        } catch (dirError) {
-          console.log(`❌ Failed to use directory ${workDir}:`, dirError)
-          continue
-        }
+      console.log(`📁 Creating directory: ${workDir}`)
+      await sandbox.fs.create_folder(workDir, '755')
+      
+      // Upload the script file using SDK
+      console.log(`📄 Uploading script file: ${filename}`)
+      const scriptBuffer = Buffer.from(scriptContent, 'utf8')
+      await sandbox.fs.upload_file(scriptBuffer, `${workDir}/${filename}`)
+      
+      // Verify the file was uploaded
+      console.log('✅ Verifying file upload...')
+      const fileInfo = await sandbox.fs.get_file_info(`${workDir}/${filename}`)
+      console.log(`📄 File size: ${fileInfo.size} bytes`)
+      
+      // Verify it's valid JavaScript by trying to parse it
+      const result = await sandbox.process.exec(`node -c "${workDir}/${filename}"`)
+      if (result.exit_code === 0) {
+        console.log('✅ File uploaded and verified successfully!')
+      } else {
+        throw new Error(`JavaScript syntax check failed: ${result.result}`)
       }
-      
-      throw new Error('All working directories failed')
       
     } catch (error) {
       console.error('❌ File upload failed:', error)
@@ -784,11 +649,11 @@ scanTwitterFollowers()
   static async cleanupSandbox(sandbox: any): Promise<void> {
     try {
       console.log('🧹 Cleaning up sandbox:', sandbox.id)
-      await makeDaytonaRequest(`/sandbox/${sandbox.id}?force=true`, 'DELETE')
+      await sandbox.delete()
       console.log('✅ Sandbox deleted successfully')
     } catch (error) {
       console.error('❌ Sandbox cleanup failed:', error)
-      // Don't throw error on cleanup failure - it's not critical
+      // Don't throw error for cleanup failures
     }
   }
 }
