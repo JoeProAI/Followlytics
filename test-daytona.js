@@ -34,6 +34,79 @@ async function testDaytona() {
       console.log(`  - ${key}: ${typeof sandbox.fs[key]}`);
     }
     
+    // Test file system operations
+    console.log('🧪 Testing file system operations...');
+    
+    // Try different folder creation methods
+    const testMethods = [
+      'create_folder',
+      'createFolder', 
+      'mkdir',
+      'createDirectory',
+      'createDir'
+    ];
+    
+    for (const method of testMethods) {
+      if (typeof sandbox.fs[method] === 'function') {
+        console.log(`✅ Found FS method: ${method}`);
+        try {
+          await sandbox.fs[method]('test-dir', '755');
+          console.log(`✅ ${method} worked!`);
+          break;
+        } catch (err) {
+          console.log(`❌ ${method} failed:`, err.message);
+        }
+      }
+    }
+    
+    // Try file upload methods
+    const uploadMethods = [
+      'upload_file',
+      'uploadFile',
+      'writeFile',
+      'createFile'
+    ];
+    
+    for (const method of uploadMethods) {
+      if (typeof sandbox.fs[method] === 'function') {
+        console.log(`✅ Found upload method: ${method}`);
+        try {
+          const testContent = Buffer.from('Hello World', 'utf8');
+          await sandbox.fs[method](testContent, 'test-file.txt');
+          console.log(`✅ ${method} worked!`);
+          break;
+        } catch (err) {
+          console.log(`❌ ${method} failed:`, err.message);
+        }
+      }
+    }
+    
+    // Test other file operations
+    const otherMethods = [
+      'listFiles',
+      'list_files',
+      'getFileInfo', 
+      'get_file_info',
+      'stat',
+      'getStats',
+      'fileInfo'
+    ];
+    
+    for (const method of otherMethods) {
+      if (typeof sandbox.fs[method] === 'function') {
+        console.log(`✅ Found method: ${method}`);
+      }
+    }
+    
+    // Test listFiles method
+    try {
+      console.log('🧪 Testing listFiles...');
+      const files = await sandbox.fs.listFiles('.');
+      console.log('✅ listFiles result:', files.slice(0, 3)); // Show first 3 files
+    } catch (err) {
+      console.log('❌ listFiles failed:', err.message);
+    }
+    
     // Try to find the right method
     if (typeof sandbox.process.executeCommand === 'function') {
       console.log('✅ Found executeCommand method');

@@ -551,11 +551,15 @@ scanTwitterFollowers()
       
       // Check files before execution using SDK
       console.log('📂 Checking directory contents...')
-      const files = await sandbox.fs.list_files(workingDir)
+      const files = await sandbox.fs.listFiles(workingDir)
       console.log('📂 Directory listing:', files.map((f: any) => f.name))
       
-      const fileInfo = await sandbox.fs.get_file_info(`${workingDir}/twitter-scanner.js`)
-      console.log('📄 Script file info:', fileInfo)
+      const scriptFile = files.find((f: any) => f.name === 'twitter-scanner.js')
+      if (scriptFile) {
+        console.log('📄 Script file info:', scriptFile)
+      } else {
+        throw new Error('twitter-scanner.js not found in directory')
+      }
       
       // Execute the scanner with timeout from the working directory
       console.log(`🚀 Starting Twitter scanner execution from ${workingDir}...`)
@@ -620,17 +624,22 @@ scanTwitterFollowers()
       const workDir = 'scanner'
       
       console.log(`📁 Creating directory: ${workDir}`)
-      await sandbox.fs.create_folder(workDir, '755')
+      await sandbox.fs.createFolder(workDir, '755')
       
       // Upload the script file using SDK
       console.log(`📄 Uploading script file: ${filename}`)
       const scriptBuffer = Buffer.from(scriptContent, 'utf8')
-      await sandbox.fs.upload_file(scriptBuffer, `${workDir}/${filename}`)
+      await sandbox.fs.uploadFile(scriptBuffer, `${workDir}/${filename}`)
       
       // Verify the file was uploaded
       console.log('✅ Verifying file upload...')
-      const fileInfo = await sandbox.fs.get_file_info(`${workDir}/${filename}`)
-      console.log(`📄 File size: ${fileInfo.size} bytes`)
+      const files = await sandbox.fs.listFiles(workDir)
+      const uploadedFile = files.find((f: any) => f.name === filename)
+      if (uploadedFile) {
+        console.log(`📄 File size: ${uploadedFile.size} bytes`)
+      } else {
+        throw new Error('File not found after upload')
+      }
       
       // Verify it's valid JavaScript by trying to parse it
       const result = await sandbox.process.executeCommand(`node -c "${workDir}/${filename}"`)
