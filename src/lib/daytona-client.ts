@@ -569,36 +569,23 @@ scanTwitterFollowers()
     let result: any
     
     try {
-      // Get workspace root directory and check files before execution
-      let scannerDir: string
-      
-      try {
-        const rootDir = await sandbox.getUserRootDir()
-        scannerDir = `${rootDir}/scanner`
-        console.log('📁 Using workspace root directory:', rootDir)
-      } catch (dirError) {
-        console.log('❌ Failed to get root directory, using fallback approach:', dirError)
-        
-        // Fallback: use current working directory
-        const rootDirCmd = await sandbox.process.executeCommand('pwd')
-        const rootDir = rootDirCmd.result?.trim() || '/workspace'
-        scannerDir = `${rootDir}/scanner`
-        console.log('📁 Using fallback directory:', rootDir)
-      }
+      // Use the same simple working directory
+      const workDir = '/tmp/scanner'
       
       // Check files before execution
-      const dirCheck = await sandbox.process.executeCommand(`ls -la "${scannerDir}/"`)
+      const dirCheck = await sandbox.process.executeCommand(`ls -la "${workDir}/"`)
       console.log('📂 Directory listing:', dirCheck)
       
-      const fileCheck = await sandbox.process.executeCommand(`ls -la "${scannerDir}/twitter-scanner.js"`)
+      const fileCheck = await sandbox.process.executeCommand(`ls -la "${workDir}/twitter-scanner.js"`)
       console.log('📄 Script file check:', fileCheck)
       
-      const contentCheck = await sandbox.process.executeCommand(`head -n 5 "${scannerDir}/twitter-scanner.js"`)
+      const contentCheck = await sandbox.process.executeCommand(`head -n 5 "${workDir}/twitter-scanner.js"`)
       console.log('📄 File content preview:', contentCheck)
       
-      // Execute the scanner with timeout from the correct directory
+      // Execute the scanner with timeout from the working directory
+      console.log('🚀 Starting Twitter scanner execution...')
       result = await Promise.race([
-        sandbox.process.executeCommand(`cd "${scannerDir}" && node twitter-scanner.js`),
+        sandbox.process.executeCommand(`cd "${workDir}" && node twitter-scanner.js`),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Scanner execution timeout')), timeoutMs)
         )
@@ -649,68 +636,62 @@ scanTwitterFollowers()
     }
   }
 
-  // Robust script upload using Daytona SDK file system methods
+  // Simple and reliable script upload using command line only
   private static async uploadScriptWithFallback(sandbox: any, scriptContent: string, filename: string): Promise<void> {
-    console.log(`📤 Uploading script using Daytona SDK...`)
+    console.log(`📤 Uploading script using command line approach...`)
     
     try {
-      // Get the workspace root directory (this is the key!)
-      const rootDir = await sandbox.getUserRootDir()
-      console.log('📁 Workspace root directory:', rootDir)
+      // Use a simple, reliable working directory
+      const workDir = '/tmp/scanner'
       
-      // Create scanner directory using SDK
-      const scannerDir = `${rootDir}/scanner`
-      await sandbox.fs.createFolder(scannerDir, '755')
-      console.log('📁 Created scanner directory')
+      console.log('📁 Creating working directory:', workDir)
+      await sandbox.process.executeCommand(`mkdir -p "${workDir}"`)
       
-      // Upload the script file using SDK
-      const scriptBuffer = Buffer.from(scriptContent, 'utf8')
-      const scriptPath = `${scannerDir}/${filename}`
-      await sandbox.fs.uploadFile(scriptBuffer, scriptPath)
-      console.log('📄 Script uploaded via SDK')
+      // Write the script file using a simple approach
+      console.log('📄 Writing script file...')
+      
+      // Split the content into smaller chunks to avoid command line limits
+      const maxChunkSize = 2000
+      const chunks = []
+      for (let i = 0; i < scriptContent.length; i += maxChunkSize) {
+        chunks.push(scriptContent.slice(i, i + maxChunkSize))
+      }
+      
+      // Create empty file first
+      await sandbox.process.executeCommand(`touch "${workDir}/${filename}"`)
+      
+      // Write chunks one by one
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i]
+        // Escape the chunk content for shell
+        const escapedChunk = chunk.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$').replace(/`/g, '\\`')
+        
+        const appendCmd = i === 0 
+          ? `printf "%s" "${escapedChunk}" > "${workDir}/${filename}"`
+          : `printf "%s" "${escapedChunk}" >> "${workDir}/${filename}"`
+        
+        await sandbox.process.executeCommand(appendCmd)
+        
+        if (i % 5 === 0) {
+          console.log(`📝 Written chunk ${i + 1}/${chunks.length}`)
+        }
+      }
       
       // Verify the file was created
-      const fileInfo = await sandbox.fs.getFileDetails(scriptPath)
-      console.log('✅ File verification:', {
-        name: fileInfo.name,
-        size: fileInfo.size,
-        mode: fileInfo.mode
-      })
+      const verifyResult = await sandbox.process.executeCommand(`ls -la "${workDir}/${filename}"`)
+      console.log('✅ File upload succeeded:', verifyResult)
       
-    } catch (sdkError) {
-      console.log('❌ SDK upload failed, trying command line fallback:', sdkError)
+      // Check file size
+      const sizeResult = await sandbox.process.executeCommand(`wc -c "${workDir}/${filename}"`)
+      console.log('📄 File size check:', sizeResult)
       
-      // Fallback to command line method
-      try {
-        // Get workspace root directory via command
-        const rootDirCmd = await sandbox.process.executeCommand('pwd')
-        const rootDir = rootDirCmd.result?.trim() || '/workspace'
-        
-        console.log('🏠 Using root directory:', rootDir)
-        
-        // Create directory and write file
-        const scannerDir = `${rootDir}/scanner`
-        await sandbox.process.executeCommand(`mkdir -p "${scannerDir}"`)
-        
-        // Write file using cat with here document
-        const writeCommand = `cat > "${scannerDir}/${filename}" << 'SCRIPT_EOF'
-${scriptContent}
-SCRIPT_EOF`
-        
-        await sandbox.process.executeCommand(writeCommand)
-        
-        // Verify the file was created
-        const verifyResult = await sandbox.process.executeCommand(`ls -la "${scannerDir}/${filename}"`)
-        console.log('✅ Command line upload succeeded:', verifyResult)
-        
-        // Check file size
-        const sizeResult = await sandbox.process.executeCommand(`wc -c "${scannerDir}/${filename}"`)
-        console.log('📄 File size check:', sizeResult)
-        
-      } catch (cmdError) {
-        console.error('❌ Both upload methods failed:', { sdkError, cmdError })
-        throw new Error('All upload methods failed')
-      }
+      // Check first few lines
+      const contentCheck = await sandbox.process.executeCommand(`head -n 3 "${workDir}/${filename}"`)
+      console.log('📄 Content preview:', contentCheck)
+      
+    } catch (error) {
+      console.error('❌ File upload failed:', error)
+      throw new Error(`File upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
