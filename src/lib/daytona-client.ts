@@ -400,15 +400,20 @@ async function scanWithStrategy(strategy, username, accessToken, accessTokenSecr
           const followerElements = document.querySelectorAll(selector || '[data-testid="UserCell"]');
           const extracted = [];
           
-          followerElements.forEach(element => {
+          console.log(\`🔍 Found \${followerElements.length} follower elements to process\`);
+          
+          followerElements.forEach((element, index) => {
             try {
               let username = null;
               let displayName = null;
               
               // Extract username from links with better parsing
               const usernameLinks = element.querySelectorAll('a[href*="/"]');
+              console.log(\`Element \${index}: Found \${usernameLinks.length} links\`);
+              
               for (const link of usernameLinks) {
                 if (link.href) {
+                  console.log(\`  Link href: \${link.href}\`);
                   const match = link.href.match(/(?:twitter\\.com|x\\.com)\\/([^/?#]+)/);
                   if (match && match[1] && 
                       match[1] !== 'home' && 
@@ -418,7 +423,10 @@ async function scanWithStrategy(strategy, username, accessToken, accessTokenSecr
                       !match[1].includes('status') &&
                       match[1].length > 1) {
                     username = match[1];
+                    console.log(\`  ✅ Extracted username: \${username}\`);
                     break;
+                  } else {
+                    console.log(\`  ❌ Link rejected: \${match ? match[1] : 'no match'}\`);
                   }
                 }
               }
@@ -442,12 +450,16 @@ async function scanWithStrategy(strategy, username, accessToken, accessTokenSecr
               // Only add if we have a valid, unique username
               if (username && username.length > 1) {
                 extracted.push({ username, displayName: displayName || username });
+                console.log(\`✅ Added follower: \${username} (\${displayName || username})\`);
+              } else {
+                console.log(\`❌ No valid username found for element \${index}\`);
               }
             } catch (error) {
-              // Ignore extraction errors for individual elements
+              console.log(\`❌ Error processing element \${index}:\`, error);
             }
           });
           
+          console.log(\`📊 Total extracted: \${extracted.length} followers\`);
           return extracted;
         }, foundSelector);
       
