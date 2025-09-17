@@ -728,8 +728,8 @@ const puppeteer = require('puppeteer');
       window.scrollTo(0, document.body.scrollHeight);
     });
     
-    // Wait for new content (reduced wait time)
-    await page.waitForTimeout(1000);
+    // Wait for new content (reduced wait time) - using compatible method
+    await page.waitFor(1000);
     
     // Stop if no new followers for several scrolls
     if (newFollowers.length === 0 && i > 10) {
