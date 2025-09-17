@@ -608,6 +608,18 @@ scanTwitterFollowers()
           // Check if results file is being created
           const fileCheck = await sandbox.process.executeCommand('ls -la /tmp/followers_result.json 2>/dev/null || echo "Results file not yet created"')
           console.log('📄 Results file status:', fileCheck.result)
+          
+          // Check debug log file for actual scanner progress
+          const debugLogCheck = await sandbox.process.executeCommand('tail -n 10 /tmp/scanner_debug.log 2>/dev/null || echo "Debug log not found"')
+          console.log('📋 Debug log (last 10 lines):', debugLogCheck.result)
+          
+          // Check for any error files or screenshots
+          const errorFilesCheck = await sandbox.process.executeCommand('ls -la /tmp/*.png /tmp/*.log 2>/dev/null || echo "No debug files found"')
+          console.log('🔍 Debug files:', errorFilesCheck.result)
+          
+          // Check what the scanner process is actually doing
+          const processDetails = await sandbox.process.executeCommand('ps -ef | grep twitter-scanner || echo "Scanner process not found"')
+          console.log('🔍 Scanner process details:', processDetails.result)
         } catch (e) {
           console.log('Progress check failed:', e)
         }
