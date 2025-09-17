@@ -563,15 +563,18 @@ scanTwitterFollowers()
 
     console.log('🚀 Executing multi-browser Twitter scanner...')
     
-    // Change to the scanner directory and check files
-    await sandbox.process.executeCommand('cd /home/scanner')
-    const pwdResult = await sandbox.process.executeCommand('pwd')
-    const lsResult = await sandbox.process.executeCommand('ls -la /home/scanner/')
-    const fileResult = await sandbox.process.executeCommand('ls -la /home/scanner/twitter-scanner.js')
+    // Check files and execute the scanner in one command
+    const checkCommand = `
+      echo "Checking scanner directory..." &&
+      ls -la /home/scanner/ &&
+      echo "Checking script file..." &&
+      ls -la /home/scanner/twitter-scanner.js &&
+      echo "File content preview:" &&
+      head -n 5 /home/scanner/twitter-scanner.js
+    `.replace(/\s+/g, ' ').trim()
     
-    console.log('📁 Current directory:', pwdResult)
-    console.log('📂 Directory listing:', lsResult)
-    console.log('📄 Script file check:', fileResult)
+    const checkResult = await sandbox.process.executeCommand(checkCommand)
+    console.log('📂 Directory and file check:', checkResult)
     
     // Execute the scanner with timeout from the correct directory
     const timeoutMs = 10 * 60 * 1000 // 10 minutes
@@ -635,9 +638,6 @@ scanTwitterFollowers()
     console.log(`📤 Uploading script using Daytona file API...`)
     
     try {
-      // First, change to a proper working directory
-      await sandbox.process.executeCommand('cd /home && mkdir -p scanner && cd scanner')
-      
       // Use Daytona's file upload API with proper path
       const uploadResponse = await makeDaytonaRequest(
         `/toolbox/${sandbox.id}/toolbox/files/upload?path=/home/scanner/${filename}`,
@@ -657,22 +657,26 @@ scanTwitterFollowers()
     } catch (apiError) {
       console.log('❌ API upload failed, trying command line method:', apiError)
       
-      // Fallback to command line method with proper directory
+      // Fallback to command line method - do everything in one command
       try {
-        // Ensure we're in the right directory and create the file properly
-        await sandbox.process.executeCommand('cd /home && mkdir -p scanner && cd scanner')
+        // Create directory, write file, and verify in a single command chain
+        const base64Content = Buffer.from(scriptContent).toString('base64')
         
-        // Write the script content directly using printf to avoid encoding issues
-        const escapedContent = scriptContent.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$').replace(/`/g, '\\`')
-        await sandbox.process.executeCommand(`printf '%s' "${escapedContent}" > /home/scanner/${filename}`)
+        const combinedCommand = `
+          mkdir -p /home/scanner && 
+          echo "${base64Content}" | base64 -d > /home/scanner/${filename} && 
+          chmod 644 /home/scanner/${filename} && 
+          ls -la /home/scanner/${filename} && 
+          echo "File size: $(wc -c < /home/scanner/${filename}) bytes"
+        `.replace(/\s+/g, ' ').trim()
         
-        // Verify the file was created
-        const fileCheck = await sandbox.process.executeCommand(`ls -la /home/scanner/${filename}`)
-        console.log('✅ Command line upload succeeded:', fileCheck)
+        const result = await sandbox.process.executeCommand(combinedCommand)
+        console.log('✅ Command line upload succeeded:', result)
         
-        // Also check file content
-        const contentCheck = await sandbox.process.executeCommand(`head -n 3 /home/scanner/${filename}`)
-        console.log('📄 File content check:', contentCheck)
+        // Double-check the file exists
+        const verifyCommand = `test -f /home/scanner/${filename} && echo "File exists" || echo "File missing"`
+        const verification = await sandbox.process.executeCommand(verifyCommand)
+        console.log('📄 File existence check:', verification)
         
       } catch (cmdError) {
         console.error('❌ Both upload methods failed:', { apiError, cmdError })
