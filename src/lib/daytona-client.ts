@@ -563,18 +563,15 @@ scanTwitterFollowers()
 
     console.log('🚀 Executing multi-browser Twitter scanner...')
     
-    // Check files and execute the scanner in one command
-    const checkCommand = `
-      echo "Checking scanner directory..." &&
-      ls -la /home/scanner/ &&
-      echo "Checking script file..." &&
-      ls -la /home/scanner/twitter-scanner.js &&
-      echo "File content preview:" &&
-      head -n 5 /home/scanner/twitter-scanner.js
-    `.replace(/\s+/g, ' ').trim()
+    // Check files before execution
+    const dirCheck = await sandbox.process.executeCommand('ls -la /home/scanner/')
+    console.log('📂 Directory listing:', dirCheck)
     
-    const checkResult = await sandbox.process.executeCommand(checkCommand)
-    console.log('📂 Directory and file check:', checkResult)
+    const fileCheck = await sandbox.process.executeCommand('ls -la /home/scanner/twitter-scanner.js')
+    console.log('📄 Script file check:', fileCheck)
+    
+    const contentCheck = await sandbox.process.executeCommand('head -n 5 /home/scanner/twitter-scanner.js')
+    console.log('📄 File content preview:', contentCheck)
     
     // Execute the scanner with timeout from the correct directory
     const timeoutMs = 10 * 60 * 1000 // 10 minutes
@@ -657,26 +654,26 @@ scanTwitterFollowers()
     } catch (apiError) {
       console.log('❌ API upload failed, trying command line method:', apiError)
       
-      // Fallback to command line method - do everything in one command
+      // Fallback to command line method using here document
       try {
-        // Create directory, write file, and verify in a single command chain
-        const base64Content = Buffer.from(scriptContent).toString('base64')
+        // Create directory first
+        await sandbox.process.executeCommand('mkdir -p /home/scanner')
         
-        const combinedCommand = `
-          mkdir -p /home/scanner && 
-          echo "${base64Content}" | base64 -d > /home/scanner/${filename} && 
-          chmod 644 /home/scanner/${filename} && 
-          ls -la /home/scanner/${filename} && 
-          echo "File size: $(wc -c < /home/scanner/${filename}) bytes"
-        `.replace(/\s+/g, ' ').trim()
+        // Write file using here document to avoid shell parsing issues
+        const writeCommand = `cat > /home/scanner/${filename} << 'SCRIPT_END'
+${scriptContent}
+SCRIPT_END`
         
-        const result = await sandbox.process.executeCommand(combinedCommand)
-        console.log('✅ Command line upload succeeded:', result)
+        const result = await sandbox.process.executeCommand(writeCommand)
+        console.log('✅ File write result:', result)
         
-        // Double-check the file exists
-        const verifyCommand = `test -f /home/scanner/${filename} && echo "File exists" || echo "File missing"`
-        const verification = await sandbox.process.executeCommand(verifyCommand)
-        console.log('📄 File existence check:', verification)
+        // Verify the file was created
+        const verifyResult = await sandbox.process.executeCommand(`ls -la /home/scanner/${filename}`)
+        console.log('✅ Command line upload succeeded:', verifyResult)
+        
+        // Check file size
+        const sizeResult = await sandbox.process.executeCommand(`wc -c /home/scanner/${filename}`)
+        console.log('📄 File size check:', sizeResult)
         
       } catch (cmdError) {
         console.error('❌ Both upload methods failed:', { apiError, cmdError })
