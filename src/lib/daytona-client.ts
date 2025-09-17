@@ -525,7 +525,7 @@ scanTwitterFollowers()
       throw new Error(`Script upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
 
-    // Set environment variables for the scan
+    // Prepare environment variables for the scan
     const envVars = {
       TWITTER_USERNAME: username,
       TWITTER_ACCESS_TOKEN: accessToken,
@@ -533,11 +533,10 @@ scanTwitterFollowers()
     }
 
     console.log('🔧 Setting environment variables...')
-    for (const [key, value] of Object.entries(envVars)) {
-      if (value) {
-        await sandbox.process.executeCommand(`export ${key}="${value}"`)
-      }
-    }
+    const envString = Object.entries(envVars)
+      .filter(([_, value]) => value)
+      .map(([key, value]) => `${key}="${value}"`)
+      .join(' ')
 
     console.log('🚀 Executing multi-browser Twitter scanner...')
     
@@ -563,8 +562,11 @@ scanTwitterFollowers()
       
       // Execute the scanner with timeout from the working directory
       console.log(`🚀 Starting Twitter scanner execution from ${workingDir}...`)
+      const executeCommand = `cd ${workingDir} && ${envString} node twitter-scanner.js`
+      console.log(`🔧 Execute command: ${executeCommand}`)
+      
       result = await Promise.race([
-        sandbox.process.executeCommand(`cd ${workingDir} && node twitter-scanner.js`),
+        sandbox.process.executeCommand(executeCommand),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Scanner execution timeout')), timeoutMs)
         )
@@ -588,8 +590,10 @@ scanTwitterFollowers()
     // Retrieve the results
     console.log('📥 Retrieving scan results...')
     try {
-      const resultContent = await sandbox.process.executeCommand('cat /tmp/followers_result.json')
-      const scanResult = JSON.parse(resultContent as string)
+      const resultResponse = await sandbox.process.executeCommand('cat /tmp/followers_result.json')
+      const resultContent = resultResponse.result || resultResponse.stdout || ''
+      console.log('📄 Raw result content:', resultContent)
+      const scanResult = JSON.parse(resultContent)
       
       console.log('📊 Scan completed successfully:', {
         followerCount: scanResult.followerCount,
