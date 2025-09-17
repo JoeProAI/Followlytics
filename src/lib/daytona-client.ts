@@ -391,23 +391,6 @@ async function scanWithStrategy(strategy) {
           username: username,
           strategy: strategy.name,
           note: 'Extracted via text analysis'
-        };
-      }
-      
-      throw new Error('No follower elements or usernames found');
-    }
-    
-    // Extract followers with scrolling (optimized to avoid Daytona API timeout)
-    let followers = [];
-    const maxScrolls = 50; // Reduced to prevent Daytona API timeout
-    let consecutiveEmptyScrolls = 0;
-    
-    for (let i = 0; i < maxScrolls && consecutiveEmptyScrolls < 5; i++) {
-      const newFollowers = await page.evaluate((selector) => {
-        const elements = document.querySelectorAll(selector);
-        const extracted = [];
-        
-        elements.forEach(element => {
           try {
             let username = null;
             let displayName = null;
@@ -623,38 +606,8 @@ scanTwitterFollowers()
       throw new Error(`Script upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
 
-    console.log('🚀 Starting GUI-automated follower scan for @' + username)
-
-    // Use Daytona's computerUse for GUI automation
-    console.log('🖥️ Initializing GUI automation with computerUse...')
-    
-    try {
-      // Start desktop environment
-      await sandbox.process.executeCommand('export DISPLAY=:1 && Xvfb :1 -screen 0 1920x1080x24 &')
-      await sandbox.process.executeCommand('sleep 2')
-      
-      // Install GUI tools
-      await sandbox.process.executeCommand('apt-get update && apt-get install -y firefox xvfb x11vnc fluxbox')
-      
-      // Start window manager
-      await sandbox.process.executeCommand('export DISPLAY=:1 && fluxbox &')
-      await sandbox.process.executeCommand('sleep 2')
-      
-      // Start Firefox with GUI
-      console.log('🌐 Starting Firefox GUI...')
-      await sandbox.process.executeCommand('export DISPLAY=:1 && firefox --new-instance --no-remote &')
-      await sandbox.process.executeCommand('sleep 5')
-      
-      // Use computerUse to navigate to Twitter
-      console.log('🔍 Using GUI automation to navigate to Twitter...')
-      const result = await DaytonaSandboxManager.performGUIFollowerExtraction(sandbox, username, accessToken, accessTokenSecret)
-      
-      return result
-      
-    } catch (error: unknown) {
-      console.error('❌ GUI automation failed:', error)
-      throw error
-    }
+    console.log('🚀 Starting SIMPLIFIED follower scan for @' + username)
+    console.log('⚡ Skipping GUI automation - testing basic browser extraction first...')
 
     // Prepare environment variables for the scan
     const envVars = {
@@ -669,15 +622,8 @@ scanTwitterFollowers()
       .map(([key, value]) => `${key}="${value}"`)
       .join(' ')
 
-    console.log('🚀 GUI automation completed successfully')
-    
-    // This should never be reached due to the return above
-    throw new Error('GUI automation path should have returned already')
-
-    // The rest of the old browser automation code is no longer needed
-    // GUI automation handles everything above
-
-    const timeoutMs = 8 * 60 * 1000 // 8 minutes with extended Vercel timeout
+    // Execute the scanner with REDUCED timeout for testing
+    const timeoutMs = 2 * 60 * 1000 // 2 minutes - just test if we get ANY followers
     const startTime = Date.now()
     let result: any
     
