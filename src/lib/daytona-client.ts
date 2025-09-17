@@ -563,26 +563,41 @@ scanTwitterFollowers()
 
     console.log('🚀 Executing multi-browser Twitter scanner...')
     
-    // Get home directory and check files before execution
-    const home = await sandbox.process.executeCommand('echo $HOME')
-    const homeDir = home.result?.trim() || '/home/daytona'
-    const scannerDir = `${homeDir}/scanner`
-    
-    const dirCheck = await sandbox.process.executeCommand(`ls -la "${scannerDir}/"`)
-    console.log('📂 Directory listing:', dirCheck)
-    
-    const fileCheck = await sandbox.process.executeCommand(`ls -la "${scannerDir}/twitter-scanner.js"`)
-    console.log('📄 Script file check:', fileCheck)
-    
-    const contentCheck = await sandbox.process.executeCommand(`head -n 5 "${scannerDir}/twitter-scanner.js"`)
-    console.log('📄 File content preview:', contentCheck)
-    
-    // Execute the scanner with timeout from the correct directory
+    // Execute the scanner with timeout
     const timeoutMs = 10 * 60 * 1000 // 10 minutes
     const startTime = Date.now()
+    let result: any
     
     try {
-      const result = await Promise.race([
+      // Get workspace root directory and check files before execution
+      let scannerDir: string
+      
+      try {
+        const rootDir = await sandbox.getUserRootDir()
+        scannerDir = `${rootDir}/scanner`
+        console.log('📁 Using workspace root directory:', rootDir)
+      } catch (dirError) {
+        console.log('❌ Failed to get root directory, using fallback approach:', dirError)
+        
+        // Fallback: use current working directory
+        const rootDirCmd = await sandbox.process.executeCommand('pwd')
+        const rootDir = rootDirCmd.result?.trim() || '/workspace'
+        scannerDir = `${rootDir}/scanner`
+        console.log('📁 Using fallback directory:', rootDir)
+      }
+      
+      // Check files before execution
+      const dirCheck = await sandbox.process.executeCommand(`ls -la "${scannerDir}/"`)
+      console.log('📂 Directory listing:', dirCheck)
+      
+      const fileCheck = await sandbox.process.executeCommand(`ls -la "${scannerDir}/twitter-scanner.js"`)
+      console.log('📄 Script file check:', fileCheck)
+      
+      const contentCheck = await sandbox.process.executeCommand(`head -n 5 "${scannerDir}/twitter-scanner.js"`)
+      console.log('📄 File content preview:', contentCheck)
+      
+      // Execute the scanner with timeout from the correct directory
+      result = await Promise.race([
         sandbox.process.executeCommand(`cd "${scannerDir}" && node twitter-scanner.js`),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Scanner execution timeout')), timeoutMs)
@@ -634,51 +649,68 @@ scanTwitterFollowers()
     }
   }
 
-  // Robust script upload using absolute paths and proper shell commands
+  // Robust script upload using Daytona SDK file system methods
   private static async uploadScriptWithFallback(sandbox: any, scriptContent: string, filename: string): Promise<void> {
-    console.log(`📤 Uploading script to sandbox...`)
+    console.log(`📤 Uploading script using Daytona SDK...`)
     
     try {
-      // Check current working directory and user
-      const whoami = await sandbox.process.executeCommand('whoami')
-      const pwd = await sandbox.process.executeCommand('pwd')
-      const home = await sandbox.process.executeCommand('echo $HOME')
+      // Get the workspace root directory (this is the key!)
+      const rootDir = await sandbox.getUserRootDir()
+      console.log('📁 Workspace root directory:', rootDir)
       
-      console.log('🏠 Current user and directories:', { 
-        whoami: whoami.result?.trim(), 
-        pwd: pwd.result?.trim(),
-        home: home.result?.trim()
+      // Create scanner directory using SDK
+      const scannerDir = `${rootDir}/scanner`
+      await sandbox.fs.createFolder(scannerDir, '755')
+      console.log('📁 Created scanner directory')
+      
+      // Upload the script file using SDK
+      const scriptBuffer = Buffer.from(scriptContent, 'utf8')
+      const scriptPath = `${scannerDir}/${filename}`
+      await sandbox.fs.uploadFile(scriptBuffer, scriptPath)
+      console.log('📄 Script uploaded via SDK')
+      
+      // Verify the file was created
+      const fileInfo = await sandbox.fs.getFileDetails(scriptPath)
+      console.log('✅ File verification:', {
+        name: fileInfo.name,
+        size: fileInfo.size,
+        mode: fileInfo.mode
       })
       
-      // Use absolute path to home directory
-      const homeDir = home.result?.trim() || '/home/daytona'
-      const scannerDir = `${homeDir}/scanner`
+    } catch (sdkError) {
+      console.log('❌ SDK upload failed, trying command line fallback:', sdkError)
       
-      // Create directory using absolute path
-      await sandbox.process.executeCommand(`mkdir -p "${scannerDir}"`)
-      
-      // Write file using cat with here document (more reliable than tee)
-      const writeCommand = `cat > "${scannerDir}/${filename}" << 'SCRIPT_EOF'
+      // Fallback to command line method
+      try {
+        // Get workspace root directory via command
+        const rootDirCmd = await sandbox.process.executeCommand('pwd')
+        const rootDir = rootDirCmd.result?.trim() || '/workspace'
+        
+        console.log('🏠 Using root directory:', rootDir)
+        
+        // Create directory and write file
+        const scannerDir = `${rootDir}/scanner`
+        await sandbox.process.executeCommand(`mkdir -p "${scannerDir}"`)
+        
+        // Write file using cat with here document
+        const writeCommand = `cat > "${scannerDir}/${filename}" << 'SCRIPT_EOF'
 ${scriptContent}
 SCRIPT_EOF`
-      
-      const writeResult = await sandbox.process.executeCommand(writeCommand)
-      console.log('📝 File write result:', writeResult)
-      
-      // Verify the file was created using absolute path
-      const verifyResult = await sandbox.process.executeCommand(`ls -la "${scannerDir}/${filename}"`)
-      console.log('✅ File upload succeeded:', verifyResult)
-      
-      // Check file size
-      const sizeResult = await sandbox.process.executeCommand(`wc -c "${scannerDir}/${filename}"`)
-      console.log('📄 File size check:', sizeResult)
-      
-      // Make file executable
-      await sandbox.process.executeCommand(`chmod 644 "${scannerDir}/${filename}"`)
-      
-    } catch (error) {
-      console.error('❌ File upload failed:', error)
-      throw new Error(`File upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        
+        await sandbox.process.executeCommand(writeCommand)
+        
+        // Verify the file was created
+        const verifyResult = await sandbox.process.executeCommand(`ls -la "${scannerDir}/${filename}"`)
+        console.log('✅ Command line upload succeeded:', verifyResult)
+        
+        // Check file size
+        const sizeResult = await sandbox.process.executeCommand(`wc -c "${scannerDir}/${filename}"`)
+        console.log('📄 File size check:', sizeResult)
+        
+      } catch (cmdError) {
+        console.error('❌ Both upload methods failed:', { sdkError, cmdError })
+        throw new Error('All upload methods failed')
+      }
     }
   }
 
