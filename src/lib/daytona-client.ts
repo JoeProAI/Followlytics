@@ -100,22 +100,33 @@ export class DaytonaSandboxManager {
       console.log('⏳ Waiting for sandbox to be ready...')
       await new Promise(resolve => setTimeout(resolve, 5000)) // Wait 5 seconds
       
-      // Try to get the sandbox details to ensure it's ready
-      const sandboxDetails = await makeDaytonaRequest(`/sandbox/${sandbox.id}`, 'GET')
-      console.log('📋 Sandbox details:', sandboxDetails)
-      
-      // Check if we need to initialize the process interface
-      if (!sandbox.process) {
-        console.log('🔧 Initializing sandbox process interface...')
-        // The sandbox might need to be retrieved again with full details
-        const fullSandbox = await makeDaytonaRequest(`/sandbox/${sandbox.id}`, 'GET')
-        if (fullSandbox && fullSandbox.process) {
-          sandbox.process = fullSandbox.process
-        } else {
-          // Try alternative approach - create process interface
-          sandbox.process = {
-            executeCommand: async (command: string) => {
-              return await makeDaytonaRequest(`/sandbox/${sandbox.id}/execute`, 'POST', { command })
+      // Create process interface using the correct Daytona API endpoint
+      console.log('🔧 Creating process interface with correct API endpoint...')
+      sandbox.process = {
+        executeCommand: async (command: string) => {
+          console.log(`🚀 Executing command: ${command}`)
+          
+          try {
+            // Use the correct Daytona API endpoint from documentation
+            const result = await makeDaytonaRequest(`/toolbox/${sandbox.id}/toolbox/process/execute`, 'POST', {
+              command: command,
+              workingDirectory: '/workspace'
+            })
+            
+            console.log(`✅ Command executed successfully`)
+            return {
+              exitCode: result.exitCode || 0,
+              result: result.stdout || result.result || '',
+              stdout: result.stdout || '',
+              stderr: result.stderr || ''
+            }
+          } catch (error) {
+            console.log(`❌ Command execution failed:`, error)
+            return {
+              exitCode: 1,
+              result: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              stdout: '',
+              stderr: error instanceof Error ? error.message : 'Unknown error'
             }
           }
         }
