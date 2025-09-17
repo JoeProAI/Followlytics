@@ -439,6 +439,26 @@ async function scanWithStrategy(strategy) {
 async function scanTwitterFollowers() {
   console.log('🚀 Starting multi-browser Twitter follower scanner...');
   
+  // Create debug logging
+  const fs = require('fs');
+  const logFile = '/tmp/scanner_debug.log';
+  
+  function logDebug(message) {
+    const timestamp = new Date().toISOString();
+    const logMessage = \`[\${timestamp}] \${message}\\n\`;
+    console.log(message);
+    try {
+      fs.appendFileSync(logFile, logMessage);
+    } catch (e) {
+      console.error('Failed to write to log file:', e);
+    }
+  }
+  
+  logDebug('🚀 Scanner started');
+  logDebug(\`Environment check - USERNAME: \${process.env.TWITTER_USERNAME ? 'SET' : 'NOT SET'}\`);
+  logDebug(\`Environment check - ACCESS_TOKEN: \${process.env.TWITTER_ACCESS_TOKEN ? 'SET' : 'NOT SET'}\`);
+  logDebug(\`Environment check - ACCESS_TOKEN_SECRET: \${process.env.TWITTER_ACCESS_TOKEN_SECRET ? 'SET' : 'NOT SET'}\`);
+  
   const results = [];
   let bestResult = null;
   
@@ -465,7 +485,9 @@ async function scanTwitterFollowers() {
       }
       
     } catch (error) {
-      console.log(\`❌ Strategy \${strategy.name} failed: \${error.message}\`);
+      const errorMessage = \`❌ Strategy \${strategy.name} failed: \${error.message}\`;
+      logDebug(errorMessage);
+      logDebug(\`Error stack: \${error.stack}\`);
       results.push({
         strategy: strategy.name,
         status: 'failed',
