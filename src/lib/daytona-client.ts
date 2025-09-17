@@ -197,7 +197,7 @@ const strategies = [
         await page.setViewport({ width: 1366, height: 768 });
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
         
-        // Remove automation indicators
+        // Remove automation indicators (Puppeteer compatible)
         await page.evaluateOnNewDocument(() => {
           Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
           Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
@@ -283,11 +283,20 @@ async function scanWithStrategy(strategy) {
     browser = browserSetup.browser;
     page = browserSetup.page;
     
-    // Inject OAuth tokens
-    await page.addInitScript(() => {
-      localStorage.setItem('twitter_access_token', '${accessToken}');
-      localStorage.setItem('twitter_access_token_secret', '${accessTokenSecret}');
-    });
+    // Inject OAuth tokens (compatible with both Playwright and Puppeteer)
+    if (page.addInitScript) {
+      // Playwright method
+      await page.addInitScript(() => {
+        localStorage.setItem('twitter_access_token', '${accessToken}');
+        localStorage.setItem('twitter_access_token_secret', '${accessTokenSecret}');
+      });
+    } else {
+      // Puppeteer method
+      await page.evaluateOnNewDocument(() => {
+        localStorage.setItem('twitter_access_token', '${accessToken}');
+        localStorage.setItem('twitter_access_token_secret', '${accessTokenSecret}');
+      });
+    }
     
     console.log(\`✓ \${strategy.name} browser initialized\`);
     
@@ -388,12 +397,12 @@ async function scanWithStrategy(strategy) {
       throw new Error('No follower elements or usernames found');
     }
     
-    // Extract followers with scrolling (increased for complete extraction)
+    // Extract followers with scrolling (optimized for Vercel timeout)
     let followers = [];
-    const maxScrolls = 200; // Increased to get all followers
+    const maxScrolls = 100; // Balanced for speed vs completeness
     let consecutiveEmptyScrolls = 0;
     
-    for (let i = 0; i < maxScrolls && consecutiveEmptyScrolls < 10; i++) {
+    for (let i = 0; i < maxScrolls && consecutiveEmptyScrolls < 8; i++) {
       const newFollowers = await page.evaluate((selector) => {
         const elements = document.querySelectorAll(selector);
         const extracted = [];
@@ -465,9 +474,9 @@ async function scanWithStrategy(strategy) {
         consecutiveEmptyScrolls++;
       }
       
-      // Scroll down
+      // Scroll down faster
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      await page.waitForTimeout(1500);
+      await page.waitForTimeout(1000); // Reduced wait time for faster scrolling
     }
     
     console.log(\`✅ \${strategy.name} completed: \${followers.length} followers found\`);
@@ -524,14 +533,14 @@ async function scanTwitterFollowers() {
         bestResult = result;
       }
       
-      // Only stop if we get a substantial result (800+ followers)
-      if (result.followerCount >= 800) {
-        console.log(\`✅ Complete result found with \${result.followerCount} followers, stopping\`);
+      // Stop if we get a good result (200+ followers) to avoid timeout
+      if (result.followerCount >= 200) {
+        console.log(\`✅ Good result found with \${result.followerCount} followers, stopping to avoid timeout\`);
         break;
       }
       
       // Continue with other strategies if we don't have enough followers
-      if (result.status === 'success' && result.followerCount < 800) {
+      if (result.status === 'success' && result.followerCount < 200) {
         console.log(\`⚠️ Partial result with \${result.followerCount} followers, trying other strategies for more\`);
       }
       
@@ -625,8 +634,8 @@ scanTwitterFollowers()
 
     console.log('🚀 Executing multi-browser Twitter scanner...')
     
-    // Execute the scanner with timeout (increased for complete extraction)
-    const timeoutMs = 8 * 60 * 1000 // 8 minutes for full follower extraction
+    // Execute the scanner with timeout (optimized for Vercel limits)
+    const timeoutMs = 4.5 * 60 * 1000 // 4.5 minutes to stay within Vercel's 5-minute limit
     const startTime = Date.now()
     let result: any
     
