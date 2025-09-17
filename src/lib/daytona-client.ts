@@ -492,6 +492,9 @@ async function scanWithStrategy(strategy) {
       strategy: strategy.name
     };
     
+  } catch (error) {
+    console.error(\`❌ Strategy \${strategy.name} failed:\`, error);
+    throw error;
   } finally {
     if (browser) {
       await browser.close();
