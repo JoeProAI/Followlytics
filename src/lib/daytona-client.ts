@@ -644,70 +644,151 @@ scanTwitterFollowers()
     }
 
     console.log('🔐 Starting SIMPLE OAuth authentication for @' + username)
-    console.log('⚡ Using existing scanner with OAuth tokens (no additional installs)...')
+    console.log('⚡ Creating focused scrolling script that actually works...')
     
-    // Use the existing scanner script that's already uploaded with OAuth tokens
-    const envVars = {
-      TWITTER_USERNAME: username,
-      TWITTER_ACCESS_TOKEN: accessToken,
-      TWITTER_ACCESS_TOKEN_SECRET: accessTokenSecret
+    // Create a SIMPLE script that focuses ONLY on scrolling and extraction
+    const simpleScrollScript = `
+const puppeteer = require('puppeteer');
+
+(async () => {
+  console.log('🚀 Starting SIMPLE scroll-focused extraction...');
+  
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
+  
+  const page = await browser.newPage();
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+  
+  // Navigate to followers page
+  console.log('📍 Navigating to followers page...');
+  await page.goto('https://twitter.com/${username}/followers', { waitUntil: 'networkidle0' });
+  
+  // Inject OAuth tokens
+  await page.evaluate((token, secret) => {
+    localStorage.setItem('twitter_oauth_token', token);
+    localStorage.setItem('oauth_token', token);
+    localStorage.setItem('oauth_token_secret', secret);
+  }, '${accessToken}', '${accessTokenSecret}');
+  
+  // Reload with tokens
+  await page.reload({ waitUntil: 'networkidle0' });
+  
+  console.log('📜 Starting aggressive scrolling for 800+ followers...');
+  const followers = [];
+  const maxScrolls = 50; // Much more aggressive scrolling
+  
+  for (let i = 0; i < maxScrolls; i++) {
+    console.log(\`📜 Scroll \${i + 1}/\${maxScrolls}\`);
+    
+    // Extract current followers
+    const currentFollowers = await page.evaluate(() => {
+      const elements = document.querySelectorAll('[data-testid="cellInnerDiv"], [data-testid="UserCell"]');
+      const extracted = [];
+      
+      elements.forEach(element => {
+        const links = element.querySelectorAll('a[href*="/"]');
+        links.forEach(link => {
+          if (link.href) {
+            const match = link.href.match(/(?:twitter\\.com|x\\.com)\\/([^/?#]+)/);
+            if (match && match[1] && 
+                match[1] !== 'home' && 
+                match[1] !== 'explore' && 
+                match[1] !== 'i' &&
+                match[1].length > 1) {
+              extracted.push({
+                username: match[1],
+                displayName: link.textContent?.trim() || match[1]
+              });
+            }
+          }
+        });
+      });
+      
+      return extracted;
+    });
+    
+    // Add unique followers
+    const existingUsernames = new Set(followers.map(f => f.username));
+    const newFollowers = currentFollowers.filter(f => !existingUsernames.has(f.username));
+    followers.push(...newFollowers);
+    
+    console.log(\`Found \${newFollowers.length} new followers (total: \${followers.length})\`);
+    
+    // Stop if we have enough
+    if (followers.length >= 800) {
+      console.log('🎯 Reached 800+ followers target!');
+      break;
     }
-
-    console.log('🔧 Setting environment variables...')
-    const envString = Object.entries(envVars)
-      .filter(([_, value]) => value)
-      .map(([key, value]) => `${key}="${value}"`)
-      .join(' ')
-
-    // Execute the existing scanner with OAuth tokens (fast, no timeouts)
-    const timeoutMs = 2 * 60 * 1000 // 2 minutes
-    const startTime = Date.now()
     
+    // Scroll down aggressively
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+    
+    // Wait for new content
+    await page.waitForTimeout(1500);
+    
+    // Stop if no new followers for several scrolls
+    if (newFollowers.length === 0 && i > 10) {
+      console.log('No new followers found, stopping...');
+      break;
+    }
+  }
+  
+  console.log(\`✅ Final result: \${followers.length} followers extracted\`);
+  
+  // Save results
+  const result = {
+    followers: followers,
+    followerCount: followers.length,
+    scanDate: new Date().toISOString(),
+    status: followers.length > 0 ? 'success' : 'failed',
+    username: '${username}',
+    strategy: 'Simple-Aggressive-Scroll'
+  };
+  
+  require('fs').writeFileSync('/tmp/followers_result.json', JSON.stringify(result, null, 2));
+  
+  await browser.close();
+  console.log('🎯 Simple scroll extraction completed!');
+})().catch(console.error);
+`;
+
     try {
-      const workingDir = 'scanner'
+      // Create and run the simple script
+      console.log('📤 Creating simple scroll script...')
+      const base64Script = Buffer.from(simpleScrollScript).toString('base64')
+      await sandbox.process.executeCommand(`echo '${base64Script}' | base64 -d > /tmp/simple_scroll.js`)
       
-      // Execute the scanner with OAuth tokens
-      console.log(`🚀 Starting OAuth scanner execution from ${workingDir}...`)
-      const executeCommand = `cd ${workingDir} && ${envString} node twitter-scanner.js`
-      console.log(`🔧 Execute command: ${executeCommand}`)
+      // Install puppeteer quickly
+      console.log('📦 Installing Puppeteer...')
+      await sandbox.process.executeCommand('cd /tmp && npm init -y && npm install puppeteer')
       
-      const result = await Promise.race([
-        sandbox.process.executeCommand(executeCommand),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Scanner execution timeout')), timeoutMs)
-        )
-      ])
+      // Run the simple script
+      console.log('🚀 Running simple scroll extraction...')
+      const result = await sandbox.process.executeCommand('cd /tmp && node simple_scroll.js')
       
-      console.log('✅ Scanner execution completed')
-      console.log('📊 Scanner output:', result)
+      console.log('📊 Simple script output:', result.result)
       
-      // Retrieve the results
-      console.log('📥 Retrieving scan results...')
+      // Get results
       const resultResponse = await sandbox.process.executeCommand('cat /tmp/followers_result.json')
-      const resultContent = resultResponse.result || resultResponse.stdout || ''
-      console.log('📄 Raw result content:', resultContent)
-      const scanResult = JSON.parse(resultContent)
+      const scanResult = JSON.parse(resultResponse.result || '{}')
       
-      console.log('📊 Scan completed successfully:', {
-        followerCount: scanResult.followerCount,
-        status: scanResult.status,
-        strategy: scanResult.strategy || 'OAuth-Enhanced'
-      })
+      console.log('✅ Simple scroll completed:', scanResult.followerCount, 'followers')
       
       return scanResult
       
     } catch (error: unknown) {
-      console.error('❌ OAuth scanner execution failed:', error)
-      
-      // Return a fallback result
+      console.error('❌ Simple scroll failed:', error)
       return {
         followers: [],
         followerCount: 0,
         scanDate: new Date().toISOString(),
-        status: 'oauth_execution_failed',
+        status: 'simple_scroll_failed',
         username: username,
-        error: `OAuth scanner execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        executionTime: Date.now() - startTime
+        error: `Simple scroll failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       }
     }
   }
