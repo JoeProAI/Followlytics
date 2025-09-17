@@ -563,13 +563,16 @@ scanTwitterFollowers()
 
     console.log('🚀 Executing multi-browser Twitter scanner...')
     
+    // First, check where we are and where the file is
+    await sandbox.process.executeCommand('pwd && ls -la && ls -la twitter-scanner.js')
+    
     // Execute the scanner with timeout
     const timeoutMs = 10 * 60 * 1000 // 10 minutes
     const startTime = Date.now()
     
     try {
       const result = await Promise.race([
-        sandbox.process.executeCommand('node twitter-scanner.js'),
+        sandbox.process.executeCommand('node ./twitter-scanner.js'),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Scanner execution timeout')), timeoutMs)
         )
@@ -657,7 +660,7 @@ scanTwitterFollowers()
         await method.execute()
         
         // Verify the file was created and has content
-        const fileCheck = await sandbox.process.executeCommand(`ls -la ${filename} && head -5 ${filename}`)
+        const fileCheck = await sandbox.process.executeCommand(`ls -la ${filename} && head -n 5 ${filename}`)
         console.log(`✅ ${method.name} succeeded:`, fileCheck)
         return
         
