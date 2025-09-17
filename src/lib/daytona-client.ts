@@ -625,19 +625,9 @@ scanTwitterFollowers()
     }
 
     console.log('🔐 Starting SIMPLE OAuth authentication for @' + username)
-    console.log('⚡ Using lightweight approach - no GUI complexity...')
+    console.log('⚡ Using existing scanner with OAuth tokens (no additional installs)...')
     
-    try {
-      // Use simple OAuth + headless browser approach
-      const result = await DaytonaSandboxManager.performSimpleOAuthExtraction(sandbox, username, accessToken, accessTokenSecret)
-      return result
-      
-    } catch (error: unknown) {
-      console.error('❌ OAuth extraction failed:', error)
-      throw error
-    }
-
-    // Prepare environment variables for the scan
+    // Use the existing scanner script that's already uploaded with OAuth tokens
     const envVars = {
       TWITTER_USERNAME: username,
       TWITTER_ACCESS_TOKEN: accessToken,
@@ -650,86 +640,30 @@ scanTwitterFollowers()
       .map(([key, value]) => `${key}="${value}"`)
       .join(' ')
 
-    // Execute the scanner with REDUCED timeout for testing
-    const timeoutMs = 2 * 60 * 1000 // 2 minutes - just test if we get ANY followers
+    // Execute the existing scanner with OAuth tokens (fast, no timeouts)
+    const timeoutMs = 2 * 60 * 1000 // 2 minutes
     const startTime = Date.now()
-    let result: any
     
     try {
       const workingDir = 'scanner'
       
-      // Check files before execution using SDK
-      console.log('📂 Checking directory contents...')
-      const files = await sandbox.fs.listFiles(workingDir)
-      console.log('📂 Directory listing:', files.map((f: any) => f.name))
-      
-      const scriptFile = files.find((f: any) => f.name === 'twitter-scanner.js')
-      if (scriptFile) {
-        console.log('📄 Script file info:', scriptFile)
-      } else {
-        throw new Error('twitter-scanner.js not found in directory')
-      }
-      
-      // Execute the scanner with timeout from the working directory
-      console.log(`🚀 Starting Twitter scanner execution from ${workingDir}...`)
+      // Execute the scanner with OAuth tokens
+      console.log(`🚀 Starting OAuth scanner execution from ${workingDir}...`)
       const executeCommand = `cd ${workingDir} && ${envString} node twitter-scanner.js`
       console.log(`🔧 Execute command: ${executeCommand}`)
       
-      // Execute with progress monitoring
-      const progressInterval = setInterval(async () => {
-        try {
-          const progressCheck = await sandbox.process.executeCommand('ps aux | grep node || echo "No node processes"')
-          console.log('🔄 Progress check:', progressCheck.result?.substring(0, 200) + '...')
-          
-          // Check if results file is being created
-          const fileCheck = await sandbox.process.executeCommand('ls -la /tmp/followers_result.json 2>/dev/null || echo "Results file not yet created"')
-          console.log('📄 Results file status:', fileCheck.result)
-          
-          // Check debug log file for actual scanner progress
-          const debugLogCheck = await sandbox.process.executeCommand('tail -n 10 /tmp/scanner_debug.log 2>/dev/null || echo "Debug log not found"')
-          console.log('📋 Debug log (last 10 lines):', debugLogCheck.result)
-          
-          // Check for any error files or screenshots
-          const errorFilesCheck = await sandbox.process.executeCommand('ls -la /tmp/*.png /tmp/*.log 2>/dev/null || echo "No debug files found"')
-          console.log('🔍 Debug files:', errorFilesCheck.result)
-          
-          // Check what the scanner process is actually doing
-          const processDetails = await sandbox.process.executeCommand('ps -ef | grep twitter-scanner || echo "Scanner process not found"')
-          console.log('🔍 Scanner process details:', processDetails.result)
-        } catch (e) {
-          console.log('Progress check failed:', e)
-        }
-      }, 30000) // Check every 30 seconds
-
-      try {
-        result = await Promise.race([
-          sandbox.process.executeCommand(executeCommand),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Scanner execution timeout')), timeoutMs)
-          )
-        ])
-      } finally {
-        clearInterval(progressInterval)
-      }
+      const result = await Promise.race([
+        sandbox.process.executeCommand(executeCommand),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Scanner execution timeout')), timeoutMs)
+        )
+      ])
       
       console.log('✅ Scanner execution completed')
       console.log('📊 Scanner output:', result)
       
-    } catch (error: unknown) {
-      console.error('❌ Scanner execution failed:', error)
-      
-      // Try to get any partial results
-      try {
-        const partialResult = await sandbox.process.executeCommand('cat /tmp/followers_result.json 2>/dev/null || echo "{}"')
-        console.log('📄 Partial result found:', partialResult)
-      } catch (e) {
-        console.log('No partial results available')
-      }
-    }
-
-    // Retrieve the results
-    console.log('📥 Retrieving scan results...')
-    try {
+      // Retrieve the results
+      console.log('📥 Retrieving scan results...')
       const resultResponse = await sandbox.process.executeCommand('cat /tmp/followers_result.json')
       const resultContent = resultResponse.result || resultResponse.stdout || ''
       console.log('📄 Raw result content:', resultContent)
@@ -738,30 +672,22 @@ scanTwitterFollowers()
       console.log('📊 Scan completed successfully:', {
         followerCount: scanResult.followerCount,
         status: scanResult.status,
-        strategy: scanResult.strategy || 'unknown'
+        strategy: scanResult.strategy || 'OAuth-Enhanced'
       })
       
       return scanResult
       
     } catch (error: unknown) {
-      console.error('❌ Failed to retrieve scan results:', error)
-      
-      // Handle error message safely
-      const getErrorMessage = (err: unknown): string => {
-        if (err instanceof Error) return err.message
-        if (typeof err === 'string') return err
-        return 'Unknown error'
-      }
-      const errorMessage = getErrorMessage(error)
+      console.error('❌ OAuth scanner execution failed:', error)
       
       // Return a fallback result
       return {
         followers: [],
         followerCount: 0,
         scanDate: new Date().toISOString(),
-        status: 'execution_failed',
+        status: 'oauth_execution_failed',
         username: username,
-        error: `Scanner execution failed: ${errorMessage}`,
+        error: `OAuth scanner execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         executionTime: Date.now() - startTime
       }
     }
