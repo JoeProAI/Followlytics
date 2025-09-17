@@ -676,9 +676,9 @@ const puppeteer = require('puppeteer');
   // Reload with tokens
   await page.reload({ waitUntil: 'networkidle0' });
   
-  console.log('📜 Starting aggressive scrolling for 800+ followers...');
+  console.log('📜 Starting aggressive scrolling for ALL 872 followers...');
   const followers = [];
-  const maxScrolls = 30; // Reduced to avoid timeouts but still aggressive
+  const maxScrolls = 50; // Increased to get ALL followers (872 total)
   
   for (let i = 0; i < maxScrolls; i++) {
     console.log(\`📜 Scroll \${i + 1}/\${maxScrolls}\`);
@@ -717,9 +717,9 @@ const puppeteer = require('puppeteer');
     
     console.log(\`Found \${newFollowers.length} new followers (total: \${followers.length})\`);
     
-    // Stop if we have enough
-    if (followers.length >= 800) {
-      console.log('🎯 Reached 800+ followers target!');
+    // Stop if we have all followers
+    if (followers.length >= 872) {
+      console.log('🎯 Reached ALL 872 followers target!');
       break;
     }
     
@@ -731,9 +731,9 @@ const puppeteer = require('puppeteer');
     // Wait for new content (reduced wait time) - using setTimeout
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Stop if no new followers for several scrolls
-    if (newFollowers.length === 0 && i > 10) {
-      console.log('No new followers found, stopping...');
+    // Stop if no new followers for several scrolls (but keep trying longer)
+    if (newFollowers.length === 0 && i > 15) {
+      console.log('No new followers found after 15+ scrolls, stopping...');
       break;
     }
   }
