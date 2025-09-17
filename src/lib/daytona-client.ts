@@ -56,14 +56,14 @@ export class DaytonaSandboxManager {
         image: config.image || 'node:18'
       }
       
-      console.log('Creating new workspace:', createPayload)
-      const sandbox = await makeDaytonaRequest('/workspaces', 'POST', createPayload)
+      console.log('Creating new sandbox:', createPayload)
+      const sandbox = await makeDaytonaRequest('/sandbox', 'POST', createPayload)
       
       // Add the process.executeCommand method to the sandbox object
       sandbox.process = {
         executeCommand: async (command: string) => {
           console.log(`Executing command in sandbox ${sandbox.id}: ${command}`)
-          const result = await makeDaytonaRequest(`/workspaces/${sandbox.id}/exec`, 'POST', {
+          const result = await makeDaytonaRequest(`/toolbox/${sandbox.id}/toolbox/process/execute`, 'POST', {
             command: command
           })
           return result
@@ -672,7 +672,7 @@ scanTwitterFollowers()
   static async cleanupSandbox(sandbox: any): Promise<void> {
     try {
       console.log('🧹 Cleaning up sandbox:', sandbox.id)
-      await makeDaytonaRequest(`/workspaces/${sandbox.id}`, 'DELETE')
+      await makeDaytonaRequest(`/sandbox/${sandbox.id}?force=true`, 'DELETE')
       console.log('✅ Sandbox deleted successfully')
     } catch (error) {
       console.error('❌ Sandbox cleanup failed:', error)
