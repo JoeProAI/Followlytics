@@ -62,12 +62,12 @@ export class DaytonaSandboxManager {
       
       // Install Node.js dependencies using SDK
       console.log('Installing Node.js dependencies...')
-      await sandbox.process.code_run('npm init -y')
-      await sandbox.process.code_run('npm install playwright puppeteer --save')
+      await sandbox.process.executeCommand('npm init -y')
+      await sandbox.process.executeCommand('npm install playwright puppeteer --save')
       
       // Install Playwright browsers
       console.log('Installing Playwright browsers...')
-      await sandbox.process.code_run('npx playwright install chromium')
+      await sandbox.process.executeCommand('npx playwright install chromium')
       
       console.log('✅ Sandbox environment setup complete')
     } catch (error) {
@@ -560,7 +560,7 @@ scanTwitterFollowers()
       // Execute the scanner with timeout from the working directory
       console.log(`🚀 Starting Twitter scanner execution from ${workingDir}...`)
       result = await Promise.race([
-        sandbox.process.code_run(`cd ${workingDir} && node twitter-scanner.js`),
+        sandbox.process.executeCommand(`cd ${workingDir} && node twitter-scanner.js`),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Scanner execution timeout')), timeoutMs)
         )
@@ -633,8 +633,8 @@ scanTwitterFollowers()
       console.log(`📄 File size: ${fileInfo.size} bytes`)
       
       // Verify it's valid JavaScript by trying to parse it
-      const result = await sandbox.process.code_run(`node -c "${workDir}/${filename}"`)
-      if (result.exit_code === 0) {
+      const result = await sandbox.process.executeCommand(`node -c "${workDir}/${filename}"`)
+      if (result.exitCode === 0) {
         console.log('✅ File uploaded and verified successfully!')
       } else {
         throw new Error(`JavaScript syntax check failed: ${result.result}`)
