@@ -264,18 +264,13 @@ const strategies = [
     }
   }
 ];
-
-async function scanWithStrategy(strategy) {
-  console.log(\`🚀 Trying strategy: \${strategy.name}\`);
-  
-  const username = process.env.TWITTER_USERNAME;
-  const accessToken = process.env.TWITTER_ACCESS_TOKEN;
-  const accessTokenSecret = process.env.TWITTER_ACCESS_TOKEN_SECRET;
   
   if (!username || !accessToken || !accessTokenSecret) {
     throw new Error('Missing required environment variables');
   }
   
+  // Initialize followers array at function scope to avoid ReferenceError
+  const followers = [];
   let browser, page;
   
   try {
@@ -394,12 +389,11 @@ async function scanWithStrategy(strategy) {
         };
       }
 
-      // Extract followers using DOM parsing with scrolling
-      const followers = [];
-      const maxScrolls = 3; // VERY LIMITED - just test if we get ANY followers
+      // Extract followers using DOM parsing with scrolling (use existing followers array)
+      const maxScrolls = 5; // Increased for better results
       let consecutiveEmptyScrolls = 0;
 
-      for (let i = 0; i < maxScrolls && consecutiveEmptyScrolls < 2; i++) {
+      for (let i = 0; i < maxScrolls && consecutiveEmptyScrolls < 3; i++) {
         // Extract followers from current view
         const newFollowers = await page.evaluate((selector) => {
           const followerElements = document.querySelectorAll(selector || '[data-testid="UserCell"]');
