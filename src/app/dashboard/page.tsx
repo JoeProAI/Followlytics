@@ -16,21 +16,33 @@ function DashboardContent() {
     const handleXAuthSuccess = async () => {
       const xAuth = searchParams.get('x_auth')
       const token = searchParams.get('token')
+      const error = searchParams.get('error')
+      const message = searchParams.get('message')
+      
+      // Handle OAuth errors
+      if (error) {
+        console.error('OAuth error:', error, message)
+        // Show error message to user but don't redirect away from dashboard
+        // The error will be displayed in the UI
+        return
+      }
       
       if (xAuth === 'success' && token) {
         try {
+          console.log('🔑 Signing in with custom token...')
           await signInWithCustomToken(auth, token)
+          console.log('✅ Successfully signed in with custom token')
           // Clear URL parameters after successful auth
           router.replace('/dashboard')
         } catch (error) {
           console.error('X Auth token error:', error)
-          router.push('/login?error=x_auth_token_failed')
+          // Don't redirect to login, stay on dashboard and show error
         }
         return
       }
       
-      // Only redirect to login if no user and no X auth in progress
-      if (!user && !token) {
+      // Only redirect to login if no user and no X auth in progress and no error
+      if (!user && !token && !error) {
         router.push('/login')
       }
     }

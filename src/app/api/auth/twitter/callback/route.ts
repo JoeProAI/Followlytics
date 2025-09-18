@@ -6,7 +6,28 @@ import { signInWithCustomToken } from 'firebase/auth'
 
 export async function GET(request: NextRequest) {
   // Determine base URL for redirects (outside try block so it's available in catch)
-  const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000'
+  let baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
+  
+  // If no environment URL, construct from request
+  if (!baseUrl) {
+    const protocol = request.headers.get('x-forwarded-proto') || 'https'
+    const host = request.headers.get('host')
+    baseUrl = host ? `${protocol}://${host}` : 'http://localhost:3000'
+  }
+  
+  // Ensure baseUrl doesn't have trailing slash and has proper protocol
+  if (baseUrl && !baseUrl.startsWith('http')) {
+    baseUrl = `https://${baseUrl}`
+  }
+  baseUrl = baseUrl?.replace(/\/$/, '') || 'http://localhost:3000'
+  
+  console.log('🔗 OAuth callback base URL:', baseUrl)
+  console.log('🔍 Environment check:', {
+    NEXTAUTH_URL: !!process.env.NEXTAUTH_URL,
+    VERCEL_URL: !!process.env.VERCEL_URL,
+    host: request.headers.get('host'),
+    protocol: request.headers.get('x-forwarded-proto')
+  })
   
   try {
     
@@ -17,17 +38,20 @@ export async function GET(request: NextRequest) {
 
     // Handle user denial
     if (denied) {
-      return NextResponse.redirect(`${baseUrl}/login?error=x_auth_denied`)
+      console.log('❌ User denied OAuth authorization')
+      return NextResponse.redirect(`${baseUrl}/dashboard?error=x_auth_denied&message=Twitter authorization was denied`)
     }
 
     if (!oauthToken || !oauthVerifier) {
-      return NextResponse.redirect(`${baseUrl}/login?error=missing_oauth_params`)
+      console.log('❌ Missing OAuth parameters:', { oauthToken: !!oauthToken, oauthVerifier: !!oauthVerifier })
+      return NextResponse.redirect(`${baseUrl}/dashboard?error=missing_oauth_params&message=Missing OAuth parameters from Twitter`)
     }
 
     // Get stored tokens from cookies
     const oauthTokenSecret = request.cookies.get('oauth_token_secret')?.value
     if (!oauthTokenSecret) {
-      return NextResponse.redirect(`${baseUrl}/login?error=missing_token_secret`)
+      console.log('❌ Missing OAuth token secret cookie')
+      return NextResponse.redirect(`${baseUrl}/dashboard?error=missing_token_secret&message=OAuth session expired, please try again`)
     }
 
     // Exchange request token for access token
@@ -44,7 +68,8 @@ export async function GET(request: NextRequest) {
     )
 
     if (!adminAuth || !adminDb) {
-      return NextResponse.redirect(`${baseUrl}/login?error=firebase_not_configured`)
+      console.log('❌ Firebase Admin not configured')
+      return NextResponse.redirect(`${baseUrl}/dashboard?error=firebase_not_configured&message=Server configuration error`)
     }
 
     // Create or get Firebase user
@@ -154,6 +179,6 @@ export async function GET(request: NextRequest) {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined
     })
-    return NextResponse.redirect(`${baseUrl}/login?error=x_auth_failed&details=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`)
+    return NextResponse.redirect(`${baseUrl}/dashboard?error=x_auth_failed&message=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`)
   }
 }
