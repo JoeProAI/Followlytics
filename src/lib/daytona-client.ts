@@ -662,19 +662,58 @@ const puppeteer = require('puppeteer');
   const page = await browser.newPage();
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
   
-  // Navigate to followers page (using the ORIGINAL working method)
-  console.log('📍 Navigating to followers page...');
-  await page.goto('https://x.com/${username}/followers', { waitUntil: 'networkidle0' });
+  // ENHANCED APPROACH: Navigate to X.com first, then authenticate, then go to followers
+  console.log('🔐 Step 1: Going to X.com and injecting authentication...');
+  await page.goto('https://x.com', { waitUntil: 'networkidle0' });
   
-  // Inject OAuth tokens (using the ORIGINAL working method)
+  // Inject OAuth tokens into the main X.com domain first
   await page.evaluate((token, secret) => {
     localStorage.setItem('twitter_oauth_token', token);
     localStorage.setItem('oauth_token', token);
     localStorage.setItem('oauth_token_secret', secret);
+    
+    // Also try setting cookies
+    document.cookie = \`auth_token=\${token}; domain=.x.com; path=/\`;
+    document.cookie = \`oauth_token=\${token}; domain=.x.com; path=/\`;
+    
+    console.log('✅ OAuth tokens injected on x.com domain');
   }, '${accessToken}', '${accessTokenSecret}');
   
-  // Reload with tokens (using the ORIGINAL working method)
-  await page.reload({ waitUntil: 'networkidle0' });
+  console.log('📍 Step 2: Now navigating to followers page with authentication...');
+  await page.goto('https://x.com/${username}/followers', { waitUntil: 'networkidle0' });
+  
+  // Wait for page to load and check if we're on the right page
+  await new Promise(resolve => setTimeout(resolve, 5000));
+  
+  // Verify we're on the followers page
+  const pageCheck = await page.evaluate(() => {
+    const currentUrl = window.location.href;
+    const pageTitle = document.title;
+    const isFollowersPage = currentUrl.includes('/followers');
+    const hasLoginLinks = document.body.textContent?.includes('Log in') || false;
+    
+    return {
+      currentUrl,
+      pageTitle,
+      isFollowersPage,
+      hasLoginLinks,
+      authenticated: !hasLoginLinks
+    };
+  });
+  
+  console.log(\`📊 Page verification: \${JSON.stringify(pageCheck, null, 2)}\`);
+  
+  if (!pageCheck.isFollowersPage) {
+    console.log('❌ Not on followers page, trying direct navigation...');
+    await page.goto('https://x.com/${username}/followers', { waitUntil: 'networkidle0' });
+    await new Promise(resolve => setTimeout(resolve, 3000));
+  }
+  
+  if (pageCheck.hasLoginLinks) {
+    console.log('⚠️ Still seeing login links, authentication may not be working');
+  } else {
+    console.log('✅ Authentication appears to be working');
+  }
   
   console.log('📜 Starting aggressive scrolling for ALL 872 followers...');
   const followers = [];
@@ -720,32 +759,86 @@ const puppeteer = require('puppeteer');
     
     console.log(\`🔍 Page debug info:\`, JSON.stringify(pageDebug, null, 2));
     
-    // Extract current followers (using the ORIGINAL working method)
-    const currentFollowers = await page.evaluate(() => {
-      const elements = document.querySelectorAll('[data-testid="cellInnerDiv"], [data-testid="UserCell"]');
+    // Extract ONLY followers (not posts, not profile content)
+    const currentFollowers = await page.evaluate((targetUsername) => {
       const extracted = [];
       
-      elements.forEach(element => {
-        const links = element.querySelectorAll('a[href*="/"]');
-        links.forEach(link => {
+      // Look specifically for UserCell elements (these should be followers)
+      const userCells = document.querySelectorAll('[data-testid="UserCell"]');
+      console.log(\`🔍 Found \${userCells.length} UserCell elements (these should be followers)\`);
+      
+      userCells.forEach((cell, index) => {
+        // Look for profile links within each UserCell
+        const profileLinks = cell.querySelectorAll('a[href*="x.com/"]');
+        
+        profileLinks.forEach(link => {
           if (link.href) {
-            const match = link.href.match(/(?:x\\.com|twitter\\.com)\\/([^/?#]+)/);
-            if (match && match[1] && 
-                match[1] !== 'home' && 
-                match[1] !== 'explore' && 
-                match[1] !== 'i' &&
-                match[1].length > 1) {
-              extracted.push({
-                username: match[1],
-                displayName: link.textContent?.trim() || match[1]
-              });
+            // Match clean profile URLs (not status, photo, etc.)
+            const match = link.href.match(/x\\.com\\/([^/?#]+)$/);
+            if (match && match[1]) {
+              const username = match[1];
+              
+              // Filter out non-user pages and the target user
+              if (username !== targetUsername &&
+                  username !== 'home' && 
+                  username !== 'explore' && 
+                  username !== 'i' &&
+                  username !== 'messages' &&
+                  username !== 'notifications' &&
+                  username !== 'search' &&
+                  username !== 'hashtag' &&
+                  username.length > 1 &&
+                  !username.includes('status') &&
+                  !username.includes('photo') &&
+                  !username.includes('header_photo')) {
+                
+                // Get display name from the cell
+                let displayName = username;
+                const nameSpans = cell.querySelectorAll('span');
+                for (const span of nameSpans) {
+                  const spanText = span.textContent?.trim();
+                  if (spanText && 
+                      spanText.length > 0 && 
+                      spanText.length < 50 && 
+                      !spanText.includes('@') && 
+                      !spanText.includes('http') &&
+                      !spanText.includes('Follow') &&
+                      !spanText.includes('Following') &&
+                      !spanText.includes('Followers') &&
+                      spanText !== username) {
+                    displayName = spanText;
+                    break;
+                  }
+                }
+                
+                extracted.push({
+                  username: username,
+                  displayName: displayName
+                });
+                
+                console.log(\`✅ Found follower: @\${username} (\${displayName})\`);
+              }
             }
           }
         });
       });
       
+      // If no UserCells found, check if we're on the wrong page
+      if (userCells.length === 0) {
+        const currentUrl = window.location.href;
+        const pageTitle = document.title;
+        console.log(\`❌ No UserCell elements found. Current URL: \${currentUrl}\`);
+        console.log(\`❌ Page title: \${pageTitle}\`);
+        
+        // Check if we're on profile page instead of followers page
+        if (!currentUrl.includes('/followers')) {
+          console.log(\`❌ ERROR: Not on followers page! Currently on: \${currentUrl}\`);
+        }
+      }
+      
+      console.log(\`📊 Extracted \${extracted.length} followers from this scroll\`);
       return extracted;
-    });
+    }, '${username}');
     
     // Add unique followers
     const existingUsernames = new Set(followers.map(f => f.username));

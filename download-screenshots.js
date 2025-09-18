@@ -3,7 +3,7 @@ const { Daytona } = require('@daytonaio/sdk');
 const fs = require('fs');
 const path = require('path');
 
-const sandboxId = '3fec89c5-7453-4103-ad73-457cb94dd6a2';
+const sandboxId = '00e121ad-9471-4031-8b2b-f057b3537a01';
 
 async function downloadScreenshots() {
   try {
