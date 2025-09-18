@@ -1,7 +1,7 @@
 // Get debug logs from the extraction
 const { Daytona } = require('@daytonaio/sdk');
 
-const sandboxId = '00e121ad-9471-4031-8b2b-f057b3537a01';
+const sandboxId = '438e029e-9600-4e94-b9c5-9d447e5f9848';
 
 async function getDebugLogs() {
   try {
