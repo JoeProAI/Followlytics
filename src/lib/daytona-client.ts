@@ -662,84 +662,93 @@ const puppeteer = require('puppeteer');
   const page = await browser.newPage();
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
   
-  // OAUTH-TO-SESSION APPROACH: Use OAuth tokens to establish browser session
-  console.log('🔐 Step 1: Using OAuth tokens to establish authenticated session...');
+  // HYBRID AUTHENTICATION: Try multiple approaches for maximum success
+  console.log('🔐 Step 1: Attempting hybrid authentication approach...');
   
-  // First, try to use OAuth tokens to get session cookies via Twitter's web OAuth flow
-  console.log('📍 Attempting Twitter web OAuth flow...');
-  
-  try {
-    // Navigate to Twitter OAuth authorize page with our tokens
-    const oauthUrl = \`https://api.twitter.com/oauth/authorize?oauth_token=\${accessToken}\`;
-    console.log(\`🔗 Navigating to OAuth URL: \${oauthUrl}\`);
-    
-    await page.goto(oauthUrl, { waitUntil: 'networkidle0' });
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Check if we're redirected to X.com (successful auth) or still on authorize page
-    const currentUrl = await page.url();
-    console.log(\`📍 Current URL after OAuth: \${currentUrl}\`);
-    
-    if (currentUrl.includes('x.com') || currentUrl.includes('twitter.com')) {
-      console.log('✅ OAuth redirect successful - we have an authenticated session!');
-    } else {
-      console.log('⚠️ OAuth redirect failed, trying direct navigation...');
-      await page.goto('https://x.com', { waitUntil: 'networkidle0' });
-    }
-    
-  } catch (error) {
-    console.log(\`❌ OAuth flow failed: \${error.message}\`);
-    console.log('🔄 Falling back to direct X.com navigation...');
-    await page.goto('https://x.com', { waitUntil: 'networkidle0' });
-  }
-  
-  // Now try to navigate to followers page
-  console.log('📍 Step 2: Navigating to followers page...');
+  // Method 1: Try direct followers page access (works if user has session cookies)
+  console.log('📍 Method 1: Trying direct followers page access...');
   await page.goto('https://x.com/${username}/followers', { waitUntil: 'networkidle0' });
-  await new Promise(resolve => setTimeout(resolve, 5000));
+  await new Promise(resolve => setTimeout(resolve, 3000));
   
-  // Verify authentication and page
-  const pageCheck = await page.evaluate(() => {
+  // Check if we're already authenticated
+  let authCheck = await page.evaluate(() => {
     const currentUrl = window.location.href;
-    const pageTitle = document.title;
-    const isFollowersPage = currentUrl.includes('/followers');
     const hasLoginLinks = document.body.textContent?.includes('Log in') || 
                          document.body.textContent?.includes('Sign in') || false;
     const hasFollowerElements = document.querySelectorAll('[data-testid="UserCell"]').length > 0;
+    const isFollowersPage = currentUrl.includes('/followers');
     
     return {
       currentUrl,
-      pageTitle,
       isFollowersPage,
       hasLoginLinks,
       hasFollowerElements,
-      authenticated: !hasLoginLinks && isFollowersPage
+      authenticated: !hasLoginLinks && isFollowersPage && hasFollowerElements
     };
   });
   
-  console.log(\`📊 Page verification: \${JSON.stringify(pageCheck, null, 2)}\`);
+  console.log(\`📊 Direct access check: \${JSON.stringify(authCheck, null, 2)}\`);
   
-  // If still not authenticated, try alternative approaches
-  if (pageCheck.hasLoginLinks || !pageCheck.isFollowersPage) {
-    console.log('⚠️ Authentication failed, trying alternative session establishment...');
+  if (authCheck.authenticated) {
+    console.log('✅ Already authenticated! Using existing session.');
+  } else {
+    console.log('⚠️ Not authenticated, trying OAuth token injection...');
     
-    // Try injecting session tokens as a fallback
+    // Method 2: Try OAuth token injection
+    await page.goto('https://x.com', { waitUntil: 'networkidle0' });
+    
+    // Inject OAuth tokens in multiple formats
     await page.evaluate((token, secret) => {
-      // Try various token formats that might work for browser sessions
+      // Try localStorage
       localStorage.setItem('auth_token', token);
       localStorage.setItem('oauth_token', token);
       localStorage.setItem('oauth_token_secret', secret);
       
-      // Try setting session cookies
-      document.cookie = \`auth_token=\${token}; domain=.x.com; path=/; secure; samesite=lax\`;
-      document.cookie = \`oauth_token=\${token}; domain=.x.com; path=/; secure; samesite=lax\`;
+      // Try sessionStorage
+      sessionStorage.setItem('auth_token', token);
+      sessionStorage.setItem('oauth_token', token);
       
-      console.log('🔄 Injected fallback session tokens');
+      console.log('🔄 Injected OAuth tokens into storage');
     }, '${accessToken}', '${accessTokenSecret}');
     
-    // Try navigating to followers page again
+    // Try to set cookies
+    try {
+      await page.setCookie(
+        { name: 'auth_token', value: '${accessToken}', domain: '.x.com', path: '/' },
+        { name: 'oauth_token', value: '${accessToken}', domain: '.x.com', path: '/' }
+      );
+      console.log('🍪 Set OAuth cookies');
+    } catch (error) {
+      console.log('⚠️ Could not set cookies:', error.message);
+    }
+    
+    // Try followers page again
     await page.goto('https://x.com/${username}/followers', { waitUntil: 'networkidle0' });
     await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    // Check authentication again
+    authCheck = await page.evaluate(() => {
+      const currentUrl = window.location.href;
+      const hasLoginLinks = document.body.textContent?.includes('Log in') || 
+                           document.body.textContent?.includes('Sign in') || false;
+      const hasFollowerElements = document.querySelectorAll('[data-testid="UserCell"]').length > 0;
+      const isFollowersPage = currentUrl.includes('/followers');
+      
+      return {
+        currentUrl,
+        isFollowersPage,
+        hasLoginLinks,
+        hasFollowerElements,
+        authenticated: !hasLoginLinks && isFollowersPage && hasFollowerElements
+      };
+    });
+    
+    console.log(\`📊 OAuth injection check: \${JSON.stringify(authCheck, null, 2)}\`);
+    
+    if (!authCheck.authenticated) {
+      console.log('❌ OAuth injection failed. User will need to provide session cookies or manual login.');
+      console.log('💡 For now, continuing with unauthenticated extraction (limited results)...');
+    }
   }
   
   console.log('📜 Starting aggressive scrolling for ALL 872 followers...');

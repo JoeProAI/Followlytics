@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
+import SessionCookieHelper from './SessionCookieHelper'
 
 interface ScanProgress {
   scanId: string
@@ -19,6 +20,8 @@ export default function FollowerScanner() {
   const [recentScans, setRecentScans] = useState<any[]>([])
   const [xAuthorized, setXAuthorized] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
+  const [showSessionCookieHelper, setShowSessionCookieHelper] = useState(false)
+  const [sessionCookies, setSessionCookies] = useState<any>(null)
 
   useEffect(() => {
     if (user) {
@@ -113,13 +116,20 @@ export default function FollowerScanner() {
     }
   }
 
-  const startFollowerScan = async () => {
+  const startFollowerScan = async (useSessionCookies = false) => {
     if (!xUsername.trim()) {
       alert('Please enter an X username')
       return
     }
 
+    // If user wants to use session cookies but hasn't provided them, show helper
+    if (useSessionCookies && !sessionCookies) {
+      setShowSessionCookieHelper(true)
+      return
+    }
+
     setIsScanning(true)
+    setShowSessionCookieHelper(false)
     setScanProgress({
       scanId: '',
       status: 'pending',
@@ -128,13 +138,16 @@ export default function FollowerScanner() {
 
     try {
       const token = await user?.getIdToken()
-      const response = await fetch('/api/scan/followers', {
+      const response = await fetch('/api/scan/hybrid', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ xUsername: xUsername.trim() }),
+        body: JSON.stringify({ 
+          xUsername: xUsername.trim(),
+          sessionCookies: useSessionCookies ? sessionCookies : null
+        }),
       })
 
       if (response.ok) {
@@ -154,6 +167,17 @@ export default function FollowerScanner() {
       setScanProgress(null)
       alert(`Failed to start scan: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
+  }
+
+  const handleSessionCookiesProvided = (cookies: any) => {
+    setSessionCookies(cookies)
+    setShowSessionCookieHelper(false)
+    startFollowerScan(true)
+  }
+
+  const handleSkipSessionCookies = () => {
+    setShowSessionCookieHelper(false)
+    startFollowerScan(false)
   }
 
   const getStatusMessage = (status: string) => {
@@ -264,13 +288,22 @@ export default function FollowerScanner() {
                 />
               </div>
               <div className="flex items-end">
-                <button
-                  onClick={startFollowerScan}
-                  disabled={isScanning}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isScanning ? 'Scanning...' : 'Start Scan'}
-                </button>
+                <div className="space-x-2">
+                  <button
+                    onClick={() => startFollowerScan(false)}
+                    disabled={isScanning}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isScanning ? 'Scanning...' : 'Quick Scan'}
+                  </button>
+                  <button
+                    onClick={() => startFollowerScan(true)}
+                    disabled={isScanning}
+                    className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Enhanced Scan
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -281,6 +314,14 @@ export default function FollowerScanner() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Session Cookie Helper */}
+      {showSessionCookieHelper && (
+        <SessionCookieHelper
+          onCookiesProvided={handleSessionCookiesProvided}
+          onSkip={handleSkipSessionCookies}
+        />
       )}
 
       {/* Progress Display */}

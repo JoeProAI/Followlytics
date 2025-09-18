@@ -1,7 +1,7 @@
 // Direct check using Daytona SDK
 const { Daytona } = require('@daytonaio/sdk');
 
-const sandboxId = '4482feb9-7f3b-4c70-aaa0-51eeb4300e68';
+const sandboxId = '042ade46-2e19-47c1-b96b-730c64ce0208';
 
 async function directCheck() {
   try {
