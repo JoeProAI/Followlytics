@@ -662,103 +662,19 @@ const puppeteer = require('puppeteer');
   const page = await browser.newPage();
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
   
-  // Enhanced OAuth authentication with multiple URL fallbacks
-  console.log('🔐 Starting enhanced OAuth authentication...');
+  // Navigate to followers page (using the ORIGINAL working method)
+  console.log('📍 Navigating to followers page...');
+  await page.goto('https://x.com/${username}/followers', { waitUntil: 'networkidle0' });
   
-  // First, inject tokens into cookies and localStorage
+  // Inject OAuth tokens (using the ORIGINAL working method)
   await page.evaluate((token, secret) => {
-    // Set OAuth tokens in localStorage
     localStorage.setItem('twitter_oauth_token', token);
     localStorage.setItem('oauth_token', token);
     localStorage.setItem('oauth_token_secret', secret);
-    
-    // Also set as cookies for better authentication
-    document.cookie = \`auth_token=\${token}; domain=.x.com; path=/; secure; samesite=lax\`;
-    document.cookie = \`oauth_token=\${token}; domain=.x.com; path=/; secure; samesite=lax\`;
-    document.cookie = \`oauth_token_secret=\${secret}; domain=.x.com; path=/; secure; samesite=lax\`;
-    
-    console.log('✅ OAuth tokens injected into localStorage and cookies');
   }, '${accessToken}', '${accessTokenSecret}');
   
-  // Try multiple URLs in sequence until we get to followers page
-  const followerUrls = [
-    'https://x.com/${username}/followers',
-    'https://twitter.com/${username}/followers', 
-    'https://x.com/${username}/verified_followers',
-    'https://mobile.x.com/${username}/followers',
-    'https://x.com/i/user/${username}/followers'
-  ];
-  
-  let successfulUrl = null;
-  
-  for (let i = 0; i < followerUrls.length; i++) {
-    const url = followerUrls[i];
-    console.log(\`📍 Attempt \${i + 1}: Navigating to \${url}...\`);
-    
-    try {
-      await page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
-      
-      // Wait a bit for page to load
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Check if we're authenticated and on the right page
-      const pageStatus = await page.evaluate(() => {
-        const currentUrl = window.location.href;
-        const pageTitle = document.title;
-        const bodyText = document.body.textContent || '';
-        
-        // Check if we're on login page
-        const isLoginPage = bodyText.includes('Sign in to X') || 
-                           bodyText.includes('Log in') || 
-                           bodyText.includes('Enter your phone') ||
-                           currentUrl.includes('/login') ||
-                           currentUrl.includes('/signin');
-        
-        // Check if we're on followers page
-        const isFollowersPage = currentUrl.includes('/followers') || 
-                               pageTitle.includes('followers') ||
-                               bodyText.includes('Followers you know');
-        
-        // Check for follower elements
-        const userCells = document.querySelectorAll('[data-testid="UserCell"]').length;
-        const cellInnerDivs = document.querySelectorAll('[data-testid="cellInnerDiv"]').length;
-        
-        return {
-          currentUrl,
-          pageTitle,
-          isLoginPage,
-          isFollowersPage,
-          userCells,
-          cellInnerDivs,
-          authenticated: !isLoginPage
-        };
-      });
-      
-      console.log(\`📊 Page status: \${JSON.stringify(pageStatus, null, 2)}\`);
-      
-      if (pageStatus.authenticated && (pageStatus.isFollowersPage || pageStatus.userCells > 0)) {
-        console.log(\`✅ Successfully authenticated and reached followers page: \${url}\`);
-        successfulUrl = url;
-        break;
-      } else if (pageStatus.isLoginPage) {
-        console.log(\`❌ Redirected to login page, trying next URL...\`);
-        continue;
-      } else {
-        console.log(\`⚠️ On page but may not be followers page, trying next URL...\`);
-        continue;
-      }
-      
-    } catch (error) {
-      console.log(\`❌ Failed to load \${url}: \${error.message}\`);
-      continue;
-    }
-  }
-  
-  if (!successfulUrl) {
-    console.log('❌ Failed to authenticate with all URLs, but continuing with extraction attempt...');
-  } else {
-    console.log(\`🎯 Using successful URL: \${successfulUrl}\`);
-  }
+  // Reload with tokens (using the ORIGINAL working method)
+  await page.reload({ waitUntil: 'networkidle0' });
   
   console.log('📜 Starting aggressive scrolling for ALL 872 followers...');
   const followers = [];
@@ -804,72 +720,32 @@ const puppeteer = require('puppeteer');
     
     console.log(\`🔍 Page debug info:\`, JSON.stringify(pageDebug, null, 2));
     
-    // Extract current followers with proper filtering
-    const currentFollowers = await page.evaluate((targetUsername) => {
-      const elements = document.querySelectorAll('[data-testid="UserCell"]');
+    // Extract current followers (using the ORIGINAL working method)
+    const currentFollowers = await page.evaluate(() => {
+      const elements = document.querySelectorAll('[data-testid="cellInnerDiv"], [data-testid="UserCell"]');
       const extracted = [];
       
-      console.log(\`🔍 Found \${elements.length} UserCell elements\`);
-      
-      elements.forEach((element, index) => {
-        // Look for profile links specifically
-        const profileLinks = element.querySelectorAll('a[href*="/"][href$=""]');
-        
-        profileLinks.forEach(link => {
+      elements.forEach(element => {
+        const links = element.querySelectorAll('a[href*="/"]');
+        links.forEach(link => {
           if (link.href) {
-            // Match profile URLs that end with just the username (not status, photo, etc.)
-            const match = link.href.match(/(?:x\\.com|twitter\\.com)\\/([^/?#]+)$/);
-            if (match && match[1]) {
-              const username = match[1];
-              
-              // Filter out the target user and common non-user pages
-              if (username !== targetUsername && 
-                  username !== 'home' && 
-                  username !== 'explore' && 
-                  username !== 'i' &&
-                  username !== 'messages' &&
-                  username !== 'notifications' &&
-                  username !== 'search' &&
-                  username.length > 1 &&
-                  !username.includes('status') &&
-                  !username.includes('photo') &&
-                  !username.includes('hashtag')) {
-                
-                // Get display name from the element
-                let displayName = username;
-                
-                // Look for the display name in span elements
-                const nameSpans = element.querySelectorAll('span');
-                for (const span of nameSpans) {
-                  const spanText = span.textContent?.trim();
-                  if (spanText && 
-                      spanText.length > 0 && 
-                      spanText.length < 50 && 
-                      !spanText.includes('@') && 
-                      !spanText.includes('http') &&
-                      spanText !== username &&
-                      !spanText.includes('Follow') &&
-                      !spanText.includes('Following')) {
-                    displayName = spanText;
-                    break;
-                  }
-                }
-                
-                extracted.push({
-                  username: username,
-                  displayName: displayName
-                });
-                
-                console.log(\`✅ Found follower: @\${username} (\${displayName})\`);
-              }
+            const match = link.href.match(/(?:x\\.com|twitter\\.com)\\/([^/?#]+)/);
+            if (match && match[1] && 
+                match[1] !== 'home' && 
+                match[1] !== 'explore' && 
+                match[1] !== 'i' &&
+                match[1].length > 1) {
+              extracted.push({
+                username: match[1],
+                displayName: link.textContent?.trim() || match[1]
+              });
             }
           }
         });
       });
       
-      console.log(\`📊 Extracted \${extracted.length} followers from this scroll\`);
       return extracted;
-    }, '${username}');
+    });
     
     // Add unique followers
     const existingUsernames = new Set(followers.map(f => f.username));
