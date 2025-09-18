@@ -62,7 +62,7 @@ export default function SessionCookieHelper({ onCookiesProvided, onSkip }: Sessi
               <div className="bg-white border border-blue-200 rounded-md p-4">
                 <h4 className="font-medium text-blue-900 mb-2">How to get session cookies:</h4>
                 <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
-                  <li>Open X.com in your browser and make sure you're logged in</li>
+                  <li>Open X.com in your browser and make sure you&apos;re logged in</li>
                   <li>Press F12 to open Developer Tools</li>
                   <li>Go to &quot;Application&quot; tab → &quot;Cookies&quot; → &quot;https://x.com&quot;</li>
                   <li>Find and copy the <code className="bg-blue-100 px-1 rounded">auth_token</code> value</li>
