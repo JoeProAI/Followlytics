@@ -82,28 +82,7 @@ export async function POST(request: NextRequest) {
     try {
       console.log('Starting follower scan process for user:', userId)
       
-      // Get user's session cookies from x_session_cookies collection (NEW APPROACH)
-      console.log('Retrieving session cookies from x_session_cookies collection...')
-      const sessionCookiesDoc = await adminDb.collection('x_session_cookies').doc(userId).get()
-      
-      let sessionCookies = null
-      if (sessionCookiesDoc.exists) {
-        const cookieData = sessionCookiesDoc.data()
-        sessionCookies = {
-          auth_token: cookieData?.auth_token,
-          ct0: cookieData?.ct0,
-          twid: cookieData?.twid,
-          capturedAt: cookieData?.capturedAt
-        }
-        console.log('Session cookies retrieved:', {
-          hasAuthToken: !!sessionCookies.auth_token,
-          hasCt0: !!sessionCookies.ct0,
-          hasTwid: !!sessionCookies.twid,
-          capturedAt: sessionCookies.capturedAt
-        })
-      }
-
-      // Fallback to OAuth tokens if no session cookies (for backward compatibility)
+      // Get user's OAuth tokens from x_tokens collection
       console.log('Retrieving OAuth tokens from x_tokens collection...')
       const xTokensDoc = await adminDb.collection('x_tokens').doc(userId).get()
       if (!xTokensDoc.exists) {
@@ -143,14 +122,8 @@ export async function POST(request: NextRequest) {
       await DaytonaSandboxManager.setupSandboxEnvironment(sandbox)
       
       console.log('Executing follower scan...')
-      let result
-      if (sessionCookies && sessionCookies.auth_token) {
-        console.log('🔐 Using session cookies for authentication')
-        result = await DaytonaSandboxManager.executeFollowerScanWithCookies(sandbox, xUsername, sessionCookies)
-      } else {
-        console.log('🔐 Falling back to OAuth tokens for authentication')
-        result = await DaytonaSandboxManager.executeFollowerScan(sandbox, xUsername, oauthTokens.accessToken, oauthTokens.accessTokenSecret)
-      }
+      console.log('🔐 Using OAuth tokens for authentication')
+      const result = await DaytonaSandboxManager.executeFollowerScan(sandbox, xUsername, oauthTokens.accessToken, oauthTokens.accessTokenSecret)
       
       // Update scan with results - filter out undefined values
       const updateData: any = {

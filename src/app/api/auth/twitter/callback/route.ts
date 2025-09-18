@@ -101,40 +101,7 @@ export async function GET(request: NextRequest) {
       createdAt: new Date(),
     })
 
-    // CAPTURE BROWSER SESSION: Store session cookies from the authenticated browser
-    // The user's browser is already authenticated with X.com at this point
-    console.log('🔐 Attempting to capture session cookies...');
-    
-    // Get all cookies from the request
-    const allCookies = request.cookies.getAll();
-    console.log('📋 All cookies received:', allCookies.map(c => ({ name: c.name, hasValue: !!c.value })));
-    
-    const sessionCookies = {
-      // Extract X.com session cookies from the request
-      auth_token: request.cookies.get('auth_token')?.value,
-      ct0: request.cookies.get('ct0')?.value,
-      twid: request.cookies.get('twid')?.value,
-      // Also try alternative cookie names
-      _twitter_sess: request.cookies.get('_twitter_sess')?.value,
-      remember_checked_on: request.cookies.get('remember_checked_on')?.value,
-      // Capture timestamp
-      capturedAt: new Date(),
-      // Store info about capture attempt
-      totalCookiesReceived: allCookies.length,
-      cookieNames: allCookies.map(c => c.name)
-    }
-
-    console.log('🍪 Session cookies captured:', {
-      hasAuthToken: !!sessionCookies.auth_token,
-      hasCt0: !!sessionCookies.ct0,
-      hasTwid: !!sessionCookies.twid,
-      hasTwitterSess: !!sessionCookies._twitter_sess,
-      totalCookies: sessionCookies.totalCookiesReceived
-    });
-
-    // Store session cookies separately for browser automation
-    await adminDb.collection('x_session_cookies').doc(firebaseUser.uid).set(sessionCookies, { merge: true })
-    console.log('💾 Session cookies stored for user:', firebaseUser.uid);
+    console.log('✅ OAuth tokens stored successfully for user:', firebaseUser.uid);
 
     // Update user document - filter out undefined values
     const userDocData: any = {
