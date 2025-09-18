@@ -179,12 +179,51 @@ export default function FollowerScanner() {
   const handleSessionCookiesProvided = (cookies: any) => {
     setSessionCookies(cookies)
     setShowSessionCookieHelper(false)
-    startFollowerScan(true)
+    
+    // If we have a failed scan that needs retry, retry it
+    if (scanProgress?.status === 'authentication_required' && scanProgress.scanId) {
+      retryWithSessionCookies(scanProgress.scanId, cookies)
+    } else {
+      startFollowerScan(true)
+    }
   }
 
   const handleSkipSessionCookies = () => {
     setShowSessionCookieHelper(false)
     startFollowerScan(false)
+  }
+
+  const retryWithSessionCookies = async (scanId: string, cookies: any) => {
+    setIsScanning(true)
+    setScanProgress(prev => prev ? { ...prev, status: 'initializing' } : null)
+
+    try {
+      const token = await user?.getIdToken()
+      const response = await fetch('/api/scan/retry', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ 
+          scanId: scanId,
+          sessionCookies: cookies
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('✅ Retry scan started:', data)
+        // The scan progress will be updated by the polling mechanism
+      } else {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to retry scan')
+      }
+    } catch (error) {
+      console.error('Failed to retry scan:', error)
+      setIsScanning(false)
+      alert(`Failed to retry scan: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
 
   const getStatusMessage = (status: string) => {
