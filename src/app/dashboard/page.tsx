@@ -19,9 +19,16 @@ function DashboardContent() {
       const error = searchParams.get('error')
       const message = searchParams.get('message')
       
+      // Debug: Log all URL parameters
+      const allParams = Array.from(searchParams.entries())
+      if (allParams.length > 0) {
+        console.log('🔍 Dashboard URL parameters:', Object.fromEntries(allParams))
+      }
+      
       // Handle OAuth errors
       if (error) {
         console.error('OAuth error:', error, message)
+        alert(`OAuth Error: ${error}\nMessage: ${message || 'Unknown error'}`)
         // Show error message to user but don't redirect away from dashboard
         // The error will be displayed in the UI
         return
