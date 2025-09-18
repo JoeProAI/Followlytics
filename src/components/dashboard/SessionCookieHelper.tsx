@@ -64,7 +64,7 @@ export default function SessionCookieHelper({ onCookiesProvided, onSkip }: Sessi
                 <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
                   <li>Open X.com in your browser and make sure you're logged in</li>
                   <li>Press F12 to open Developer Tools</li>
-                  <li>Go to "Application" tab → "Cookies" → "https://x.com"</li>
+                  <li>Go to &quot;Application&quot; tab → &quot;Cookies&quot; → &quot;https://x.com&quot;</li>
                   <li>Find and copy the <code className="bg-blue-100 px-1 rounded">auth_token</code> value</li>
                   <li>Optionally copy <code className="bg-blue-100 px-1 rounded">ct0</code> and <code className="bg-blue-100 px-1 rounded">twid</code> values</li>
                 </ol>
