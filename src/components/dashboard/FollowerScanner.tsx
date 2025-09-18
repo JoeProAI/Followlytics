@@ -6,10 +6,12 @@ import SessionCookieHelper from './SessionCookieHelper'
 
 interface ScanProgress {
   scanId: string
-  status: 'pending' | 'initializing' | 'setting_up' | 'scanning' | 'completed' | 'failed'
+  status: 'pending' | 'initializing' | 'setting_up' | 'scanning' | 'completed' | 'failed' | 'authentication_required'
   progress: number
   followerCount?: number
   error?: string
+  requiresSessionCookies?: boolean
+  authenticationMessage?: string
 }
 
 export default function FollowerScanner() {
@@ -104,11 +106,16 @@ export default function FollowerScanner() {
           progress: data.progress || 0,
           followerCount: data.followerCount,
           error: data.error,
+          requiresSessionCookies: data.requiresSessionCookies,
+          authenticationMessage: data.authenticationMessage,
         })
 
         if (['completed', 'failed'].includes(data.status)) {
           setIsScanning(false)
           fetchRecentScans() // Refresh the recent scans list
+        } else if (data.status === 'authentication_required') {
+          setIsScanning(false)
+          setShowSessionCookieHelper(true) // Show session cookie helper when auth is required
         }
       }
     } catch (error) {
@@ -194,6 +201,8 @@ export default function FollowerScanner() {
         return 'Scan completed successfully!'
       case 'failed':
         return 'Scan failed'
+      case 'authentication_required':
+        return 'Authentication required - please provide session cookies'
       default:
         return 'Unknown status'
     }
@@ -205,6 +214,8 @@ export default function FollowerScanner() {
         return 'text-green-600'
       case 'failed':
         return 'text-red-600'
+      case 'authentication_required':
+        return 'text-orange-600'
       default:
         return 'text-blue-600'
     }

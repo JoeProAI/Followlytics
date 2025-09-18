@@ -148,6 +148,13 @@ export async function POST(request: NextRequest) {
         updateData.error = result.error
       }
       
+      // Handle authentication failure specifically
+      if (result.status === 'authentication_required' || result.authenticationFailed) {
+        updateData.status = 'authentication_required'
+        updateData.requiresSessionCookies = true
+        updateData.authenticationMessage = result.message || 'Session cookies required for authentication'
+      }
+      
       await adminDb.collection('follower_scans').doc(scanId).update(updateData)
     } catch (error: any) {
       console.error('Hybrid follower scan failed:', error)

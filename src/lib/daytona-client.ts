@@ -20,11 +20,11 @@ export interface FollowerScanResult {
     displayName: string
   }>
   followerCount: number
-  scanDate: string
-  status: string
-  username: string
-  strategy?: string
+  status: 'success' | 'failed' | 'partial' | 'authentication_required'
   error?: string
+  authenticationFailed?: boolean
+  message?: string
+  strategy?: string
   executionTime?: number
 }
 
@@ -746,8 +746,17 @@ const puppeteer = require('puppeteer');
     console.log(\`📊 OAuth injection check: \${JSON.stringify(authCheck, null, 2)}\`);
     
     if (!authCheck.authenticated) {
-      console.log('❌ OAuth injection failed. User will need to provide session cookies or manual login.');
-      console.log('💡 For now, continuing with unauthenticated extraction (limited results)...');
+      console.log('❌ OAuth injection failed. Authentication required.');
+      
+      // Return a specific error that indicates authentication is needed
+      return {
+        status: 'authentication_required',
+        error: 'Browser authentication failed. Session cookies required for access.',
+        followers: [],
+        followerCount: 0,
+        authenticationFailed: true,
+        message: 'OAuth tokens cannot authenticate browser sessions. Please provide session cookies.'
+      };
     }
   }
   
@@ -975,12 +984,8 @@ echo "$(date): Background process started" >> /tmp/extraction.log
       const scanResult = {
         followers: [],
         followerCount: 0,
-        scanDate: new Date().toISOString(),
-        status: 'extraction_started',
-        username: username,
-        strategy: 'Simple-Aggressive-Scroll-Background',
-        message: 'Extraction started in background - check back in a few minutes',
-        sandboxId: sandbox.id
+        status: 'partial' as const,
+        message: 'Extraction started in background - check back in a few minutes'
       }
       
       console.log('🎯 Returning immediately to avoid Vercel timeout - extraction running in background')
@@ -991,9 +996,7 @@ echo "$(date): Background process started" >> /tmp/extraction.log
       return {
         followers: [],
         followerCount: 0,
-        scanDate: new Date().toISOString(),
-        status: 'simple_scroll_failed',
-        username: username,
+        status: 'failed',
         error: `Simple scroll failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       }
     }
@@ -1277,9 +1280,7 @@ const puppeteer = require('puppeteer');
       return {
         followers: [],
         followerCount: 0,
-        scanDate: new Date().toISOString(),
-        status: 'cookie_extraction_failed',
-        username: username,
+        status: 'failed',
         error: `Cookie extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       }
     }
