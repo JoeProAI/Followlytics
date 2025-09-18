@@ -102,6 +102,29 @@ export async function GET(request: NextRequest) {
     })
 
     console.log('✅ OAuth tokens stored successfully for user:', firebaseUser.uid);
+    
+    // Test the OAuth tokens for API access
+    try {
+      console.log('🔍 Testing OAuth tokens for API access...');
+      const { TwitterApiClient } = await import('@/lib/twitter-api');
+      const twitterClient = new TwitterApiClient({
+        accessToken: accessTokens.oauth_token,
+        accessTokenSecret: accessTokens.oauth_token_secret
+      });
+      
+      const testResult = await twitterClient.testApiAccess();
+      if (testResult.success) {
+        console.log('✅ OAuth tokens working for Twitter API access');
+        console.log('📊 User info:', {
+          screen_name: testResult.userInfo?.screen_name,
+          followers_count: testResult.userInfo?.followers_count
+        });
+      } else {
+        console.log('⚠️ OAuth tokens have issues with API access:', testResult.error);
+      }
+    } catch (error) {
+      console.log('⚠️ Error testing OAuth tokens for API access:', error);
+    }
 
     // Update user document - filter out undefined values
     const userDocData: any = {
