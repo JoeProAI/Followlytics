@@ -5,7 +5,11 @@ import { auth } from '@/lib/firebase'
 import { signInWithCustomToken } from 'firebase/auth'
 
 export async function GET(request: NextRequest) {
+  // Determine base URL for redirects (outside try block so it's available in catch)
+  const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000'
+  
   try {
+    
     const searchParams = request.nextUrl.searchParams
     const oauthToken = searchParams.get('oauth_token')
     const oauthVerifier = searchParams.get('oauth_verifier')
@@ -13,17 +17,17 @@ export async function GET(request: NextRequest) {
 
     // Handle user denial
     if (denied) {
-      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/login?error=x_auth_denied`)
+      return NextResponse.redirect(`${baseUrl}/login?error=x_auth_denied`)
     }
 
     if (!oauthToken || !oauthVerifier) {
-      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/login?error=missing_oauth_params`)
+      return NextResponse.redirect(`${baseUrl}/login?error=missing_oauth_params`)
     }
 
     // Get stored tokens from cookies
     const oauthTokenSecret = request.cookies.get('oauth_token_secret')?.value
     if (!oauthTokenSecret) {
-      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/login?error=missing_token_secret`)
+      return NextResponse.redirect(`${baseUrl}/login?error=missing_token_secret`)
     }
 
     // Exchange request token for access token
@@ -40,7 +44,7 @@ export async function GET(request: NextRequest) {
     )
 
     if (!adminAuth || !adminDb) {
-      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/login?error=firebase_not_configured`)
+      return NextResponse.redirect(`${baseUrl}/login?error=firebase_not_configured`)
     }
 
     // Create or get Firebase user
@@ -128,10 +132,17 @@ export async function GET(request: NextRequest) {
     await adminDb.collection('users').doc(firebaseUser.uid).set(userDocData, { merge: true })
 
     // Create custom token for client-side auth
+    console.log('🔑 Creating custom token for user:', firebaseUser.uid)
     const customToken = await adminAuth.createCustomToken(firebaseUser.uid)
+    console.log('✅ Custom token created successfully')
+
+    // Determine redirect URL
+    const redirectUrl = `${baseUrl}/dashboard?x_auth=success&token=${customToken}`
+    
+    console.log('🔄 Redirecting to:', redirectUrl)
 
     // Clear OAuth cookies and redirect to dashboard with success
-    const response = NextResponse.redirect(`${process.env.NEXTAUTH_URL}/dashboard?x_auth=success&token=${customToken}`)
+    const response = NextResponse.redirect(redirectUrl)
     response.cookies.delete('oauth_token')
     response.cookies.delete('oauth_token_secret')
 
@@ -143,6 +154,6 @@ export async function GET(request: NextRequest) {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined
     })
-    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/login?error=x_auth_failed&details=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`)
+    return NextResponse.redirect(`${baseUrl}/login?error=x_auth_failed&details=${encodeURIComponent(error instanceof Error ? error.message : 'Unknown error')}`)
   }
 }
