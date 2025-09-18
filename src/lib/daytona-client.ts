@@ -990,6 +990,292 @@ echo "$(date): Background process started" >> /tmp/extraction.log
     }
   }
 
+  // NEW METHOD: Execute follower scan using session cookies instead of OAuth tokens
+  static async executeFollowerScanWithCookies(
+    sandbox: any,
+    username: string,
+    sessionCookies: {
+      auth_token?: string,
+      ct0?: string,
+      twid?: string,
+      capturedAt?: Date
+    }
+  ): Promise<FollowerScanResult> {
+    console.log(`🔐 Starting session cookie-based follower scan for @${username}`)
+
+    // Create a script that uses session cookies for authentication
+    const cookieBasedScript = `
+const puppeteer = require('puppeteer');
+
+(async () => {
+  console.log('🚀 Starting SESSION COOKIE authentication extraction...');
+  
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
+  
+  const page = await browser.newPage();
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+  
+  // INJECT SESSION COOKIES: Use captured browser session cookies
+  console.log('🔐 Step 1: Injecting session cookies for authentication...');
+  
+  // First navigate to X.com to set the domain
+  await page.goto('https://x.com', { waitUntil: 'networkidle0' });
+  
+  // Inject the session cookies
+  const cookies = [];
+  if ('${sessionCookies.auth_token}') {
+    cookies.push({
+      name: 'auth_token',
+      value: '${sessionCookies.auth_token}',
+      domain: '.x.com',
+      path: '/',
+      secure: true,
+      httpOnly: true,
+      sameSite: 'Lax'
+    });
+  }
+  if ('${sessionCookies.ct0}') {
+    cookies.push({
+      name: 'ct0',
+      value: '${sessionCookies.ct0}',
+      domain: '.x.com',
+      path: '/',
+      secure: true,
+      sameSite: 'Lax'
+    });
+  }
+  if ('${sessionCookies.twid}') {
+    cookies.push({
+      name: 'twid',
+      value: '${sessionCookies.twid}',
+      domain: '.x.com',
+      path: '/',
+      secure: true,
+      sameSite: 'Lax'
+    });
+  }
+  
+  if (cookies.length > 0) {
+    await page.setCookie(...cookies);
+    console.log(\`✅ Injected \${cookies.length} session cookies\`);
+  } else {
+    console.log('❌ No valid session cookies to inject');
+  }
+  
+  // Navigate to followers page with authenticated session
+  console.log('📍 Step 2: Navigating to followers page with authenticated session...');
+  await page.goto('https://x.com/${username}/followers', { waitUntil: 'networkidle0' });
+  await new Promise(resolve => setTimeout(resolve, 5000));
+  
+  // Verify authentication and page
+  const pageCheck = await page.evaluate(() => {
+    const currentUrl = window.location.href;
+    const pageTitle = document.title;
+    const isFollowersPage = currentUrl.includes('/followers');
+    const hasLoginLinks = document.body.textContent?.includes('Log in') || 
+                         document.body.textContent?.includes('Sign in') || false;
+    const hasFollowerElements = document.querySelectorAll('[data-testid="UserCell"]').length > 0;
+    
+    return {
+      currentUrl,
+      pageTitle,
+      isFollowersPage,
+      hasLoginLinks,
+      hasFollowerElements,
+      authenticated: !hasLoginLinks && isFollowersPage
+    };
+  });
+  
+  console.log(\`📊 Authentication check: \${JSON.stringify(pageCheck, null, 2)}\`);
+  
+  if (!pageCheck.authenticated) {
+    throw new Error(\`Authentication failed: \${JSON.stringify(pageCheck)}\`);
+  }
+  
+  console.log('✅ Successfully authenticated with session cookies!');
+  console.log('📜 Starting follower extraction...');
+  
+  const followers = [];
+  const maxScrolls = 50;
+  
+  for (let i = 0; i < maxScrolls; i++) {
+    console.log(\`📜 Scroll \${i + 1}/\${maxScrolls}\`);
+    
+    // Take screenshot for debugging
+    const screenshotPath = \`/tmp/screenshot_scroll_\${i + 1}.png\`;
+    await page.screenshot({ 
+      path: screenshotPath, 
+      fullPage: false,
+      clip: { x: 0, y: 0, width: 1200, height: 800 }
+    });
+    console.log(\`📸 Screenshot saved: \${screenshotPath}\`);
+    
+    // Extract followers from current view
+    const currentFollowers = await page.evaluate((targetUsername) => {
+      const extracted = [];
+      const userCells = document.querySelectorAll('[data-testid="UserCell"]');
+      console.log(\`🔍 Found \${userCells.length} UserCell elements\`);
+      
+      userCells.forEach((cell) => {
+        const profileLinks = cell.querySelectorAll('a[href*="x.com/"]');
+        
+        profileLinks.forEach(link => {
+          if (link.href) {
+            const match = link.href.match(/x\\.com\\/([^/?#]+)$/);
+            if (match && match[1]) {
+              const username = match[1];
+              
+              if (username !== targetUsername &&
+                  username !== 'home' && 
+                  username !== 'explore' && 
+                  username !== 'i' &&
+                  username !== 'messages' &&
+                  username !== 'notifications' &&
+                  username !== 'search' &&
+                  username !== 'hashtag' &&
+                  username.length > 1 &&
+                  !username.includes('status') &&
+                  !username.includes('photo') &&
+                  !username.includes('header_photo')) {
+                
+                let displayName = username;
+                const nameSpans = cell.querySelectorAll('span');
+                for (const span of nameSpans) {
+                  const spanText = span.textContent?.trim();
+                  if (spanText && 
+                      spanText.length > 0 && 
+                      spanText.length < 50 && 
+                      !spanText.includes('@') && 
+                      !spanText.includes('http') &&
+                      !spanText.includes('Follow') &&
+                      !spanText.includes('Following') &&
+                      !spanText.includes('Followers') &&
+                      spanText !== username) {
+                    displayName = spanText;
+                    break;
+                  }
+                }
+                
+                extracted.push({
+                  username: username,
+                  displayName: displayName
+                });
+                
+                console.log(\`✅ Found follower: @\${username} (\${displayName})\`);
+              }
+            }
+          }
+        });
+      });
+      
+      return extracted;
+    }, '${username}');
+    
+    // Add unique followers
+    const existingUsernames = new Set(followers.map(f => f.username));
+    const newFollowers = currentFollowers.filter(f => !existingUsernames.has(f.username));
+    followers.push(...newFollowers);
+    
+    console.log(\`Found \${newFollowers.length} new followers (total: \${followers.length})\`);
+    
+    // Stop if we have enough followers or no new ones found
+    if (followers.length >= 872) {
+      console.log('🎉 Reached target follower count!');
+      break;
+    }
+    
+    if (newFollowers.length === 0 && i > 15) {
+      console.log('No new followers found after 15+ scrolls, stopping...');
+      break;
+    }
+    
+    // Scroll down
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+    
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+  
+  await browser.close();
+  
+  console.log(\`📈 Final result: \${followers.length} followers extracted\`);
+  
+  // Save results
+  const result = {
+    followers: followers,
+    followerCount: followers.length,
+    scanDate: new Date().toISOString(),
+    status: followers.length > 0 ? 'success' : 'failed',
+    username: '${username}',
+    strategy: 'Session-Cookie-Authentication',
+    screenshots: Array.from({length: Math.min(50, followers.length)}, (_, i) => \`/tmp/screenshot_scroll_\${i + 1}.png\`)
+  };
+  
+  require('fs').writeFileSync('/tmp/followers_result.json', JSON.stringify(result, null, 2));
+  console.log('💾 Results saved to /tmp/followers_result.json');
+  
+})().catch(error => {
+  console.error('❌ Session cookie extraction failed:', error);
+  
+  const errorResult = {
+    followers: [],
+    followerCount: 0,
+    scanDate: new Date().toISOString(),
+    status: 'error',
+    error: error.message,
+    username: '${username}',
+    strategy: 'Session-Cookie-Authentication'
+  };
+  
+  require('fs').writeFileSync('/tmp/followers_result.json', JSON.stringify(errorResult, null, 2));
+  process.exit(1);
+});
+`;
+
+    try {
+      // Upload and execute the cookie-based scanner script
+      await this.uploadScriptWithFallback(sandbox, cookieBasedScript, 'cookie-scanner.js')
+      console.log('✅ Cookie-based scanner script uploaded successfully')
+      
+      // Execute the script
+      console.log('🚀 Starting session cookie extraction...')
+      const executeResult = await sandbox.process.executeCommand('cd scanner && npm install puppeteer && node cookie-scanner.js')
+      
+      console.log('📊 Cookie extraction execution result:', {
+        exitCode: executeResult.exitCode,
+        hasOutput: !!executeResult.result
+      })
+      
+      // Get results from the file
+      const resultResponse = await sandbox.process.executeCommand('cat /tmp/followers_result.json')
+      if (resultResponse.result) {
+        const result = JSON.parse(resultResponse.result)
+        console.log('🎉 Cookie-based extraction completed:', {
+          followerCount: result.followerCount,
+          status: result.status
+        })
+        return result
+      } else {
+        throw new Error('No results file found after cookie-based extraction')
+      }
+      
+    } catch (error: unknown) {
+      console.error('❌ Cookie-based extraction failed:', error)
+      return {
+        followers: [],
+        followerCount: 0,
+        scanDate: new Date().toISOString(),
+        status: 'cookie_extraction_failed',
+        username: username,
+        error: `Cookie extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
+    }
+  }
+
   // Upload script using Daytona SDK file system operations
   private static async uploadScriptWithFallback(sandbox: any, scriptContent: string, filename: string): Promise<void> {
     console.log(`📤 Uploading script using Daytona SDK file system...`)
