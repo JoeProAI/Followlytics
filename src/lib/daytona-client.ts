@@ -2,9 +2,9 @@ import { Daytona } from '@daytonaio/sdk'
 
 // Initialize Daytona SDK
 const daytona = new Daytona({
-  apiKey: process.env.DAYTONA_API_KEY,
-  apiUrl: process.env.DAYTONA_API_URL || 'https://app.daytona.io/api',
-  target: process.env.DAYTONA_TARGET || 'us'
+  apiKey: process.env.DAYTONA_API_KEY!,
+  apiUrl: process.env.DAYTONA_API_URL || 'https://app.daytona.io/api'
+  // DO NOT USE: target, orgId - these cause "No available runners" errors
 })
 
 export interface SandboxConfig {
@@ -37,7 +37,7 @@ export class DaytonaSandboxManager {
       
       // Create sandbox using the official SDK
       const sandbox = await daytona.create({
-        language: 'typescript', // Use TypeScript environment
+        language: 'javascript', // Use JavaScript environment (more stable)
         envVars: config.envVars || {}
       })
       
