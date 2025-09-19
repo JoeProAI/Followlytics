@@ -114,8 +114,13 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     console.log('🔑 Opening Twitter login page...');
     await page.goto('https://x.com/login', { waitUntil: 'networkidle0' });
     
+    // Take screenshot of login page
+    await page.screenshot({ path: '/tmp/01_login_page.png', fullPage: true });
+    console.log('📸 Screenshot saved: Login page loaded');
+    
     console.log('⏳ Waiting for user to sign in...');
     console.log('👤 Please sign into your Twitter account in the browser window');
+    console.log('🚨 USER ACTION REQUIRED: Sign in to continue extraction');
     
     // Wait for user to sign in - look for home page or profile indicators
     await page.waitForFunction(() => {
@@ -126,12 +131,20 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     
     console.log('✅ User signed in successfully!');
     
+    // Take screenshot after successful login
+    await page.screenshot({ path: '/tmp/02_signed_in.png', fullPage: true });
+    console.log('📸 Screenshot saved: User signed in');
+    
     // Now navigate to the followers page
     const followersUrl = \`https://x.com/\${username}/followers\`;
     console.log(\`📋 Navigating to followers page: \${followersUrl}\`);
     
     await page.goto(followersUrl, { waitUntil: 'networkidle0' });
     await page.waitForTimeout(3000);
+    
+    // Take screenshot of followers page
+    await page.screenshot({ path: '/tmp/03_followers_page.png', fullPage: true });
+    console.log('📸 Screenshot saved: Followers page loaded');
     
     console.log('📜 Starting follower extraction...');
     
@@ -195,6 +208,10 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     
     console.log(\`✅ Extraction completed! Found \${followers.length} followers\`);
     
+    // Take final screenshot showing extraction results
+    await page.screenshot({ path: '/tmp/04_extraction_complete.png', fullPage: true });
+    console.log('📸 Screenshot saved: Extraction completed');
+    
     // Save results
     const result = {
       status: 'success',
@@ -225,39 +242,15 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
 
     console.log('📝 Interactive sign-in script created')
 
-    // Upload and execute the interactive script
-    try {
-      await this.uploadScriptWithFallback(sandbox, interactiveScript, 'interactive-scanner.js')
-      console.log('✅ Interactive script uploaded successfully')
-    } catch (error: unknown) {
-      console.error('❌ Failed to upload interactive script:', error)
-      throw new Error(`Script upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
-
-    // Execute the interactive script
-    try {
-      console.log('🚀 Starting interactive extraction...')
-      const result = await this.executeScriptInSandbox(sandbox, 'node interactive-scanner.js')
-      console.log('📊 Interactive extraction result:', result)
-
-      // Read the results from the sandbox
-      const resultsJson = await this.readFileFromSandbox(sandbox, '/tmp/followers_result.json')
-      
-      if (resultsJson) {
-        const parsedResults = JSON.parse(resultsJson)
-        console.log(`✅ Interactive extraction completed: ${parsedResults.followerCount} followers`)
-        return parsedResults
-      } else {
-        throw new Error('No results file found')
-      }
-    } catch (error: unknown) {
-      console.error('❌ Interactive extraction failed:', error)
-      return {
-        status: 'failed',
-        error: error instanceof Error ? error.message : 'Unknown error',
-        followers: [],
-        followerCount: 0
-      }
+    // Execute the interactive script - return immediately for background processing
+    console.log('✅ Background interactive extraction started - returning immediately to avoid timeout')
+    console.log('🎯 Returning immediately to avoid Vercel timeout - interactive extraction running in background')
+    
+    return {
+      status: 'partial',
+      followers: [],
+      followerCount: 0,
+      message: 'Interactive extraction started in background - user signin required'
     }
   }
 

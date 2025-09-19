@@ -6,12 +6,15 @@ import SessionCookieHelper from './SessionCookieHelper'
 
 interface ScanProgress {
   scanId: string
-  status: 'pending' | 'initializing' | 'setting_up' | 'scanning' | 'completed' | 'failed' | 'authentication_required'
+  status: 'pending' | 'initializing' | 'setting_up' | 'scanning' | 'completed' | 'failed' | 'authentication_required' | 'awaiting_user_signin'
   progress: number
   followerCount?: number
   error?: string
   requiresSessionCookies?: boolean
   authenticationMessage?: string
+  userActionRequired?: boolean
+  actionDescription?: string
+  message?: string
 }
 
 export default function FollowerScanner() {
@@ -227,16 +230,18 @@ export default function FollowerScanner() {
     }
   }
 
-  const getStatusMessage = (status: string) => {
+  const getStatusMessage = (status: string, progress?: ScanProgress) => {
     switch (status) {
       case 'pending':
         return 'Initializing scan...'
       case 'initializing':
-        return 'Creating secure sandbox environment...'
+        return 'Setting up sandbox...'
       case 'setting_up':
-        return 'Installing browser automation tools...'
+        return 'Installing dependencies...'
       case 'scanning':
-        return 'Scanning X followers...'
+        return 'Extracting followers...'
+      case 'awaiting_user_signin':
+        return progress?.message || 'Browser opened - please sign into your Twitter account'
       case 'completed':
         return 'Scan completed successfully!'
       case 'failed':
@@ -256,6 +261,8 @@ export default function FollowerScanner() {
         return 'text-red-600'
       case 'authentication_required':
         return 'text-orange-600'
+      case 'awaiting_user_signin':
+        return 'text-yellow-600'
       default:
         return 'text-blue-600'
     }
@@ -391,6 +398,31 @@ export default function FollowerScanner() {
                 ></div>
               </div>
             </div>
+
+            {/* User Action Required Alert */}
+            {scanProgress.status === 'awaiting_user_signin' && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-yellow-800">
+                      🚨 User Action Required
+                    </h3>
+                    <div className="mt-2 text-sm text-yellow-700">
+                      <p className="font-semibold">A browser window has opened in your sandbox.</p>
+                      <p className="mt-1">{scanProgress.actionDescription || 'Please sign into your Twitter account to continue the follower extraction.'}</p>
+                      <p className="mt-2 text-xs">
+                        💡 <strong>Important:</strong> This is your personal Twitter login - your data stays secure and private.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {scanProgress.status === 'completed' && scanProgress.followerCount && (
               <div className="bg-green-50 border border-green-200 rounded-md p-4">
