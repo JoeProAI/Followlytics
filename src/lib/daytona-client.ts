@@ -823,14 +823,8 @@ scanTwitterFollowers()
 
     console.log('📝 Multi-browser scanner script created')
 
-    // Upload and execute the scanner script using the robust fallback system
-    try {
-      await this.uploadScriptWithFallback(sandbox, interactiveScript, 'twitter-scanner.js')
-      console.log('✅ Scanner script uploaded successfully')
-    } catch (error: unknown) {
-      console.error('❌ Failed to upload scanner script:', error)
-      throw new Error(`Script upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
+    // This section is no longer needed - using simplified approach
+    console.log('✅ Using simplified authentication approach')
 
     console.log('🔐 Starting SIMPLE OAuth authentication for @' + username)
     console.log('⚡ Creating focused scrolling script that actually works...')
