@@ -7,6 +7,7 @@ import { signInWithCustomToken } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import FollowerScanner from '@/components/dashboard/FollowerScanner'
 import ScanStatusBanner from '@/components/dashboard/ScanStatusBanner'
+import DiagnosticPanel from '@/components/dashboard/DiagnosticPanel'
 
 function DashboardContent() {
   const { user, logout } = useAuth()
@@ -135,6 +136,9 @@ function DashboardContent() {
               </div>
             </div>
           </div>
+
+          {/* Diagnostic Panel */}
+          <DiagnosticPanel />
 
           {/* Scan Status Banner */}
           <ScanStatusBanner 
