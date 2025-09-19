@@ -86,20 +86,197 @@ export class DaytonaSandboxManager {
     accessToken: string,
     accessTokenSecret: string
   ): Promise<FollowerScanResult> {
-    console.log(`🚀 Starting multi-browser follower scan for @${username}`)
+    console.log(`🚀 Starting interactive follower scan for @${username}`)
 
-    // Create the multi-browser scanner script inline to avoid build issues
-    const scannerScript = `
+    // Create interactive sign-in script that prompts user to log in
+    const interactiveScript = `
 const fs = require('fs');
+const { chromium } = require('playwright');
 
-// Multi-browser scanning strategies
-const strategies = [
-  {
-    name: 'Playwright-Stealth',
-    execute: async () => {
-      const { chromium } = require('playwright');
+console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction...');
+
+(async () => {
+  try {
+    console.log('🚀 Launching browser for user sign-in...');
+    
+    const browser = await chromium.launch({
+      headless: false, // IMPORTANT: Show browser so user can sign in
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-web-security'
+      ]
+    });
+    
+    const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    
+    console.log('🔑 Opening Twitter login page...');
+    await page.goto('https://x.com/login', { waitUntil: 'networkidle0' });
+    
+    console.log('⏳ Waiting for user to sign in...');
+    console.log('👤 Please sign into your Twitter account in the browser window');
+    
+    // Wait for user to sign in - look for home page or profile indicators
+    await page.waitForFunction(() => {
+      return window.location.href.includes('x.com/home') || 
+             window.location.href.includes('x.com/') && 
+             !window.location.href.includes('login');
+    }, { timeout: 300000 }); // 5 minute timeout for user to sign in
+    
+    console.log('✅ User signed in successfully!');
+    
+    // Now navigate to the followers page
+    const followersUrl = \`https://x.com/\${username}/followers\`;
+    console.log(\`📋 Navigating to followers page: \${followersUrl}\`);
+    
+    await page.goto(followersUrl, { waitUntil: 'networkidle0' });
+    await page.waitForTimeout(3000);
+    
+    console.log('📜 Starting follower extraction...');
+    
+    const followers = [];
+    let scrollAttempts = 0;
+    const maxScrolls = 50; // Limit scrolling to prevent infinite loops
+    
+    while (scrollAttempts < maxScrolls) {
+      // Extract followers from current view
+      const newFollowers = await page.evaluate(() => {
+        const followerElements = document.querySelectorAll('[data-testid="UserCell"]');
+        const extractedFollowers = [];
+        
+        followerElements.forEach(element => {
+          const usernameElement = element.querySelector('[href*="/"]');
+          const displayNameElement = element.querySelector('[dir="ltr"]');
+          
+          if (usernameElement && displayNameElement) {
+            const href = usernameElement.getAttribute('href');
+            const username = href ? href.replace('/', '') : '';
+            const displayName = displayNameElement.textContent || '';
+            
+            if (username && !username.includes('/') && username.length > 0) {
+              extractedFollowers.push({
+                username: username,
+                displayName: displayName
+              });
+            }
+          }
+        });
+        
+        return extractedFollowers;
+      });
       
-      const browser = await chromium.launch({
+      // Add new unique followers
+      newFollowers.forEach(follower => {
+        if (!followers.some(f => f.username === follower.username)) {
+          followers.push(follower);
+        }
+      });
+      
+      console.log(\`📊 Extracted \${followers.length} followers so far...\`);
+      
+      // Scroll down to load more
+      const scrolled = await page.evaluate(() => {
+        const scrollHeight = document.body.scrollHeight;
+        window.scrollTo(0, scrollHeight);
+        return scrollHeight;
+      });
+      
+      await page.waitForTimeout(2000); // Wait for new content to load
+      scrollAttempts++;
+      
+      // Check if we've reached the end
+      const newScrollHeight = await page.evaluate(() => document.body.scrollHeight);
+      if (newScrollHeight === scrolled) {
+        console.log('📋 Reached end of followers list');
+        break;
+      }
+    }
+    
+    console.log(\`✅ Extraction completed! Found \${followers.length} followers\`);
+    
+    // Save results
+    const result = {
+      status: 'success',
+      followers: followers,
+      followerCount: followers.length,
+      extractedAt: new Date().toISOString()
+    };
+    
+    fs.writeFileSync('/tmp/followers_result.json', JSON.stringify(result, null, 2));
+    
+    await browser.close();
+    console.log('🎉 Interactive extraction completed successfully!');
+    
+  } catch (error) {
+    console.error('❌ Interactive extraction failed:', error);
+    
+    const errorResult = {
+      status: 'failed',
+      error: error.message,
+      followers: [],
+      followerCount: 0
+    };
+    
+    fs.writeFileSync('/tmp/followers_result.json', JSON.stringify(errorResult, null, 2));
+  }
+})();
+`;
+
+    console.log('📝 Interactive sign-in script created')
+
+    // Upload and execute the interactive script
+    try {
+      await this.uploadScriptWithFallback(sandbox, interactiveScript, 'interactive-scanner.js')
+      console.log('✅ Interactive script uploaded successfully')
+    } catch (error: unknown) {
+      console.error('❌ Failed to upload interactive script:', error)
+      throw new Error(`Script upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+
+    // Execute the interactive script
+    try {
+      console.log('🚀 Starting interactive extraction...')
+      const result = await this.executeScriptInSandbox(sandbox, 'node interactive-scanner.js')
+      console.log('📊 Interactive extraction result:', result)
+
+      // Read the results from the sandbox
+      const resultsJson = await this.readFileFromSandbox(sandbox, '/tmp/followers_result.json')
+      
+      if (resultsJson) {
+        const parsedResults = JSON.parse(resultsJson)
+        console.log(`✅ Interactive extraction completed: ${parsedResults.followerCount} followers`)
+        return parsedResults
+      } else {
+        throw new Error('No results file found')
+      }
+    } catch (error: unknown) {
+      console.error('❌ Interactive extraction failed:', error)
+      return {
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        followers: [],
+        followerCount: 0
+      }
+    }
+  }
+
+  // Legacy method - keeping for compatibility but not used in interactive flow
+  static async executeFollowerScanLegacy(
+    sandbox: any,
+    username: string,
+    accessToken: string,
+    accessTokenSecret: string
+  ): Promise<FollowerScanResult> {
+    console.log(`🚀 Starting legacy follower scan for @${username}`)
+
+    const legacyScript = `
+const fs = require('fs');
+const { chromium } = require('playwright');
+
+(async () => {
+  try {
+    const browser = await chromium.launch({
         headless: true,
         args: [
           '--no-sandbox',
@@ -636,7 +813,7 @@ scanTwitterFollowers()
 
     // Upload and execute the scanner script using the robust fallback system
     try {
-      await this.uploadScriptWithFallback(sandbox, scannerScript, 'twitter-scanner.js')
+      await this.uploadScriptWithFallback(sandbox, interactiveScript, 'twitter-scanner.js')
       console.log('✅ Scanner script uploaded successfully')
     } catch (error: unknown) {
       console.error('❌ Failed to upload scanner script:', error)
