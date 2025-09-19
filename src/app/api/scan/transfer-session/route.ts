@@ -48,23 +48,71 @@ export async function POST(request: NextRequest) {
       apiUrl: process.env.DAYTONA_API_URL!
     })
 
-    // Get the sandbox
-    const sandbox = await daytona.get(sandboxId)
-    
-    if (!sandbox) {
-      return NextResponse.json({ error: 'Sandbox not accessible' }, { status: 404 })
+    // Get the sandbox and check its status
+    let sandbox
+    try {
+      sandbox = await daytona.get(sandboxId)
+      console.log(`📊 Sandbox status: ${sandbox?.state || 'unknown'}`)
+      
+      if (!sandbox) {
+        return NextResponse.json({ error: 'Sandbox not found' }, { status: 404 })
+      }
+
+      // If sandbox is stopped, try to start it
+      if (sandbox.state === 'stopped' || sandbox.state === 'stopping') {
+        console.log('🔄 Sandbox is stopped, attempting to start...')
+        try {
+          await daytona.start(sandboxId)
+          console.log('✅ Sandbox started successfully')
+          // Wait a moment for startup
+          await new Promise(resolve => setTimeout(resolve, 3000))
+          // Get updated sandbox info
+          sandbox = await daytona.get(sandboxId)
+        } catch (startError) {
+          console.error('❌ Failed to start sandbox:', startError)
+          return NextResponse.json({ 
+            error: 'Sandbox is stopped and could not be restarted',
+            details: startError instanceof Error ? startError.message : 'Unknown error'
+          }, { status: 500 })
+        }
+      }
+
+      if (sandbox.state !== 'started') {
+        return NextResponse.json({ 
+          error: `Sandbox is not running (status: ${sandbox.state})`,
+          suggestion: 'Please start a new scan - the previous sandbox has expired'
+        }, { status: 400 })
+      }
+
+    } catch (error) {
+      console.error('❌ Error accessing sandbox:', error)
+      return NextResponse.json({ 
+        error: 'Failed to access sandbox',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        suggestion: 'The sandbox may have expired. Please start a new scan.'
+      }, { status: 500 })
     }
 
     // Signal the sandbox that user has authenticated and to continue extraction
     console.log('📝 Creating authentication signal file in sandbox...')
     
-    const signalScript = `
+    try {
+      const signalScript = `
 echo "USER_AUTHENTICATED" > /tmp/auth_signal.txt
 echo "$(date): User completed authentication in external browser" >> /tmp/extraction.log
 echo "Continuing with follower extraction..." >> /tmp/extraction.log
 `
 
-    await sandbox.process.codeRun(signalScript)
+      await sandbox.process.codeRun(signalScript)
+      console.log('✅ Authentication signal sent successfully')
+      
+    } catch (execError) {
+      console.error('❌ Failed to execute signal script:', execError)
+      return NextResponse.json({ 
+        error: 'Failed to send authentication signal to sandbox',
+        details: execError instanceof Error ? execError.message : 'Unknown error'
+      }, { status: 500 })
+    }
     
     // Update scan status
     await adminDb.collection('follower_scans').doc(scanId).update({

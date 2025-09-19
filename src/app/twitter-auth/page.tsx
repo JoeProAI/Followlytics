@@ -52,7 +52,10 @@ function TwitterAuthContent() {
           window.close()
         }, 3000)
       } else {
-        throw new Error('Failed to transfer authentication')
+        const errorData = await response.json()
+        const errorMessage = errorData.error || 'Failed to transfer authentication'
+        const suggestion = errorData.suggestion || ''
+        throw new Error(`${errorMessage}${suggestion ? '. ' + suggestion : ''}`)
       }
     } catch (error) {
       setStatus('error')
