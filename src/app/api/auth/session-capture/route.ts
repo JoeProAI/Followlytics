@@ -21,19 +21,17 @@ export async function POST(request: NextRequest) {
 
     console.log(`🔐 Capturing Twitter session for scan: ${scanId}`)
 
-    // Store the session data securely
-    await adminDb.collection('twitter_sessions').doc(scanId).set({
-      userId,
-      sessionData,
-      createdAt: new Date(),
-      status: 'captured'
+    // DO NOT STORE SESSION DATA - Privacy first approach
+    // Instead, just signal that user has authenticated and scan can continue
+    
+    // Update the scan to indicate user has authenticated (no session data stored)
+    await adminDb.collection('follower_scans').doc(scanId).update({
+      status: 'user_authenticated',
+      message: 'User authenticated - scan will continue with temporary session',
+      authenticatedAt: new Date().toISOString()
     })
 
-    // Update the scan to indicate session is ready
-    await adminDb.collection('follower_scans').doc(scanId).update({
-      status: 'session_captured',
-      message: 'Twitter session captured - continuing extraction...'
-    })
+    console.log('✅ User authentication confirmed - NO session data stored for privacy')
 
     return NextResponse.json({
       success: true,

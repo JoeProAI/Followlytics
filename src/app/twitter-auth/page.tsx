@@ -22,19 +22,18 @@ function TwitterAuthContent() {
     setMessage('Please sign into Twitter in a new tab, then return here to continue.')
   }, [scanId])
 
-  const captureSession = async () => {
+  const startLiveExtraction = async () => {
     if (!user || !scanId) return
 
     setStatus('capturing')
-    setMessage('Capturing your Twitter session...')
+    setMessage('Starting live extraction - no session data stored...')
 
     try {
-      // This is a simplified approach - in reality, we'd need to implement
-      // a more sophisticated session capture mechanism
       const token = await user.getIdToken()
       
-      // For now, we'll simulate session capture
-      const response = await fetch('/api/auth/session-capture', {
+      // Signal that user is authenticated and ready for live extraction
+      // NO session data is captured or stored
+      const response = await fetch('/api/scan/live-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -42,28 +41,24 @@ function TwitterAuthContent() {
         },
         body: JSON.stringify({
           scanId,
-          sessionData: {
-            // This would contain the actual session cookies
-            captured: true,
-            timestamp: new Date().toISOString()
-          }
+          action: 'start_extraction'
         }),
       })
 
       if (response.ok) {
         setStatus('complete')
-        setMessage('✅ Session captured! You can close this tab and return to the dashboard.')
+        setMessage('✅ Live extraction started! No personal data stored. You can return to the dashboard.')
         
         // Close this tab after a delay
         setTimeout(() => {
           window.close()
         }, 3000)
       } else {
-        throw new Error('Failed to capture session')
+        throw new Error('Failed to start live extraction')
       }
     } catch (error) {
       setStatus('error')
-      setMessage(`Failed to capture session: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      setMessage(`Failed to start extraction: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -101,11 +96,25 @@ function TwitterAuthContent() {
                   <li>2. Return to this tab</li>
                   <li>3. Click the button below to continue</li>
                 </ol>
+                <div className="bg-green-50 border border-green-200 rounded-md p-3 mb-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-green-800">
+                        <strong>Privacy First:</strong> No session data, cookies, or personal information is stored. We only extract public follower data during your active session.
+                      </p>
+                    </div>
+                  </div>
+                </div>
                 <button
-                  onClick={captureSession}
+                  onClick={startLiveExtraction}
                   className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
-                  Continue Scan
+                  Start Live Extraction (No Data Stored)
                 </button>
               </div>
             )}
