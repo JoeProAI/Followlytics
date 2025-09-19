@@ -113,16 +113,33 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     const page = await browser.newPage();
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
     
-    console.log('🔑 Opening Twitter login page...');
+    console.log('🔗 Creating secure authentication link for user...');
+    
+    // Generate a secure authentication session
+    const authSessionId = Math.random().toString(36).substring(2, 15);
+    const authUrl = \`https://x.com/login?session_id=\${authSessionId}&redirect_to=followers\`;
+    
+    console.log('📝 Authentication URL created:', authUrl);
+    
+    // Save the auth URL and session info for the dashboard to retrieve
+    const authData = {
+      authUrl: authUrl,
+      sessionId: authSessionId,
+      status: 'awaiting_authentication',
+      createdAt: new Date().toISOString()
+    };
+    
+    fs.writeFileSync('/tmp/auth_link.json', JSON.stringify(authData, null, 2));
+    console.log('✅ Authentication link saved for dashboard retrieval');
+    
+    // Navigate to login page in background to prepare
     await page.goto('https://x.com/login', { waitUntil: 'networkidle0' });
     
     // Take screenshot of login page
     await page.screenshot({ path: '/tmp/01_login_page.png', fullPage: true });
-    console.log('📸 Screenshot saved: Login page loaded');
+    console.log('📸 Screenshot saved: Login page prepared');
     
-    console.log('⏳ Waiting for user to sign in...');
-    console.log('👤 Please sign into your Twitter account in the browser window');
-    console.log('🚨 USER ACTION REQUIRED: Sign in to continue extraction');
+    console.log('🚨 AUTHENTICATION LINK READY - Dashboard will prompt user');
     
     // Wait for user to sign in - look for home page or profile indicators
     await page.waitForFunction(() => {

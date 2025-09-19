@@ -253,37 +253,26 @@ export default function FollowerScanner() {
     }
   }
 
-  const openSandboxBrowser = async (scanId: string) => {
+  const getAuthenticationLink = async (scanId: string) => {
     try {
-      const token = await user?.getIdToken()
-      const response = await fetch(`/api/sandbox/browser?scanId=${scanId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        
-        // Open browser access in a new window
-        const browserWindow = window.open(
-          data.browserUrl || data.desktopUrl, 
-          'sandbox-browser',
-          'width=1200,height=800,scrollbars=yes,resizable=yes'
-        )
-        
-        if (browserWindow) {
-          alert('Browser window opened! Please sign into Twitter in the new window to continue the scan.')
-        } else {
-          alert('Please allow popups and try again, or copy this URL to access the browser:\n\n' + (data.browserUrl || data.desktopUrl))
-        }
+      // Open our Twitter auth page with the scan ID
+      const authUrl = `/twitter-auth?scanId=${scanId}`
+      
+      const authWindow = window.open(
+        authUrl, 
+        'twitter-auth',
+        'width=600,height=700,scrollbars=yes,resizable=yes'
+      )
+      
+      if (authWindow) {
+        alert('✅ Authentication page opened!\n\nPlease follow the instructions in the new tab to sign into Twitter and continue your scan.')
       } else {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to get browser access')
+        // Fallback: navigate to the auth page in the same tab
+        window.location.href = authUrl
       }
     } catch (error) {
-      console.error('Failed to open sandbox browser:', error)
-      alert(`Failed to open browser: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error('Failed to open authentication page:', error)
+      alert(`Failed to open authentication: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -454,10 +443,10 @@ export default function FollowerScanner() {
                       </p>
                       <div className="mt-4">
                         <button
-                          onClick={() => openSandboxBrowser(scanProgress.scanId)}
-                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                          onClick={() => getAuthenticationLink(scanProgress.scanId)}
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                         >
-                          🌐 Access Browser to Sign In
+                          🔗 Get Sign-In Link
                         </button>
                       </div>
                     </div>
