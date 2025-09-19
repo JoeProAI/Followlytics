@@ -253,6 +253,40 @@ export default function FollowerScanner() {
     }
   }
 
+  const openSandboxBrowser = async (scanId: string) => {
+    try {
+      const token = await user?.getIdToken()
+      const response = await fetch(`/api/sandbox/browser?scanId=${scanId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        
+        // Open browser access in a new window
+        const browserWindow = window.open(
+          data.browserUrl || data.desktopUrl, 
+          'sandbox-browser',
+          'width=1200,height=800,scrollbars=yes,resizable=yes'
+        )
+        
+        if (browserWindow) {
+          alert('Browser window opened! Please sign into Twitter in the new window to continue the scan.')
+        } else {
+          alert('Please allow popups and try again, or copy this URL to access the browser:\n\n' + (data.browserUrl || data.desktopUrl))
+        }
+      } else {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to get browser access')
+      }
+    } catch (error) {
+      console.error('Failed to open sandbox browser:', error)
+      alert(`Failed to open browser: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
@@ -418,6 +452,14 @@ export default function FollowerScanner() {
                       <p className="mt-2 text-xs">
                         💡 <strong>Important:</strong> This is your personal Twitter login - your data stays secure and private.
                       </p>
+                      <div className="mt-4">
+                        <button
+                          onClick={() => openSandboxBrowser(scanProgress.scanId)}
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                        >
+                          🌐 Access Browser to Sign In
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

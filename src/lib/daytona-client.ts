@@ -104,7 +104,9 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
-        '--disable-web-security'
+        '--disable-web-security',
+        '--remote-debugging-port=9222', // Enable remote debugging
+        '--disable-features=VizDisplayCompositor'
       ]
     });
     
