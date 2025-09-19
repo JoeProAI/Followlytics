@@ -19,14 +19,21 @@ export async function POST(request: NextRequest) {
     // Find scans that have been running for more than 1 hour
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
     
+    // Simplified query to avoid complex index requirements
     const stuckScansSnapshot = await adminDb
       .collection('follower_scans')
       .where('userId', '==', userId)
       .where('createdAt', '<=', oneHourAgo)
-      .where('status', 'in', ['pending', 'initializing', 'setting_up', 'scanning'])
       .get()
 
-    if (stuckScansSnapshot.empty) {
+    // Filter for stuck scans (running statuses only)
+    const stuckScans = stuckScansSnapshot.docs.filter(doc => {
+      const data = doc.data()
+      const stuckStatuses = ['pending', 'initializing', 'setting_up', 'scanning']
+      return stuckStatuses.includes(data.status)
+    })
+
+    if (stuckScans.length === 0) {
       return NextResponse.json({
         success: true,
         message: 'No stuck scans found',
@@ -48,7 +55,7 @@ export async function POST(request: NextRequest) {
       console.log('⚠️ Could not initialize Daytona client for sandbox cleanup')
     }
 
-    for (const doc of stuckScansSnapshot.docs) {
+    for (const doc of stuckScans) {
       const scanData = doc.data()
       const scanId = doc.id
       
