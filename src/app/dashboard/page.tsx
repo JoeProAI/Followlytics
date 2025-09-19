@@ -1,16 +1,18 @@
 'use client'
 
-import { useEffect, Suspense } from 'react'
+import { useEffect, Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { signInWithCustomToken } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import FollowerScanner from '@/components/dashboard/FollowerScanner'
+import ScanStatusBanner from '@/components/dashboard/ScanStatusBanner'
 
 function DashboardContent() {
   const { user, logout } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [showSessionCookieHelper, setShowSessionCookieHelper] = useState(false)
 
   useEffect(() => {
     const handleXAuthSuccess = async () => {
@@ -133,6 +135,11 @@ function DashboardContent() {
               </div>
             </div>
           </div>
+
+          {/* Scan Status Banner */}
+          <ScanStatusBanner 
+            onAuthenticationRequired={() => setShowSessionCookieHelper(true)}
+          />
 
           {/* Follower Scanner Component */}
           <FollowerScanner />
