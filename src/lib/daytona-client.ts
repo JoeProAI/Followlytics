@@ -141,12 +141,44 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     
     console.log('🚨 AUTHENTICATION LINK READY - Dashboard will prompt user');
     
-    // Wait for user to sign in - look for home page or profile indicators
-    await page.waitForFunction(() => {
-      return window.location.href.includes('x.com/home') || 
-             window.location.href.includes('x.com/') && 
-             !window.location.href.includes('login');
-    }, { timeout: 300000 }); // 5 minute timeout for user to sign in
+    // Wait for authentication signal from user (who signed in via dashboard)
+    console.log('⏳ Waiting for user authentication signal...');
+    
+    // Poll for authentication signal file
+    let authSignalReceived = false;
+    let pollAttempts = 0;
+    const maxPollAttempts = 60; // 5 minutes with 5-second intervals
+    
+    while (!authSignalReceived && pollAttempts < maxPollAttempts) {
+      try {
+        // Check if auth signal file exists
+        const signalExists = fs.existsSync('/tmp/auth_signal.txt');
+        if (signalExists) {
+          const signalContent = fs.readFileSync('/tmp/auth_signal.txt', 'utf8');
+          if (signalContent.includes('USER_AUTHENTICATED')) {
+            authSignalReceived = true;
+            console.log('✅ Authentication signal received from user!');
+            break;
+          }
+        }
+        
+        // Wait 5 seconds before next check
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        pollAttempts++;
+        
+        if (pollAttempts % 6 === 0) { // Log every 30 seconds
+          console.log('⏳ Still waiting for user authentication... (' + (pollAttempts * 5) + 's elapsed)');
+        }
+      } catch (error) {
+        console.log('Checking for auth signal...');
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        pollAttempts++;
+      }
+    }
+    
+    if (!authSignalReceived) {
+      throw new Error('Authentication timeout - user did not complete sign-in within 5 minutes');
+    }
     
     console.log('✅ User signed in successfully!');
     
@@ -155,8 +187,8 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     console.log('📸 Screenshot saved: User signed in');
     
     // Now navigate to the followers page
-    const followersUrl = \`https://x.com/\${username}/followers\`;
-    console.log(\`📋 Navigating to followers page: \${followersUrl}\`);
+    const followersUrl = `https://x.com/${username}/followers`;
+    console.log(`📋 Navigating to followers page: ${followersUrl}`);
     
     await page.goto(followersUrl, { waitUntil: 'networkidle0' });
     await page.waitForTimeout(3000);

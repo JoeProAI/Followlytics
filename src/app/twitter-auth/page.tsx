@@ -26,39 +26,37 @@ function TwitterAuthContent() {
     if (!user || !scanId) return
 
     setStatus('capturing')
-    setMessage('Starting live extraction - no session data stored...')
+    setMessage('Transferring your authentication to sandbox - no session data stored...')
 
     try {
       const token = await user.getIdToken()
       
-      // Signal that user is authenticated and ready for live extraction
-      // NO session data is captured or stored
-      const response = await fetch('/api/scan/live-session', {
+      // Transfer authentication signal to sandbox (no actual session data transferred)
+      const response = await fetch('/api/scan/transfer-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          scanId,
-          action: 'start_extraction'
+          scanId
         }),
       })
 
       if (response.ok) {
         setStatus('complete')
-        setMessage('✅ Live extraction started! No personal data stored. You can return to the dashboard.')
+        setMessage('✅ Authentication transferred! Sandbox will continue extraction automatically. You can return to the dashboard.')
         
         // Close this tab after a delay
         setTimeout(() => {
           window.close()
         }, 3000)
       } else {
-        throw new Error('Failed to start live extraction')
+        throw new Error('Failed to transfer authentication')
       }
     } catch (error) {
       setStatus('error')
-      setMessage(`Failed to start extraction: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      setMessage(`Failed to transfer authentication: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
