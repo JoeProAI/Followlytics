@@ -129,8 +129,8 @@ export default function FollowerScanner() {
       return
     }
 
-    // If user wants to use session cookies but hasn't provided them, show helper
-    if (useSessionCookies && !sessionCookies) {
+    // Always require session cookies for the simple scan
+    if (!sessionCookies) {
       setShowSessionCookieHelper(true)
       return
     }
@@ -145,7 +145,7 @@ export default function FollowerScanner() {
 
     try {
       const token = await user?.getIdToken()
-      const response = await fetch('/api/scan/hybrid', {
+      const response = await fetch('/api/scan/simple', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -153,7 +153,7 @@ export default function FollowerScanner() {
         },
         body: JSON.stringify({ 
           xUsername: xUsername.trim(),
-          sessionCookies: useSessionCookies ? sessionCookies : null
+          sessionCookies: sessionCookies
         }),
       })
 
