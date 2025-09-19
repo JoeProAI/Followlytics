@@ -73,7 +73,7 @@ export default function FollowerScanner() {
   useEffect(() => {
     let interval: NodeJS.Timeout
     
-    if (scanProgress && ['pending', 'initializing', 'setting_up', 'scanning'].includes(scanProgress.status)) {
+    if (scanProgress && ['pending', 'initializing', 'setting_up', 'scanning', 'awaiting_user_signin', 'extracting_followers'].includes(scanProgress.status)) {
       interval = setInterval(() => {
         checkScanProgress(scanProgress.scanId)
       }, 3000) // Check every 3 seconds
@@ -526,7 +526,7 @@ export default function FollowerScanner() {
                           📱 Share Progress
                         </button>
                         <button
-                          onClick={() => startScan()}
+                          onClick={() => startFollowerScan()}
                           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                         >
                           🔄 Restart Scan

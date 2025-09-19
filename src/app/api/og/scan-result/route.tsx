@@ -179,7 +179,7 @@ export async function GET(request: NextRequest) {
             fontFamily: 'system-ui',
           }}
         >
-          📊 Followlytics
+          <div>📊 Followlytics</div>
           <div style={{ fontSize: '24px', marginTop: '20px', color: '#64748B' }}>
             Follower Analytics Platform
           </div>
