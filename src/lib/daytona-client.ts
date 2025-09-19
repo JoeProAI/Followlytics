@@ -261,15 +261,34 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
 
     console.log('📝 Interactive sign-in script created')
 
-    // Execute the interactive script - return immediately for background processing
-    console.log('✅ Background interactive extraction started - returning immediately to avoid timeout')
-    console.log('🎯 Returning immediately to avoid Vercel timeout - interactive extraction running in background')
-    
-    return {
-      status: 'partial',
-      followers: [],
-      followerCount: 0,
-      message: 'Interactive extraction started in background - user signin required'
+    // Upload and execute the interactive script with screenshot monitoring
+    try {
+      await this.uploadScriptWithFallback(sandbox, interactiveScript, 'interactive-scanner.js')
+      console.log('✅ Interactive script uploaded successfully')
+      
+      // Execute the script in background and return immediately
+      console.log('🚀 Starting background extraction with screenshot monitoring...')
+      
+      // Start the script execution (don't await - let it run in background)
+      this.executeScriptInBackground(sandbox, 'node interactive-scanner.js')
+      
+      console.log('✅ Background interactive extraction started - returning immediately to avoid timeout')
+      console.log('🎯 Returning immediately to avoid Vercel timeout - interactive extraction running in background')
+      
+      return {
+        status: 'partial',
+        followers: [],
+        followerCount: 0,
+        message: 'Interactive extraction started in background with screenshot monitoring - user signin required'
+      }
+    } catch (error: unknown) {
+      console.error('❌ Failed to start interactive extraction:', error)
+      return {
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        followers: [],
+        followerCount: 0
+      }
     }
   }
 
@@ -1466,6 +1485,23 @@ const puppeteer = require('puppeteer');
         status: 'failed',
         error: `Cookie extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       }
+    }
+  }
+
+  // Execute script in background without waiting for completion
+  private static async executeScriptInBackground(sandbox: any, command: string): Promise<void> {
+    try {
+      console.log(`🔄 Executing command in background: ${command}`)
+      
+      // Use Daytona SDK to execute command without waiting
+      sandbox.process.codeRun(command).catch((error: any) => {
+        console.error('Background script execution error:', error)
+      })
+      
+      console.log('✅ Background script execution started')
+    } catch (error: unknown) {
+      console.error('Failed to start background execution:', error)
+      throw error
     }
   }
 

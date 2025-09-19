@@ -17,6 +17,13 @@ interface ScanProgress {
   message?: string
 }
 
+interface Screenshot {
+  name: string
+  timestamp: string
+  description: string
+  url: string
+}
+
 export default function FollowerScanner() {
   const { user } = useAuth()
   const [isScanning, setIsScanning] = useState(false)
@@ -27,6 +34,8 @@ export default function FollowerScanner() {
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [showSessionCookieHelper, setShowSessionCookieHelper] = useState(false)
   const [sessionCookies, setSessionCookies] = useState<any>(null)
+  const [screenshots, setScreenshots] = useState<Screenshot[]>([])
+  const [showScreenshots, setShowScreenshots] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -276,6 +285,28 @@ export default function FollowerScanner() {
     }
   }
 
+  const fetchScreenshots = async (scanId: string) => {
+    try {
+      const token = await user?.getIdToken()
+      const response = await fetch(`/api/sandbox/screenshots?scanId=${scanId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setScreenshots(data.screenshots || [])
+        setShowScreenshots(true)
+      } else {
+        const error = await response.json()
+        console.error('Failed to fetch screenshots:', error)
+      }
+    } catch (error) {
+      console.error('Failed to fetch screenshots:', error)
+    }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
@@ -441,12 +472,18 @@ export default function FollowerScanner() {
                       <p className="mt-2 text-xs">
                         💡 <strong>Important:</strong> This is your personal Twitter login - your data stays secure and private.
                       </p>
-                      <div className="mt-4">
+                      <div className="mt-4 space-x-3">
                         <button
                           onClick={() => getAuthenticationLink(scanProgress.scanId)}
                           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                         >
                           🔗 Get Sign-In Link
+                        </button>
+                        <button
+                          onClick={() => fetchScreenshots(scanProgress.scanId)}
+                          className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        >
+                          📸 View Screenshots
                         </button>
                       </div>
                     </div>
@@ -548,6 +585,46 @@ export default function FollowerScanner() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Screenshots Display */}
+      {showScreenshots && screenshots.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6 mt-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium text-gray-900">
+              📸 Sandbox Screenshots
+            </h3>
+            <button
+              onClick={() => setShowScreenshots(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {screenshots.map((screenshot, index) => (
+              <div key={index} className="border rounded-lg p-4">
+                <div className="aspect-video bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
+                  <div className="text-center text-gray-500">
+                    <div className="text-4xl mb-2">📸</div>
+                    <p className="text-sm">{screenshot.name}</p>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <p className="font-medium text-gray-900">{screenshot.description}</p>
+                  <p className="text-sm text-gray-500">
+                    {new Date(screenshot.timestamp).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <div className="mt-4 text-sm text-gray-600">
+            <p>💡 Screenshots are taken automatically during the extraction process to help monitor progress and debug any issues.</p>
           </div>
         </div>
       )}
