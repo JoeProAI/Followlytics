@@ -129,11 +129,7 @@ export default function FollowerScanner() {
       return
     }
 
-    // Always require session cookies for the simple scan
-    if (!sessionCookies) {
-      setShowSessionCookieHelper(true)
-      return
-    }
+    // No manual cookies needed - fully automated using OAuth tokens
 
     setIsScanning(true)
     setShowSessionCookieHelper(false)
@@ -145,15 +141,14 @@ export default function FollowerScanner() {
 
     try {
       const token = await user?.getIdToken()
-      const response = await fetch('/api/scan/simple', {
+      const response = await fetch('/api/scan/auto', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ 
-          xUsername: xUsername.trim(),
-          sessionCookies: sessionCookies
+          xUsername: xUsername.trim()
         }),
       })
 
@@ -166,6 +161,12 @@ export default function FollowerScanner() {
         })
       } else {
         const error = await response.json()
+        if (error.needsAuth) {
+          // Redirect to Twitter authorization
+          alert('Twitter authorization required. Redirecting to authorize...')
+          window.location.href = '/api/auth/twitter'
+          return
+        }
         throw new Error(error.error || 'Failed to start scan')
       }
     } catch (error) {
