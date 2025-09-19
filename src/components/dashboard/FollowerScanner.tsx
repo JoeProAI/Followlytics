@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import SessionCookieHelper from './SessionCookieHelper'
+import { generateScanResultOG, generateScanProgressOG, shareToSocialMedia, generateScanResultMessage, generateScanProgressMessage } from '@/lib/og-utils'
 
 interface ScanProgress {
   scanId: string
@@ -307,6 +308,39 @@ export default function FollowerScanner() {
     }
   }
 
+  const shareResults = async (username: string, followerCount: number, status: string = 'completed') => {
+    try {
+      const ogImageUrl = generateScanResultOG({
+        username,
+        followers: followerCount,
+        status: status as 'completed' | 'failed' | 'scanning'
+      })
+      
+      const message = generateScanResultMessage(username, followerCount)
+      await shareToSocialMedia(ogImageUrl, message)
+    } catch (error) {
+      console.error('Failed to share results:', error)
+      alert('Failed to generate share content. Please try again.')
+    }
+  }
+
+  const shareProgress = async (username: string, progress: number, currentCount?: number) => {
+    try {
+      const ogImageUrl = generateScanProgressOG({
+        username,
+        progress,
+        current: currentCount,
+        phase: 'scanning_followers'
+      })
+      
+      const message = generateScanProgressMessage(username, progress)
+      await shareToSocialMedia(ogImageUrl, message)
+    } catch (error) {
+      console.error('Failed to share progress:', error)
+      alert('Failed to generate share content. Please try again.')
+    }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
@@ -485,6 +519,12 @@ export default function FollowerScanner() {
                         >
                           📸 View Screenshots
                         </button>
+                        <button
+                          onClick={() => shareProgress(xUsername, scanProgress.progress, scanProgress.followerCount)}
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                        >
+                          📱 Share Progress
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -500,12 +540,21 @@ export default function FollowerScanner() {
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <div className="ml-3">
+                  <div className="ml-3 flex-1">
                     <h3 className="text-sm font-medium text-green-800">
-                      Scan Completed Successfully!
+                      ✅ Scan Completed Successfully!
                     </h3>
                     <div className="mt-2 text-sm text-green-700">
-                      <p>Found {scanProgress.followerCount} followers for @{xUsername}</p>
+                      <p>Found <strong>{scanProgress.followerCount.toLocaleString()}</strong> followers for @{xUsername}</p>
+                      <p className="mt-1">Your follower data is ready for analysis.</p>
+                    </div>
+                    <div className="mt-4">
+                      <button
+                        onClick={() => shareResults(xUsername, scanProgress.followerCount || 0)}
+                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                      >
+                        📱 Share Results
+                      </button>
                     </div>
                   </div>
                 </div>
