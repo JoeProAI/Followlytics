@@ -78,10 +78,72 @@ export async function POST(request: NextRequest) {
       }
 
       if (sandbox.state !== 'started') {
-        return NextResponse.json({ 
-          error: `Sandbox is not running (status: ${sandbox.state})`,
-          suggestion: 'Please start a new scan - the previous sandbox has expired'
-        }, { status: 400 })
+        // If sandbox is destroyed/destroying, create a new one automatically
+        if (sandbox.state === 'destroyed' || sandbox.state === 'destroying') {
+          console.log('🔄 Sandbox destroyed, creating new one automatically...')
+          
+          try {
+            // Create new sandbox
+            const newSandbox = await daytona.create({
+              language: 'javascript'
+            })
+            
+            console.log(`✅ New sandbox created: ${newSandbox.id}`)
+            
+            // Update the scan record with new sandbox ID
+            await adminDb.collection('follower_scans').doc(scanId).update({
+              sandboxId: newSandbox.id,
+              status: 'setting_up',
+              message: 'Created new sandbox - setting up environment...',
+              progress: 25
+            })
+            
+            // Wait for new sandbox to be ready
+            await new Promise(resolve => setTimeout(resolve, 5000))
+            
+            // Get the new sandbox
+            sandbox = await daytona.get(newSandbox.id)
+            
+            if (sandbox.state !== 'started') {
+              return NextResponse.json({ 
+                error: `New sandbox failed to start (status: ${sandbox.state})`,
+                suggestion: 'Please try starting a completely new scan'
+              }, { status: 500 })
+            }
+            
+            // Set up the new sandbox with interactive script
+            console.log('🔧 Setting up new sandbox environment...')
+            
+            // Get username from scan record
+            const scanDoc = await adminDb.collection('follower_scans').doc(scanId).get()
+            const scanData = scanDoc.data()
+            const username = scanData?.username || 'unknown'
+            
+            // Start a simple setup script in the new sandbox
+            await sandbox.process.codeRun(`
+              echo "Setting up new sandbox for authentication transfer..."
+              npm install playwright fs path
+              npx playwright install chromium
+              echo "New sandbox ready for authentication transfer"
+            `)
+            
+            console.log('✅ New sandbox set up and ready for authentication transfer')
+            
+          } catch (createError) {
+            console.error('❌ Failed to create new sandbox:', createError)
+            return NextResponse.json({ 
+              error: 'Previous sandbox expired and failed to create replacement',
+              details: createError instanceof Error ? createError.message : 'Unknown error',
+              suggestion: 'Please start a new scan from the dashboard'
+            }, { status: 500 })
+          }
+          
+        } else {
+          return NextResponse.json({ 
+            error: `Sandbox is not running (status: ${sandbox.state})`,
+            suggestion: 'Please start a new scan - the previous sandbox has expired'
+          }, { status: 400 })
+        }
       }
 
     } catch (error) {
