@@ -187,8 +187,8 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     console.log('📸 Screenshot saved: User signed in');
     
     // Now navigate to the followers page
-    const followersUrl = `https://x.com/${username}/followers`;
-    console.log(`📋 Navigating to followers page: ${followersUrl}`);
+    const followersUrl = \`https://x.com/\${username}/followers\`;
+    console.log(\`📋 Navigating to followers page: \${followersUrl}\`);
     
     await page.goto(followersUrl, { waitUntil: 'networkidle0' });
     await page.waitForTimeout(3000);
@@ -237,7 +237,7 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
         }
       });
       
-      console.log(\`📊 Extracted \${followers.length} followers so far...\`);
+      console.log('📊 Extracted ' + followers.length + ' followers so far...');
       
       // Scroll down to load more
       const scrolled = await page.evaluate(() => {
@@ -257,7 +257,7 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
       }
     }
     
-    console.log(\`✅ Extraction completed! Found \${followers.length} followers\`);
+    console.log('✅ Extraction completed! Found ' + followers.length + ' followers');
     
     // Take final screenshot showing extraction results
     await page.screenshot({ path: '/tmp/04_extraction_complete.png', fullPage: true });
