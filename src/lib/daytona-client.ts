@@ -217,22 +217,42 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     // Check if we're actually on the followers page or redirected
     if (currentUrl.includes('/login') || pageTitle.includes('Login')) {
       console.log('⚠️ Redirected to login page - authentication may have failed');
-      
-      // Try to authenticate by clicking login elements if present
-      try {
-        await page.waitForSelector('input[name="text"]', { timeout: 5000 });
-        console.log('🔑 Login form detected, authentication may be needed');
-      } catch (e) {
-        console.log('🔍 No login form found');
-      }
+      throw new Error('Authentication failed - redirected to login page');
       
     } else if (currentUrl.includes('/followers')) {
       console.log('✅ Successfully on followers page');
+      
+      // Verify this is actually the followers page by looking for specific elements
+      const followersPageElements = await page.evaluate(() => {
+        // Look for followers-specific elements
+        const followersHeader = document.querySelector('[data-testid="primaryColumn"] h2, [role="heading"]');
+        const followersText = followersHeader?.textContent || '';
+        
+        // Look for follower cells
+        const followerCells = document.querySelectorAll('[data-testid="UserCell"]');
+        
+        // Look for "Follow" buttons (indicates follower list)
+        const followButtons = document.querySelectorAll('[data-testid*="follow"], [aria-label*="Follow"]');
+        
+        return {
+          headerText: followersText,
+          followerCells: followerCells.length,
+          followButtons: followButtons.length,
+          hasFollowersIndicator: followersText.toLowerCase().includes('followers') || followersText.toLowerCase().includes('follow')
+        };
+      });
+      
+      console.log('🔍 Followers page verification:', followersPageElements);
+      
+      if (!followersPageElements.hasFollowersIndicator && followersPageElements.followerCells === 0) {
+        console.log('⚠️ This might not be the actual followers page - no follower indicators found');
+      }
       
       // Check for common error messages or empty states
       const pageText = await page.textContent('body');
       if (pageText?.includes('This account owner limits who can view their followers')) {
         console.log('🔒 Account has private followers list');
+        throw new Error('Account has private followers list');
       } else if (pageText?.includes("doesn't have any followers")) {
         console.log('📭 Account has no followers');
       } else {
@@ -243,10 +263,26 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
       console.log(\`⚠️ Unexpected page: \${currentUrl}\`);
       console.log(\`Page title: \${pageTitle}\`);
       
-      // Try to navigate to followers page again
-      const retryUrl = \`https://x.com/\${username}/followers\`;
-      console.log(\`🔄 Attempting to navigate to: \${retryUrl}\`);
-      await page.goto(retryUrl, { waitUntil: 'networkidle0', timeout: 15000 });
+      // Try to navigate to followers page again with both URL formats
+      const retryUrls = [
+        \`https://twitter.com/\${username}/followers\`,
+        \`https://x.com/\${username}/followers\`
+      ];
+      
+      for (const retryUrl of retryUrls) {
+        try {
+          console.log(\`🔄 Attempting to navigate to: \${retryUrl}\`);
+          await page.goto(retryUrl, { waitUntil: 'networkidle0', timeout: 15000 });
+          
+          const newUrl = page.url();
+          if (newUrl.includes('/followers')) {
+            console.log(\`✅ Successfully navigated to followers page: \${newUrl}\`);
+            break;
+          }
+        } catch (navError) {
+          console.log(\`❌ Failed to navigate to \${retryUrl}: \${navError.message}\`);
+        }
+      }
     }
     
     console.log('📜 Starting follower extraction...');
@@ -260,15 +296,12 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
       console.log(\`🔍 Scroll attempt \${scrollAttempts + 1}/\${maxScrolls} - looking for followers...\`);
       
       const newFollowers = await page.evaluate(() => {
-        // Multiple selector strategies for robust extraction
+        // Follower-specific selector strategies (more targeted)
         const selectors = [
-          '[data-testid="UserCell"]',
-          '[data-testid="cellInnerDiv"]',
-          'article[data-testid="tweet"]',
-          '[role="button"][data-testid="UserCell"]',
-          'div[data-testid="UserCell"]',
-          'div[aria-label*="Follow"]',
-          'div[data-testid="primaryColumn"] div[role="button"]'
+          '[data-testid="UserCell"]', // Primary follower cells
+          '[data-testid="cellInnerDiv"] [data-testid="UserCell"]', // Nested follower cells
+          '[data-testid="primaryColumn"] [data-testid="UserCell"]', // Follower cells in main column
+          'div[aria-label*="Follow"] [data-testid="UserCell"]' // Cells with follow buttons
         ];
         
         let followerElements = [];
@@ -288,18 +321,44 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
         
         console.log(\`Using selector: \${usedSelector}, found \${followerElements.length} elements\`);
         
-        // If no elements found, try to find any links that look like usernames
+        // If no elements found, try follower-specific fallback
         if (followerElements.length === 0) {
-          const allLinks = document.querySelectorAll('a[href*="/"]');
-          console.log(\`Fallback: found \${allLinks.length} total links\`);
+          console.log('🔍 No UserCell elements found, trying follower-specific fallback...');
           
-          // Filter for username-like links
-          followerElements = Array.from(allLinks).filter(link => {
-            const href = link.getAttribute('href') || '';
-            return href.match(/^\/[a-zA-Z0-9_]+$/) && !href.includes('/status/') && !href.includes('/photo/');
-          });
-          
-          console.log(\`Filtered to \${followerElements.length} username-like links\`);
+          // Look specifically in the followers section
+          const followersSection = document.querySelector('[data-testid="primaryColumn"]');
+          if (followersSection) {
+            const followersLinks = followersSection.querySelectorAll('a[href*="/"]');
+            console.log(\`Found \${followersLinks.length} links in followers section\`);
+            
+            // Filter for actual user profile links (not hashtags, not status links)
+            followerElements = Array.from(followersLinks).filter(link => {
+              const href = link.getAttribute('href') || '';
+              const isUserProfile = href.match(/^\/[a-zA-Z0-9_]+$/) && 
+                                   !href.includes('/status/') && 
+                                   !href.includes('/photo/') &&
+                                   !href.includes('/hashtag/') &&
+                                   !href.includes('/search') &&
+                                   href !== '/home' &&
+                                   href !== '/explore' &&
+                                   href !== '/notifications' &&
+                                   href !== '/messages';
+              
+              // Additional check: should be in a context that suggests it's a follower
+              const parentElement = link.closest('[data-testid="cellInnerDiv"], [role="button"], article');
+              const hasFollowContext = parentElement && (
+                parentElement.textContent?.includes('Follow') ||
+                parentElement.querySelector('[data-testid*="follow"]') ||
+                parentElement.querySelector('[aria-label*="Follow"]')
+              );
+              
+              return isUserProfile && hasFollowContext;
+            });
+            
+            console.log(\`Filtered to \${followerElements.length} potential follower links\`);
+          } else {
+            console.log('⚠️ Could not find followers section');
+          }
         }
         
         const extractedFollowers = [];
