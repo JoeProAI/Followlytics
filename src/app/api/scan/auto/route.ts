@@ -93,8 +93,9 @@ export async function POST(request: NextRequest) {
         await adminDb.collection('follower_scans').doc(scanId).update({
           status: 'awaiting_user_signin',
           progress: 50,
-          message: 'Browser opened - please sign into your Twitter account to continue',
+          message: 'Browser ready - you have 10 minutes to complete Twitter OAuth and click "I\'ve signed in"',
           userActionRequired: true,
+          timeoutMinutes: 10,
           actionDescription: 'Sign into Twitter in the browser window that opened'
         })
 

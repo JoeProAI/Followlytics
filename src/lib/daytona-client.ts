@@ -146,7 +146,7 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     
     let authSignalReceived = false;
     let pollAttempts = 0;
-    const maxPollAttempts = 60; // 5 minutes max wait
+    const maxPollAttempts = 120; // 10 minutes max wait (doubled from 5 minutes)
     
     while (!authSignalReceived && pollAttempts < maxPollAttempts) {
       try {
@@ -167,7 +167,10 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
         pollAttempts++;
         
         if (pollAttempts % 6 === 0) {
-          console.log(\`⏳ Still waiting for user authentication... (\${pollAttempts * 5}s elapsed)\`);
+          const elapsed = pollAttempts * 5;
+          const remaining = (maxPollAttempts - pollAttempts) * 5;
+          console.log(\`⏳ Still waiting for user authentication... (\${elapsed}s elapsed, \${remaining}s remaining)\`);
+          console.log(\`💡 User should click "I've signed in" button in dashboard after completing X OAuth\`);
         }
       } catch (error) {
         console.log('Checking for auth signal...');
