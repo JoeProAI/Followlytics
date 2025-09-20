@@ -1078,6 +1078,10 @@ async function scanWithStrategy(strategy, username, accessToken, accessTokenSecr
           break;
         }
       } else {
+        consecutiveEmptyScrolls++;
+        console.log(\`📜 \${strategy.name} scroll \${i + 1}: no new followers found (consecutive empty: \${consecutiveEmptyScrolls})\`);
+      }
+    }
   } catch (error) {
     console.error(\`❌ Strategy \${strategy.name} failed:\`, error);
     throw error;
