@@ -334,15 +334,21 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
             // Filter for actual user profile links (not hashtags, not status links)
             followerElements = Array.from(followersLinks).filter(link => {
               const href = link.getAttribute('href') || '';
-              const isUserProfile = href.match(/^\/[a-zA-Z0-9_]+$/) && 
+              // Use string methods instead of regex to avoid syntax issues
+              const isUserProfile = href.startsWith('/') && 
+                                   href.length > 1 &&
+                                   href.length < 17 && // Twitter usernames max 15 chars + /
                                    !href.includes('/status/') && 
                                    !href.includes('/photo/') &&
                                    !href.includes('/hashtag/') &&
                                    !href.includes('/search') &&
+                                   !href.includes('?') &&
+                                   !href.includes('#') &&
                                    href !== '/home' &&
                                    href !== '/explore' &&
                                    href !== '/notifications' &&
-                                   href !== '/messages';
+                                   href !== '/messages' &&
+                                   href.slice(1).match(/^[a-zA-Z0-9_]+$/);
               
               // Additional check: should be in a context that suggests it's a follower
               const parentElement = link.closest('[data-testid="cellInnerDiv"], [role="button"], article');
@@ -399,14 +405,16 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
             
             console.log(\`Extracted: @\${username} (\${displayName})\`);
             
-            // Validate username format
-            if (username && 
+            // Validate username format (avoid regex syntax issues)
+            const isValidUsername = username && 
                 username.length > 0 && 
                 username.length < 16 && // Twitter usernames max 15 chars
                 !username.includes('/') && 
                 !username.includes('?') &&
                 !username.includes('#') &&
-                username.match(/^[a-zA-Z0-9_]+$/)) {
+                /^[a-zA-Z0-9_]+$/.test(username);
+            
+            if (isValidUsername) {
               
               extractedFollowers.push({
                 username: username,
