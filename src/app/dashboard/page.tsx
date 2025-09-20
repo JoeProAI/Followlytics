@@ -54,13 +54,14 @@ function DashboardContent() {
       // Only redirect to login if no user and no X auth in progress and no error
       // Give more time for Firebase auth to restore from localStorage
       if (!user && !loading && !xAuth && !error) {
-        // Add a small delay to allow Firebase auth state to restore
+        // Add a longer delay to allow Firebase auth state to restore
         setTimeout(() => {
-          if (!user && !loading) {
-            console.log('🔄 No authenticated user found, redirecting to login')
+          // Double-check auth state before redirecting
+          if (!user && !loading && !xAuth) {
+            console.log('🔄 No authenticated user found after delay, redirecting to login')
             router.push('/login')
           }
-        }, 1000)
+        }, 3000) // Increased to 3 seconds
       }
     }
 
@@ -72,7 +73,12 @@ function DashboardContent() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">
+            {loading ? 'Restoring authentication...' : 'Loading dashboard...'}
+          </p>
+          <p className="mt-2 text-sm text-gray-500">
+            Please wait while we verify your session
+          </p>
         </div>
       </div>
     )

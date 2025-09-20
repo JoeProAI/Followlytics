@@ -187,8 +187,8 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     await page.screenshot({ path: '/tmp/02_signed_in.png', fullPage: true });
     console.log('📸 Screenshot saved: User signed in');
     
-    // Now navigate to the followers page
-    const followersUrl = \`https://x.com/\${username}/followers\`;
+    // Now navigate to the followers page (use twitter.com like the working test)
+    const followersUrl = \`https://twitter.com/\${username}/followers\`;
     console.log(\`📋 Navigating to followers page: \${followersUrl}\`);
     
     try {
@@ -214,10 +214,36 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     // Check if we're actually on the followers page or redirected
     if (currentUrl.includes('/login') || pageTitle.includes('Login')) {
       console.log('⚠️ Redirected to login page - authentication may have failed');
+      
+      // Try to authenticate by clicking login elements if present
+      try {
+        await page.waitForSelector('input[name="text"]', { timeout: 5000 });
+        console.log('🔑 Login form detected, authentication may be needed');
+      } catch (e) {
+        console.log('🔍 No login form found');
+      }
+      
     } else if (currentUrl.includes('/followers')) {
       console.log('✅ Successfully on followers page');
+      
+      // Check for common error messages or empty states
+      const pageText = await page.textContent('body');
+      if (pageText?.includes('This account owner limits who can view their followers')) {
+        console.log('🔒 Account has private followers list');
+      } else if (pageText?.includes("doesn't have any followers")) {
+        console.log('📭 Account has no followers');
+      } else {
+        console.log('📊 Followers page loaded successfully');
+      }
+      
     } else {
       console.log(\`⚠️ Unexpected page: \${currentUrl}\`);
+      console.log(\`Page title: \${pageTitle}\`);
+      
+      // Try to navigate to followers page again
+      const retryUrl = \`https://x.com/\${username}/followers\`;
+      console.log(\`🔄 Attempting to navigate to: \${retryUrl}\`);
+      await page.goto(retryUrl, { waitUntil: 'networkidle0', timeout: 15000 });
     }
     
     console.log('📜 Starting follower extraction...');
@@ -231,37 +257,104 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
       console.log(\`🔍 Scroll attempt \${scrollAttempts + 1}/\${maxScrolls} - looking for followers...\`);
       
       const newFollowers = await page.evaluate(() => {
-        const followerElements = document.querySelectorAll('[data-testid="UserCell"]');
-        console.log(\`Found \${followerElements.length} UserCell elements\`);
+        // Multiple selector strategies for robust extraction
+        const selectors = [
+          '[data-testid="UserCell"]',
+          '[data-testid="cellInnerDiv"]',
+          'article[data-testid="tweet"]',
+          '[role="button"][data-testid="UserCell"]',
+          'div[data-testid="UserCell"]',
+          'div[aria-label*="Follow"]',
+          'div[data-testid="primaryColumn"] div[role="button"]'
+        ];
         
-        // Also try alternative selectors
-        const altElements = document.querySelectorAll('[data-testid="cellInnerDiv"]');
-        console.log(\`Found \${altElements.length} cellInnerDiv elements\`);
+        let followerElements = [];
+        let usedSelector = '';
+        
+        // Try each selector until we find elements
+        for (const selector of selectors) {
+          const elements = document.querySelectorAll(selector);
+          console.log(\`Selector "\${selector}": found \${elements.length} elements\`);
+          
+          if (elements.length > 0) {
+            followerElements = Array.from(elements);
+            usedSelector = selector;
+            break;
+          }
+        }
+        
+        console.log(\`Using selector: \${usedSelector}, found \${followerElements.length} elements\`);
+        
+        // If no elements found, try to find any links that look like usernames
+        if (followerElements.length === 0) {
+          const allLinks = document.querySelectorAll('a[href*="/"]');
+          console.log(\`Fallback: found \${allLinks.length} total links\`);
+          
+          // Filter for username-like links
+          followerElements = Array.from(allLinks).filter(link => {
+            const href = link.getAttribute('href') || '';
+            return href.match(/^\/[a-zA-Z0-9_]+$/) && !href.includes('/status/') && !href.includes('/photo/');
+          });
+          
+          console.log(\`Filtered to \${followerElements.length} username-like links\`);
+        }
         
         const extractedFollowers = [];
         
         followerElements.forEach((element, index) => {
-          const usernameElement = element.querySelector('[href*="/"]');
-          const displayNameElement = element.querySelector('[dir="ltr"]');
+          // Multiple strategies for finding username and display name
+          let usernameElement = element.querySelector('a[href*="/"]') || element;
+          let displayNameElement = element.querySelector('[dir="ltr"]') || 
+                                   element.querySelector('span') || 
+                                   element.querySelector('div');
+          
+          // Alternative username extraction
+          if (!usernameElement && element.tagName === 'A') {
+            usernameElement = element;
+          }
           
           console.log(\`Element \${index}: username=\${usernameElement ? 'found' : 'missing'}, display=\${displayNameElement ? 'found' : 'missing'}\`);
           
-          if (usernameElement && displayNameElement) {
-            const href = usernameElement.getAttribute('href');
-            const username = href ? href.replace('/', '') : '';
-            const displayName = displayNameElement.textContent || '';
+          if (usernameElement) {
+            const href = usernameElement.getAttribute('href') || '';
+            let username = '';
+            
+            // Extract username from href
+            if (href.startsWith('/')) {
+              username = href.substring(1); // Remove leading slash
+            }
+            
+            // Get display name
+            let displayName = '';
+            if (displayNameElement) {
+              displayName = displayNameElement.textContent?.trim() || '';
+            }
+            
+            // Fallback: use username as display name if no display name found
+            if (!displayName && username) {
+              displayName = username;
+            }
             
             console.log(\`Extracted: @\${username} (\${displayName})\`);
             
-            if (username && !username.includes('/') && username.length > 0) {
+            // Validate username format
+            if (username && 
+                username.length > 0 && 
+                username.length < 16 && // Twitter usernames max 15 chars
+                !username.includes('/') && 
+                !username.includes('?') &&
+                !username.includes('#') &&
+                username.match(/^[a-zA-Z0-9_]+$/)) {
+              
               extractedFollowers.push({
                 username: username,
-                displayName: displayName
+                displayName: displayName || username
               });
             }
           }
         });
         
+        console.log(\`Successfully extracted \${extractedFollowers.length} followers\`);
         return extractedFollowers;
       });
       
@@ -1468,9 +1561,62 @@ const puppeteer = require('puppeteer');
       break;
     }
     
-    if (newFollowers.length === 0 && i > 15) {
-      console.log('No new followers found after 15+ scrolls, stopping...');
-      break;
+    // If no new followers found in multiple attempts, try alternative strategies
+    if (newFollowers.length === 0) {
+      noNewFollowersCount++
+      console.log(\`⚠️ No new followers found (attempt \${noNewFollowersCount}/\${maxNoNewFollowers})\`)
+      
+      // Try alternative extraction strategies
+      if (noNewFollowersCount === 2) {
+        console.log('🔄 Trying alternative extraction strategy...');
+        
+        // Strategy 1: Look for any text that looks like usernames
+        const alternativeFollowers = await page.evaluate(() => {
+          const textNodes = document.evaluate(
+            "//text()[contains(., '@')]",
+            document,
+            null,
+            XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE,
+            null
+          );
+          
+          const usernames = [];
+          for (let i = 0; i < textNodes.snapshotLength; i++) {
+            const node = textNodes.snapshotItem(i);
+            const text = node?.textContent || '';
+            const matches = text.match(/@([a-zA-Z0-9_]+)/g);
+            if (matches) {
+              matches.forEach(match => {
+                const username = match.substring(1); // Remove @
+                if (username.length > 0 && username.length < 16) {
+                  usernames.push({
+                    username: username,
+                    displayName: username
+                  });
+                }
+              });
+            }
+          }
+          
+          console.log(\`Alternative strategy found \${usernames.length} potential usernames\`);
+          return usernames;
+        });
+        
+        // Add alternative followers if found
+        alternativeFollowers.forEach(follower => {
+          if (!followers.some(f => f.username === follower.username)) {
+            followers.push(follower);
+            console.log(\`Added alternative follower: @\${follower.username}\`);
+          }
+        });
+      }
+      
+      if (noNewFollowersCount >= maxNoNewFollowers) {
+        console.log('🛑 No new followers found after multiple attempts and alternative strategies, stopping extraction')
+        break
+      }
+    } else {
+      noNewFollowersCount = 0 // Reset counter when followers are found
     }
     
     // Scroll down
