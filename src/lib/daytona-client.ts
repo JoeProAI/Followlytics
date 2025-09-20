@@ -87,12 +87,41 @@ export class DaytonaSandboxManager {
   ): Promise<FollowerScanResult> {
     console.log(`🚀 Starting interactive follower scan for @${username}`)
 
-    // Create interactive sign-in script that prompts user to log in
+    // Create interactive sign-in script with comprehensive screenshot monitoring
     const interactiveScript = `
 const fs = require('fs');
 const { chromium } = require('playwright');
 
 console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction...');
+
+// Screenshot helper function
+async function takeScreenshot(page, step, description) {
+  try {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = \`/tmp/screenshot_\${step}_\${timestamp}.png\`;
+    await page.screenshot({ path: filename, fullPage: true });
+    console.log(\`📸 Screenshot saved: \${step} - \${description}\`);
+    
+    // Also save as base64 for debugging
+    const screenshotBase64 = await page.screenshot({ fullPage: true, encoding: 'base64' });
+    const debugData = {
+      step: step,
+      description: description,
+      timestamp: timestamp,
+      url: page.url(),
+      title: await page.title(),
+      screenshotBase64: screenshotBase64
+    };
+    
+    fs.writeFileSync(\`/tmp/debug_\${step}_\${timestamp}.json\`, JSON.stringify(debugData, null, 2));
+    console.log(\`📋 Debug data saved: \${step}\`);
+    
+    return filename;
+  } catch (error) {
+    console.log(\`⚠️ Screenshot failed for \${step}: \${error.message}\`);
+    return null;
+  }
+}
 
 (async () => {
   try {
@@ -112,6 +141,9 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     const page = await browser.newPage();
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
     
+    // Take initial screenshot of browser startup
+    await takeScreenshot(page, '01_browser_startup', 'Browser launched and page created');
+    
     console.log('🔗 Creating secure authentication link for user...');
     
     // Generate a secure authentication session
@@ -119,6 +151,11 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     const authUrl = \`https://x.com/login?session_id=\${authSessionId}&redirect_to=followers\`;
     
     console.log('📝 Authentication URL created:', authUrl);
+    
+    // Navigate to login page and take screenshot
+    console.log('🌐 Navigating to login page...');
+    await page.goto(authUrl, { waitUntil: 'networkidle0', timeout: 30000 });
+    await takeScreenshot(page, '02_login_page', 'Initial login page loaded');
     
     // Save the auth URL and session info for the dashboard to retrieve
     const authData = {
@@ -155,21 +192,19 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
           console.log(\`📄 Signal file content: \${signalContent.trim()}\`);
           if (signalContent.includes('USER_AUTHENTICATED')) {
             authSignalReceived = true;
-            console.log('✅ Authentication signal received from user!');
+            console.log('✅ User authentication signal received!');
+            await takeScreenshot(page, '03_auth_signal_received', 'Authentication signal received from user');
             break;
           }
         } else {
-          console.log('📄 No signal file found yet...');
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        pollAttempts++;
-        
-        if (pollAttempts % 6 === 0) {
-          const elapsed = pollAttempts * 5;
-          const remaining = (maxPollAttempts - pollAttempts) * 5;
-          console.log(\`⏳ Still waiting for user authentication... (\${elapsed}s elapsed, \${remaining}s remaining)\`);
-          console.log(\`💡 User should click "I've signed in" button in dashboard after completing X OAuth\`);
+          console.log(\`⏳ Waiting for authentication signal... (attempt \${pollAttempts + 1}/\${maxPollAttempts})\`);
+          console.log(\`💡 User should complete OAuth in browser and click "I've signed in" in dashboard\`);
+          
+          // Take periodic screenshots while waiting
+          if (pollAttempts % 3 === 0) { // Every 3rd attempt (every 15 seconds)
+            await takeScreenshot(page, \`03_waiting_auth_\${pollAttempts}\`, \`Waiting for user authentication - attempt \${pollAttempts + 1}\`);
+            console.log(\`💡 User should click "I've signed in" button in dashboard after completing X OAuth\`);
+          }
         }
       } catch (error) {
         console.log('Checking for auth signal...');
@@ -186,8 +221,7 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     console.log('✅ User signed in successfully!');
     
     // Take screenshot after successful login for verification
-    await page.screenshot({ path: '/tmp/02_signed_in.png', fullPage: true });
-    console.log('📸 Screenshot saved: User signed in');
+    await takeScreenshot(page, '04_login_verified', 'User login verification completed');
     
     // CRITICAL: Verify login status before proceeding
     const loginVerification = await page.evaluate(() => {
@@ -219,7 +253,7 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     
     if (!loginVerification.isLoggedIn) {
       console.log('❌ LOGIN VERIFICATION FAILED - User does not appear to be logged in');
-      await page.screenshot({ path: '/tmp/02_login_failed.png', fullPage: true });
+      await takeScreenshot(page, '04_login_failed', 'Login verification failed - user not logged in');
       throw new Error('Authentication verification failed - user not logged in');
     }
     
@@ -232,8 +266,10 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     try {
       await page.goto(followersUrl, { waitUntil: 'networkidle0', timeout: 30000 });
       console.log('✅ Successfully navigated to followers page');
+      await takeScreenshot(page, '05_navigation_success', 'Successfully navigated to followers page');
     } catch (navError) {
       console.log(\`⚠️ Navigation issue: \${navError.message}\`);
+      await takeScreenshot(page, '05_navigation_error', 'Navigation to followers page failed');
       // Continue anyway
     }
     
@@ -246,8 +282,7 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     console.log(\`🔍 Page title: \${pageTitle}\`);
     
     // Take screenshot of followers page for verification
-    await page.screenshot({ path: '/tmp/03_followers_page.png', fullPage: true });
-    console.log('📸 Screenshot saved: Followers page loaded');
+    await takeScreenshot(page, '06_followers_page_loaded', 'Followers page loaded - checking content');
     
     // CRITICAL: Comprehensive followers page verification
     const followersPageVerification = await page.evaluate(() => {
@@ -308,26 +343,26 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     // Check for critical failures
     if (followersPageVerification.isLoginPage) {
       console.log('❌ REDIRECTED TO LOGIN - Authentication failed');
-      await page.screenshot({ path: '/tmp/03_login_redirect.png', fullPage: true });
+      await takeScreenshot(page, '07_login_redirect', 'Redirected to login page - authentication failed');
       throw new Error('Authentication failed - redirected to login page');
     }
     
     if (!followersPageVerification.hasNavigation) {
       console.log('❌ NO NAVIGATION ELEMENTS - Not properly logged in');
-      await page.screenshot({ path: '/tmp/03_no_navigation.png', fullPage: true });
+      await takeScreenshot(page, '07_no_navigation', 'Missing navigation elements - not properly authenticated');
       throw new Error('Not properly authenticated - missing navigation elements');
     }
     
     if (!followersPageVerification.isFollowersPage) {
       console.log('❌ NOT ON FOLLOWERS PAGE - Wrong URL');
-      await page.screenshot({ path: '/tmp/03_wrong_page.png', fullPage: true });
+      await takeScreenshot(page, '07_wrong_page', 'Not on followers page - wrong URL');
       throw new Error(\`Not on followers page. Current URL: \${followersPageVerification.currentUrl}\`);
     }
     
     // Check for account-specific issues
     if (followersPageVerification.isPrivate) {
       console.log('🔒 Account has private followers list');
-      await page.screenshot({ path: '/tmp/03_private_account.png', fullPage: true });
+      await takeScreenshot(page, '07_private_account', 'Account has private followers list');
       throw new Error('Account has private followers list');
     }
     
@@ -347,7 +382,7 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
       await page.waitForTimeout(3000); // Wait 3 seconds for loading
       
       // Take another screenshot after waiting
-      await page.screenshot({ path: '/tmp/03_after_wait.png', fullPage: true });
+      await takeScreenshot(page, '08_after_wait', 'Waiting for follower cells to load');
       
       // Re-check for follower cells
       const recheckCells = await page.evaluate(() => {
@@ -359,6 +394,7 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     
     if (followersPageVerification.noFollowers) {
       console.log('📭 Account has no followers');
+      await takeScreenshot(page, '08_no_followers', 'Account has no followers');
       return {
         followers: [],
         followerCount: 0,
@@ -371,16 +407,7 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     console.log(\`📊 Found \${followersPageVerification.followerCellCount} initial follower cells\`);
     
     // Take final confirmation screenshot before extraction
-    await page.screenshot({ path: '/tmp/04_extraction_ready.png', fullPage: true });
-    console.log('📸 Screenshot saved: Ready for extraction');
-    
-    // IMPORTANT: Save screenshot data to results for debugging
-    const screenshotData = await page.screenshot({ fullPage: true, encoding: 'base64' });
-    fs.writeFileSync('/tmp/extraction_ready_screenshot.json', JSON.stringify({
-      timestamp: new Date().toISOString(),
-      verification: followersPageVerification,
-      screenshotBase64: screenshotData
-    }, null, 2));
+    await takeScreenshot(page, '09_extraction_ready', 'All verification passed - ready to start extraction');
       
     } else {
       console.log(\`⚠️ Unexpected page: \${currentUrl}\`);
