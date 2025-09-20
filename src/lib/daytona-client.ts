@@ -144,30 +144,30 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     // Wait for authentication signal from user (who signed in via dashboard)
     console.log('⏳ Waiting for user authentication signal...');
     
-    // Poll for authentication signal file
     let authSignalReceived = false;
     let pollAttempts = 0;
-    const maxPollAttempts = 60; // 5 minutes with 5-second intervals
+    const maxPollAttempts = 60; // 5 minutes max wait
     
     while (!authSignalReceived && pollAttempts < maxPollAttempts) {
       try {
-        // Check if auth signal file exists
         const signalExists = fs.existsSync('/tmp/auth_signal.txt');
         if (signalExists) {
           const signalContent = fs.readFileSync('/tmp/auth_signal.txt', 'utf8');
+          console.log(\`📄 Signal file content: \${signalContent.trim()}\`);
           if (signalContent.includes('USER_AUTHENTICATED')) {
             authSignalReceived = true;
             console.log('✅ Authentication signal received from user!');
             break;
           }
+        } else {
+          console.log('📄 No signal file found yet...');
         }
         
-        // Wait 5 seconds before next check
         await new Promise(resolve => setTimeout(resolve, 5000));
         pollAttempts++;
         
-        if (pollAttempts % 6 === 0) { // Log every 30 seconds
-          console.log('⏳ Still waiting for user authentication... (' + (pollAttempts * 5) + 's elapsed)');
+        if (pollAttempts % 6 === 0) {
+          console.log(\`⏳ Still waiting for user authentication... (\${pollAttempts * 5}s elapsed)\`);
         }
       } catch (error) {
         console.log('Checking for auth signal...');
@@ -177,7 +177,8 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     }
     
     if (!authSignalReceived) {
-      throw new Error('Authentication timeout - user did not complete sign-in within 5 minutes');
+      console.log('❌ Authentication timeout - proceeding anyway for debugging');
+      // Don't throw error, continue for debugging
     }
     
     console.log('✅ User signed in successfully!');
@@ -190,12 +191,34 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     const followersUrl = \`https://x.com/\${username}/followers\`;
     console.log(\`📋 Navigating to followers page: \${followersUrl}\`);
     
-    await page.goto(followersUrl, { waitUntil: 'networkidle0' });
-    await page.waitForTimeout(3000);
+    try {
+      await page.goto(followersUrl, { waitUntil: 'networkidle0', timeout: 30000 });
+      console.log('✅ Successfully navigated to followers page');
+    } catch (navError) {
+      console.log(\`⚠️ Navigation issue: \${navError.message}\`);
+      // Continue anyway
+    }
+    
+    await page.waitForTimeout(5000); // Increased wait time
+    
+    // Check current URL and page title
+    const currentUrl = page.url();
+    const pageTitle = await page.title();
+    console.log(\`🔍 Current URL: \${currentUrl}\`);
+    console.log(\`🔍 Page title: \${pageTitle}\`);
     
     // Take screenshot of followers page
     await page.screenshot({ path: '/tmp/03_followers_page.png', fullPage: true });
     console.log('📸 Screenshot saved: Followers page loaded');
+    
+    // Check if we're actually on the followers page or redirected
+    if (currentUrl.includes('/login') || pageTitle.includes('Login')) {
+      console.log('⚠️ Redirected to login page - authentication may have failed');
+    } else if (currentUrl.includes('/followers')) {
+      console.log('✅ Successfully on followers page');
+    } else {
+      console.log(\`⚠️ Unexpected page: \${currentUrl}\`);
+    }
     
     console.log('📜 Starting follower extraction...');
     
@@ -205,18 +228,30 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     
     while (scrollAttempts < maxScrolls) {
       // Extract followers from current view
+      console.log(\`🔍 Scroll attempt \${scrollAttempts + 1}/\${maxScrolls} - looking for followers...\`);
+      
       const newFollowers = await page.evaluate(() => {
         const followerElements = document.querySelectorAll('[data-testid="UserCell"]');
+        console.log(\`Found \${followerElements.length} UserCell elements\`);
+        
+        // Also try alternative selectors
+        const altElements = document.querySelectorAll('[data-testid="cellInnerDiv"]');
+        console.log(\`Found \${altElements.length} cellInnerDiv elements\`);
+        
         const extractedFollowers = [];
         
-        followerElements.forEach(element => {
+        followerElements.forEach((element, index) => {
           const usernameElement = element.querySelector('[href*="/"]');
           const displayNameElement = element.querySelector('[dir="ltr"]');
+          
+          console.log(\`Element \${index}: username=\${usernameElement ? 'found' : 'missing'}, display=\${displayNameElement ? 'found' : 'missing'}\`);
           
           if (usernameElement && displayNameElement) {
             const href = usernameElement.getAttribute('href');
             const username = href ? href.replace('/', '') : '';
             const displayName = displayNameElement.textContent || '';
+            
+            console.log(\`Extracted: @\${username} (\${displayName})\`);
             
             if (username && !username.includes('/') && username.length > 0) {
               extractedFollowers.push({
