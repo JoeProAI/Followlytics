@@ -7,70 +7,107 @@
 ![Next.js](https://img.shields.io/badge/Next.js-14+-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue)
 
-## 🚀 Revolutionary Features
+*Revolutionary authentication transfer system that never exposes user credentials*
 
-### 🔒 **Daytona-Powered Architecture**
-- **Isolated Sandbox Environments**: Each scan runs in a secure, dedicated Daytona sandbox
-- **Browser Automation**: Playwright runs inside containers for undetectable X scraping
-- **Auto-cleanup**: Sandboxes automatically delete after completion to save costs
-- **Scalable**: Handle multiple concurrent scans without conflicts or detection
+[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org/)
+[![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black)](https://vercel.com)
 
-### ⚡ **Core Features**
-- **Real-time Follower Tracking**: Monitor X followers with automated scanning
-- **Unfollower Detection**: Instant notifications when someone unfollows you
-- **Analytics Dashboard**: Beautiful UI with progress tracking and scan history
-- **Secure Authentication**: Firebase Auth with email/password authentication
-- **No API Limitations**: Bypass X's $42k/month Enterprise API requirement
+[🚀 Live Demo](https://followlytics-zeta.vercel.app) • [📖 Documentation](https://docs.followlytics.com) • [💬 Community](https://discord.gg/followlytics)
+
+</div>
+
+## 🌟 What Makes Followlytics Special
+
+Followlytics solves the **$42,000/month Enterprise API problem** with a revolutionary privacy-first approach that respects both user privacy and X's Terms of Service.
+
+### 🔐 **Zero-Credential Architecture**
+- Users authenticate in their **own browser** - we never see credentials
+- Revolutionary **authentication transfer system** 
+- **Sandbox isolation** for complete security
+- **Open source** and fully auditable
+
+### 🎯 **Key Innovations**
+
+<table>
+<tr>
+<td width="50%">
+
+**🔄 Authentication Transfer System**
+```typescript
+// User signs in their browser
+window.location.href = 'https://x.com/login'
+
+// After auth, signals sandbox to continue  
+await fetch('/api/scan/transfer-session', {
+  method: 'POST',
+  body: JSON.stringify({ scanId })
+})
+
+// Sandbox receives signal and continues
+echo "USER_AUTHENTICATED" > /tmp/auth_signal.txt
+```
+
+</td>
+<td width="50%">
+
+**🔧 Sandbox Auto-Recovery**
+```typescript
+// Detect destroyed sandboxes
+if (sandbox.state === 'destroyed') {
+  console.log('🔄 Creating new sandbox...')
+  
+  const newSandbox = await daytona.create({
+    language: 'javascript'
+  })
+  
+  // Seamlessly continue operation
+  await transferToNewSandbox(newSandbox)
+}
+```
+
+</td>
+</tr>
+</table>
 
 ## 🏗️ **Architecture Overview**
 
 ```mermaid
 graph TD
-    A[User Dashboard] --> B[Next.js API]
-    B --> C[Daytona SDK]
-    C --> D[Create Sandbox]
-    D --> E[Install Playwright]
-    E --> F[Run X Scraper]
-    F --> G[Extract Followers]
-    G --> H[Store Results]
-    H --> I[Auto-delete Sandbox]
-    I --> J[Return to Dashboard]
+    A[User Browser] -->|OAuth| B[X.com]
+    A -->|Scan Request| C[Next.js API]
+    C -->|Create Sandbox| D[Daytona Cloud]
+    D -->|Browser Automation| E[Playwright]
+    A -->|Auth Signal| F[Transfer Session API]
+    F -->|Signal File| E
+    E -->|Follower Data| G[Firebase]
+    G -->|Real-time Updates| A
+    
+    style A fill:#e1f5fe
+    style B fill:#fff3e0  
+    style D fill:#f3e5f5
+    style E fill:#e8f5e8
 ```
-
-## 🛠️ **Tech Stack**
-
-| Component | Technology |
-|-----------|------------|
-| **Frontend** | Next.js 14+ with TypeScript & Tailwind CSS |
-| **Backend** | Next.js API routes |
-| **Database** | Firebase Firestore |
-| **Authentication** | Firebase Auth |
-| - **Browser Automation** | Playwright in Daytona sandboxes |
-| **Sandbox Management** | Daytona SDK |
-| **Deployment** | Vercel |
-
-## 📋 **Prerequisites**
-
-- **Node.js** (v18 or higher)
-- **Daytona Account** with API key
-- **Firebase Project** with Authentication and Firestore enabled
-- **Git** for version control
 
 ## 🚀 **Quick Start**
 
-### 1. Clone & Install
+### 1. **Clone & Install**
 ```bash
 git clone https://github.com/JoeProAI/Followlytics.git
-cd followlytics
+cd Followlytics
 npm install
 ```
 
-### 2. Configure Environment
+### 2. **Environment Setup**
 ```bash
-cp .env.local.example .env.local
-```
+# Copy environment template
+cp .env.example .env.local
 
-Edit `.env.local` with your credentials:
+# Configure your variables
+FIREBASE_PROJECT_ID=your-project-id
+TWITTER_CLIENT_ID=your-client-id
+DAYTONA_API_KEY=your-api-key
 ```env
 # Daytona Configuration (Already included!)
 DAYTONA_API_KEY=dtn_420f8063b62966174107e84d48ecf5c1d7f5c680abf8a1cdd48348c020e5eaa9

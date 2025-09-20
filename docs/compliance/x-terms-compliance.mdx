@@ -1,0 +1,375 @@
+---
+title: X Terms of Service Compliance
+description: 'How Followlytics stays compliant with X platform rules and guidelines'
+---
+
+## Compliance Overview
+
+Followlytics is designed from the ground up to **respect and comply with X's Terms of Service** while providing valuable follower analytics. Our approach prioritizes user consent, privacy, and platform guidelines.
+
+<Warning>
+  **Important**: This documentation represents our best understanding of X's Terms of Service as of the last update. Users are responsible for ensuring their usage complies with current terms and applicable laws.
+</Warning>
+
+## Key Compliance Principles
+
+### 1. User Authorization & Consent
+
+<CardGroup cols={2}>
+  <Card title="Explicit User Consent" icon="hand-paper">
+    Users must explicitly authorize each scan and understand what data will be accessed
+  </Card>
+  <Card title="Own Account Only" icon="user-check">
+    Users can only scan their own followers - no unauthorized access to other accounts
+  </Card>
+  <Card title="Transparent Operations" icon="eye">
+    All operations are clearly explained and visible to users
+  </Card>
+  <Card title="Opt-Out Available" icon="door-open">
+    Users can stop scans at any time and delete their data
+  </Card>
+</CardGroup>
+
+### 2. Technical Compliance Measures
+
+#### Browser-Based Authentication
+```typescript
+// Users authenticate in their own browser - never sharing credentials
+const authenticateUser = () => {
+  // User clicks "Authorize X Access" 
+  window.location.href = '/api/auth/twitter' // OAuth flow in user's browser
+  
+  // After successful auth, user signals the sandbox
+  await fetch('/api/scan/transfer-session', {
+    method: 'POST',
+    body: JSON.stringify({ scanId })
+  })
+}
+```
+
+#### Rate Limiting & Respectful Usage
+```typescript
+// Built-in rate limiting to respect X's servers
+const RATE_LIMITS = {
+  max_requests_per_minute: 60,
+  max_concurrent_scans: 3,
+  delay_between_requests: 1000, // 1 second
+  max_scroll_attempts: 50,
+  timeout_between_scrolls: 2000 // 2 seconds
+}
+
+// Implement delays to avoid overwhelming X's servers
+await new Promise(resolve => setTimeout(resolve, RATE_LIMITS.delay_between_requests))
+```
+
+#### Data Minimization
+```typescript
+// Only collect publicly available data
+interface FollowerData {
+  username: string      // Public username (e.g., @johndoe)
+  displayName: string   // Public display name
+  // NO private data: emails, phone numbers, private tweets, etc.
+}
+
+// Automatic data cleanup
+const cleanupAfter30Days = async () => {
+  const oldData = await db.collection('followers')
+    .where('createdAt', '<', thirtyDaysAgo)
+    .get()
+  
+  oldData.docs.forEach(doc => doc.ref.delete())
+}
+```
+
+## Specific ToS Compliance Areas
+
+### 1. API Usage Guidelines
+
+<Tabs>
+  <Tab title="No API Abuse">
+    ✅ **We Don't**: Use X's API beyond rate limits
+    
+    ✅ **We Do**: Use browser automation with user's own session
+    
+    ```typescript
+    // Instead of API calls, we use user's browser session
+    const followers = await page.evaluate(() => {
+      // Extract data from DOM that user can already see
+      return document.querySelectorAll('[data-testid="UserCell"]')
+    })
+    ```
+  </Tab>
+  <Tab title="Respectful Automation">
+    ✅ **We Don't**: Create fake accounts or automate without permission
+    
+    ✅ **We Do**: Automate only with explicit user consent for their own data
+    
+    ```typescript
+    // User must explicitly authorize each scan
+    const userConsent = await getUserConsent({
+      action: 'scan_followers',
+      account: username,
+      dataTypes: ['public_usernames', 'display_names']
+    })
+    
+    if (!userConsent) {
+      throw new Error('User consent required')
+    }
+    ```
+  </Tab>
+  <Tab title="No Data Misuse">
+    ✅ **We Don't**: Sell data, spam users, or violate privacy
+    
+    ✅ **We Do**: Provide analytics only to the account owner
+    
+    ```typescript
+    // Data only accessible to account owner
+    const followers = await getFollowers(userId)
+    
+    // Verify user owns this data
+    if (followers.accountOwner !== userId) {
+      throw new Error('Unauthorized access')
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### 2. Privacy & Data Protection
+
+#### User Data Ownership
+```typescript
+// Users own their data and can export/delete it
+export const exportUserData = async (userId: string) => {
+  const userData = await db.collection('user_data')
+    .where('userId', '==', userId)
+    .get()
+    
+  return {
+    scans: userData.docs.map(doc => doc.data()),
+    exportDate: new Date().toISOString(),
+    format: 'JSON'
+  }
+}
+
+export const deleteUserData = async (userId: string) => {
+  // Complete data deletion
+  const batch = db.batch()
+  
+  const userDocs = await db.collection('user_data')
+    .where('userId', '==', userId)
+    .get()
+    
+  userDocs.docs.forEach(doc => batch.delete(doc.ref))
+  await batch.commit()
+}
+```
+
+#### No Credential Storage
+```typescript
+// NEVER store user credentials
+const authenticateUser = async () => {
+  // User authenticates in their own browser
+  const authUrl = generateOAuthUrl()
+  
+  // Redirect to X OAuth (user's browser)
+  window.location.href = authUrl
+  
+  // We only receive OAuth tokens, never passwords
+  // Tokens are encrypted and stored securely
+}
+```
+
+### 3. Content & Behavior Guidelines
+
+#### Legitimate Use Cases
+<CardGroup cols={2}>
+  <Card title="✅ Allowed Uses" icon="check-circle">
+    - Analyzing your own followers
+    - Understanding audience demographics
+    - Tracking follower growth
+    - Identifying engagement patterns
+  </Card>
+  <Card title="❌ Prohibited Uses" icon="times-circle">
+    - Spamming followers
+    - Selling follower data
+    - Accessing others' private data
+    - Creating fake engagement
+  </Card>
+</CardGroup>
+
+#### Responsible Disclosure
+```typescript
+// Clear terms of service for users
+const TERMS_OF_USE = {
+  purpose: "Follower analytics for account owners only",
+  dataTypes: ["Public usernames", "Public display names"],
+  retention: "30 days maximum",
+  sharing: "No data sharing with third parties",
+  compliance: "User responsible for ToS compliance"
+}
+
+// Display terms before each scan
+const showTermsAndGetConsent = async () => {
+  const consent = await showModal({
+    title: "Terms of Use",
+    content: TERMS_OF_USE,
+    buttons: ["I Agree", "Cancel"]
+  })
+  
+  return consent === "I Agree"
+}
+```
+
+## Grok AI Integration Compliance
+
+### Ethical AI Usage
+
+Our integration with Grok AI follows responsible AI principles:
+
+```typescript
+// Grok AI used for legitimate analytics only
+const analyzeFollowerTrends = async (followers: FollowerData[]) => {
+  // Only analyze aggregate, anonymized data
+  const anonymizedData = followers.map(f => ({
+    accountAge: calculateAccountAge(f.createdAt),
+    followerCount: f.publicMetrics?.followers,
+    // No personal identifiers
+  }))
+  
+  const insights = await grokAI.analyze({
+    data: anonymizedData,
+    analysisType: 'demographic_trends',
+    privacy: 'anonymized_only'
+  })
+  
+  return insights
+}
+```
+
+### AI Transparency
+
+<Info>
+  **Grok AI Usage**: We use Grok AI to provide insights and trend analysis on anonymized, aggregated follower data. No personal information is shared with AI systems.
+</Info>
+
+## Monitoring & Enforcement
+
+### 1. Automated Compliance Checks
+
+```typescript
+// Built-in compliance monitoring
+const complianceChecks = {
+  rateLimit: () => checkRateLimit(),
+  userConsent: () => verifyUserConsent(),
+  dataMinimization: () => auditDataCollection(),
+  retention: () => enforceDataRetention()
+}
+
+// Run compliance checks before each operation
+const runComplianceCheck = async (operation: string) => {
+  for (const [check, validator] of Object.entries(complianceChecks)) {
+    const result = await validator()
+    if (!result.compliant) {
+      throw new Error(`Compliance check failed: ${check}`)
+    }
+  }
+}
+```
+
+### 2. User Controls
+
+```typescript
+// Comprehensive user controls
+const userControls = {
+  pauseScan: async (scanId: string) => {
+    await updateScan(scanId, { status: 'paused' })
+  },
+  
+  stopScan: async (scanId: string) => {
+    await updateScan(scanId, { status: 'stopped' })
+    await cleanupSandbox(scanId)
+  },
+  
+  deleteData: async (userId: string) => {
+    await deleteAllUserData(userId)
+  },
+  
+  exportData: async (userId: string) => {
+    return await exportUserData(userId)
+  }
+}
+```
+
+## Legal Framework
+
+### 1. Terms of Service
+
+Our Terms of Service clearly state:
+
+- **User Responsibility**: Users are responsible for compliance with X's ToS
+- **Legitimate Use**: Service is for analyzing your own followers only
+- **Data Protection**: We implement privacy-by-design principles
+- **Transparency**: All operations are clearly documented
+
+### 2. Privacy Policy
+
+Key privacy commitments:
+
+- **No Credential Storage**: We never store user passwords or credentials
+- **Data Minimization**: Only collect necessary, public data
+- **User Control**: Users can delete their data at any time
+- **Transparency**: Clear disclosure of all data practices
+
+### 3. GDPR & Data Protection
+
+```typescript
+// GDPR compliance features
+const gdprCompliance = {
+  rightToAccess: async (userId: string) => {
+    return await exportUserData(userId)
+  },
+  
+  rightToErasure: async (userId: string) => {
+    await deleteUserData(userId)
+    return { deleted: true, timestamp: new Date() }
+  },
+  
+  rightToPortability: async (userId: string) => {
+    return await exportUserData(userId, 'portable_format')
+  },
+  
+  dataProcessingConsent: async (userId: string) => {
+    return await getConsentRecord(userId)
+  }
+}
+```
+
+## Best Practices for Users
+
+### ✅ Recommended Usage
+
+1. **Own Account Only**: Only scan your own followers
+2. **Respect Privacy**: Don't use data to spam or harass
+3. **Follow Rate Limits**: Don't run excessive scans
+4. **Review Terms**: Stay updated on X's ToS changes
+
+### ❌ Avoid These Practices
+
+1. **No Mass Scanning**: Don't scan multiple accounts rapidly
+2. **No Data Selling**: Don't commercialize follower data
+3. **No Harassment**: Don't use data for spam or abuse
+4. **No Circumvention**: Don't try to bypass rate limits
+
+## Reporting & Support
+
+If you have questions about compliance or need to report issues:
+
+- **Email**: [compliance@followlytics.com](mailto:compliance@followlytics.com)
+- **GitHub**: [Report issues](https://github.com/JoeProAI/Followlytics/issues)
+- **Documentation**: [Legal section](/legal)
+
+---
+
+<Note>
+  **Disclaimer**: This documentation represents our best efforts to comply with X's Terms of Service. Platform terms may change, and users are ultimately responsible for ensuring their usage complies with current terms and applicable laws.
+</Note>

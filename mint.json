@@ -1,0 +1,139 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Followlytics",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#1DA1F2",
+    "light": "#55ACEE",
+    "dark": "#0F1419",
+    "anchors": {
+      "from": "#1DA1F2",
+      "to": "#55ACEE"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "Support",
+      "url": "mailto:support@followlytics.com"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Dashboard",
+    "url": "https://followlytics-zeta.vercel.app"
+  },
+  "tabs": [
+    {
+      "name": "API Reference",
+      "url": "api-reference"
+    },
+    {
+      "name": "Architecture",
+      "url": "architecture"
+    },
+    {
+      "name": "Legal & Compliance",
+      "url": "legal"
+    }
+  ],
+  "anchors": [
+    {
+      "name": "Documentation",
+      "icon": "book-open-cover",
+      "url": "https://docs.followlytics.com"
+    },
+    {
+      "name": "Community",
+      "icon": "slack",
+      "url": "https://discord.gg/followlytics"
+    },
+    {
+      "name": "Blog",
+      "icon": "newspaper",
+      "url": "https://blog.followlytics.com"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Get Started",
+      "pages": [
+        "introduction",
+        "quickstart",
+        "authentication",
+        "first-scan"
+      ]
+    },
+    {
+      "group": "Core Features",
+      "pages": [
+        "features/privacy-first-scanning",
+        "features/authentication-transfer",
+        "features/sandbox-automation",
+        "features/real-time-progress"
+      ]
+    },
+    {
+      "group": "Technical Deep Dive",
+      "pages": [
+        "technical/architecture-overview",
+        "technical/daytona-integration",
+        "technical/browser-automation",
+        "technical/oauth-flow",
+        "technical/error-handling"
+      ]
+    },
+    {
+      "group": "Compliance & Ethics",
+      "pages": [
+        "compliance/x-terms-compliance",
+        "compliance/privacy-protection",
+        "compliance/rate-limiting",
+        "compliance/user-consent"
+      ]
+    },
+    {
+      "group": "Deployment",
+      "pages": [
+        "deployment/vercel-setup",
+        "deployment/environment-variables",
+        "deployment/firebase-config",
+        "deployment/daytona-setup"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api-reference/authentication",
+        "api-reference/scan-endpoints",
+        "api-reference/monitoring",
+        "api-reference/webhooks"
+      ]
+    },
+    {
+      "group": "Architecture",
+      "pages": [
+        "architecture/system-design",
+        "architecture/data-flow",
+        "architecture/security",
+        "architecture/scalability"
+      ]
+    },
+    {
+      "group": "Legal & Compliance",
+      "pages": [
+        "legal/terms-of-service",
+        "legal/privacy-policy",
+        "legal/x-compliance",
+        "legal/data-protection"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "x": "https://x.com/followlytics",
+    "github": "https://github.com/JoeProAI/Followlytics",
+    "linkedin": "https://www.linkedin.com/company/followlytics"
+  }
+}

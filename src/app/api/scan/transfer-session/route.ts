@@ -223,12 +223,14 @@ echo "Continuing with follower extraction..." >> /tmp/extraction.log
       }, { status: 500 })
     }
     
-    // Update scan status
+    // Update scan status with longer extraction time expectation
     await adminDb.collection('follower_scans').doc(scanId).update({
       status: 'extracting_followers',
-      message: 'User authenticated - extracting followers now...',
+      message: 'User authenticated - starting follower extraction (this may take 2-5 minutes)...',
       userActionRequired: false,
-      progress: 75
+      progress: 75,
+      extractionStarted: new Date(),
+      expectedDuration: '2-5 minutes'
     })
 
     console.log('✅ Authentication signal sent to sandbox')

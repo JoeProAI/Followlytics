@@ -10,7 +10,7 @@ import ScanStatusBanner from '@/components/dashboard/ScanStatusBanner'
 import DiagnosticPanel from '@/components/dashboard/DiagnosticPanel'
 
 function DashboardContent() {
-  const { user, logout } = useAuth()
+  const { user, logout, loading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [showSessionCookieHelper, setShowSessionCookieHelper] = useState(false)
@@ -52,13 +52,20 @@ function DashboardContent() {
       }
       
       // Only redirect to login if no user and no X auth in progress and no error
-      if (!user && !token && !error) {
-        router.push('/login')
+      // Give more time for Firebase auth to restore from localStorage
+      if (!user && !loading && !xAuth && !error) {
+        // Add a small delay to allow Firebase auth state to restore
+        setTimeout(() => {
+          if (!user && !loading) {
+            console.log('🔄 No authenticated user found, redirecting to login')
+            router.push('/login')
+          }
+        }, 1000)
       }
     }
 
     handleXAuthSuccess()
-  }, [user, router, searchParams])
+  }, [user, router, searchParams, loading])
 
   if (!user) {
     return (

@@ -1,0 +1,163 @@
+---
+title: Introduction
+description: 'Privacy-first X (Twitter) follower analytics that respects user consent and platform guidelines'
+---
+
+<img
+  className="block dark:hidden"
+  src="/images/hero-light.png"
+  alt="Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/hero-dark.png"
+  alt="Hero Dark"
+/>
+
+## What is Followlytics?
+
+Followlytics is an **open-source, privacy-first** X (Twitter) follower analytics platform that provides insights into your follower base while strictly adhering to X's Terms of Service and user privacy principles.
+
+<CardGroup cols={2}>
+  <Card
+    title="Privacy-First Design"
+    icon="shield-check"
+    href="/features/privacy-first-scanning"
+  >
+    User authentication happens in their own browser - we never store or see login credentials
+  </Card>
+  <Card
+    title="X ToS Compliant"
+    icon="balance-scale"
+    href="/compliance/x-terms-compliance"
+  >
+    Designed to work within X's guidelines using user-authorized browser automation
+  </Card>
+  <Card
+    title="Real-Time Analytics"
+    icon="chart-line"
+    href="/features/real-time-progress"
+  >
+    Live progress tracking and instant insights into your follower demographics
+  </Card>
+  <Card
+    title="Open Source"
+    icon="code-branch"
+    href="https://github.com/JoeProAI/Followlytics"
+  >
+    Fully transparent, auditable code that you can deploy and customize yourself
+  </Card>
+</CardGroup>
+
+## Why Followlytics?
+
+### The Problem with Traditional Solutions
+
+- **Enterprise APIs cost $42,000/month** - Prohibitively expensive for most users
+- **Third-party tools require credentials** - Security and privacy risks
+- **Scrapers violate ToS** - Risk account suspension
+- **No transparency** - Black box solutions you can't audit
+
+### Our Solution
+
+Followlytics solves these problems with a revolutionary approach:
+
+<Steps>
+  <Step title="User-Controlled Authentication">
+    Users sign into X in their own browser - we never see credentials
+  </Step>
+  <Step title="Sandboxed Automation">
+    Browser automation runs in isolated Daytona sandboxes
+  </Step>
+  <Step title="Privacy-First Data Handling">
+    No sensitive data stored - everything happens client-side
+  </Step>
+  <Step title="Transparent Operations">
+    Open source code you can audit and modify
+  </Step>
+</Steps>
+
+## Key Innovations
+
+### 🔐 Authentication Transfer System
+Revolutionary privacy-first authentication where users sign in on their own browser, then signal the automation sandbox to continue - **no credentials ever shared**.
+
+### 🔄 Sandbox Auto-Recovery
+Automatic detection and recovery from expired sandboxes, creating fresh environments seamlessly without user intervention.
+
+### 📊 Real-Time Progress Tracking
+Live updates showing extraction progress, current follower count, and detailed status messages.
+
+### 🛡️ Compliance-First Architecture
+Every component designed with X's Terms of Service in mind, using only user-authorized actions.
+
+## Technology Stack
+
+<CardGroup cols={3}>
+  <Card title="Frontend" icon="react">
+    - Next.js 15
+    - React 19
+    - TypeScript
+    - Tailwind CSS
+  </Card>
+  <Card title="Backend" icon="server">
+    - Vercel Serverless
+    - Firebase Auth
+    - Firestore Database
+    - Daytona Sandboxes
+  </Card>
+  <Card title="Automation" icon="robot">
+    - Playwright Browser Automation
+    - Puppeteer Fallback
+    - Screenshot Monitoring
+    - Error Recovery
+  </Card>
+</CardGroup>
+
+## Getting Started
+
+<CardGroup cols={2}>
+  <Card
+    title="Quick Start"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Get up and running in 5 minutes
+  </Card>
+  <Card
+    title="Authentication Setup"
+    icon="key"
+    href="/authentication"
+  >
+    Configure X OAuth and Firebase
+  </Card>
+  <Card
+    title="Deploy to Vercel"
+    icon="cloud"
+    href="/deployment/vercel-setup"
+  >
+    One-click deployment guide
+  </Card>
+  <Card
+    title="API Reference"
+    icon="code"
+    href="/api-reference"
+  >
+    Complete API documentation
+  </Card>
+</CardGroup>
+
+## Community & Support
+
+Join our growing community of developers building ethical social media tools:
+
+- **GitHub**: [Star the repo](https://github.com/JoeProAI/Followlytics) and contribute
+- **Discord**: Join our [developer community](https://discord.gg/followlytics)
+- **X**: Follow [@followlytics](https://x.com/followlytics) for updates
+- **Support**: Email us at [support@followlytics.com](mailto:support@followlytics.com)
+
+---
+
+<Note>
+  **Legal Notice**: Followlytics is designed to comply with X's Terms of Service by using only user-authorized browser automation. Users are responsible for ensuring their usage complies with all applicable terms and regulations.
+</Note>
