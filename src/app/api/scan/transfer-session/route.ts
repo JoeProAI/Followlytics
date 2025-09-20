@@ -165,11 +165,58 @@ echo "$(date): User completed authentication in external browser" >> /tmp/extrac
 echo "Continuing with follower extraction..." >> /tmp/extraction.log
 `
 
-      await sandbox.process.codeRun(signalScript)
-      console.log('✅ Authentication signal sent successfully')
+      // Add retry logic for Daytona API calls
+      let retryCount = 0
+      const maxRetries = 3
+      
+      while (retryCount < maxRetries) {
+        try {
+          await sandbox.process.codeRun(signalScript)
+          console.log('✅ Authentication signal sent successfully')
+          break
+        } catch (apiError: any) {
+          retryCount++
+          console.error(`❌ Signal attempt ${retryCount}/${maxRetries} failed:`, apiError)
+          
+          // Check if it's a 502 error (Bad Gateway) - Daytona service issue
+          if (apiError?.statusCode === 502 || apiError?.message?.includes('502')) {
+            console.log('🔄 Daytona API returned 502 - service may be temporarily unavailable')
+            
+            if (retryCount < maxRetries) {
+              const delay = retryCount * 1000 // 1s, 2s, 3s delays
+              console.log(`⏳ Waiting ${delay}ms before retry...`)
+              await new Promise(resolve => setTimeout(resolve, delay))
+              continue
+            }
+          }
+          
+          // If max retries reached, throw the error
+          if (retryCount >= maxRetries) {
+            throw apiError
+          }
+        }
+      }
       
     } catch (execError) {
-      console.error('❌ Failed to execute signal script:', execError)
+      console.error('❌ Failed to execute signal script after retries:', execError)
+      
+      // Provide specific error message for 502 errors
+      if ((execError as any)?.statusCode === 502 || (execError as Error)?.message?.includes('502')) {
+        // Update scan status to reflect Daytona service issues
+        await adminDb.collection('follower_scans').doc(scanId).update({
+          status: 'error',
+          message: 'Daytona service temporarily unavailable - please try again in a few minutes',
+          userActionRequired: true,
+          progress: 50
+        })
+        
+        return NextResponse.json({ 
+          error: 'Daytona service temporarily unavailable (502 Bad Gateway)',
+          details: 'The sandbox service is experiencing issues. Please try again in a few moments.',
+          suggestion: 'Wait 30 seconds and try the authentication transfer again, or restart the scan.'
+        }, { status: 503 })
+      }
+      
       return NextResponse.json({ 
         error: 'Failed to send authentication signal to sandbox',
         details: execError instanceof Error ? execError.message : 'Unknown error'

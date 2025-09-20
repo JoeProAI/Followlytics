@@ -1525,14 +1525,41 @@ const puppeteer = require('puppeteer');
     try {
       console.log(`🔄 Executing command in background: ${command}`)
       
-      // Use Daytona SDK to execute command without waiting
-      sandbox.process.codeRun(command).catch((error: any) => {
-        console.error('Background script execution error:', error)
-      })
+      // Add retry logic for Daytona API calls
+      let retryCount = 0
+      const maxRetries = 3
       
-      console.log('✅ Background script execution started')
+      while (retryCount < maxRetries) {
+        try {
+          // Use Daytona SDK to execute command without waiting
+          await sandbox.process.codeRun(command)
+          console.log('✅ Background script execution started successfully')
+          return
+        } catch (apiError: any) {
+          retryCount++
+          console.error(`❌ Attempt ${retryCount}/${maxRetries} failed:`, apiError)
+          
+          // Check if it's a 502 error (Bad Gateway) - Daytona service issue
+          if (apiError?.statusCode === 502 || apiError?.message?.includes('502')) {
+            console.log('🔄 Daytona API returned 502 - service may be temporarily unavailable')
+            
+            if (retryCount < maxRetries) {
+              const delay = retryCount * 2000 // 2s, 4s, 6s delays
+              console.log(`⏳ Waiting ${delay}ms before retry...`)
+              await new Promise(resolve => setTimeout(resolve, delay))
+              continue
+            }
+          }
+          
+          // If not a retryable error or max retries reached, throw
+          if (retryCount >= maxRetries) {
+            throw new Error(`Failed after ${maxRetries} attempts. Last error: ${apiError?.message || 'Unknown error'}`)
+          }
+        }
+      }
+      
     } catch (error: unknown) {
-      console.error('Failed to start background execution:', error)
+      console.error('Failed to start background execution after retries:', error)
       throw error
     }
   }
