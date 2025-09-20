@@ -274,11 +274,11 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
       // Look for "Follow" buttons
       const followButtons = document.querySelectorAll('[data-testid*="follow"], [aria-label*="Follow"]');
       
-      // Check for error messages
+      // Check for error messages (avoid apostrophes that break JavaScript syntax)
       const isPrivate = body.includes('This account owner limits who can view their followers');
-      const noFollowers = body.includes("doesn't have any followers");
+      const noFollowers = body.includes('have any followers');
       const suspended = body.includes('Account suspended');
-      const notFound = body.includes('This account doesn't exist');
+      const notFound = body.includes('This account does not exist') || body.includes('account doesn\\'t exist');
       
       // Look for navigation elements (proves we're logged in)
       const hasNavigation = document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]') ||
