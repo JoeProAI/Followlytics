@@ -1,10 +1,9 @@
 import { Daytona } from '@daytonaio/sdk'
 
-// Initialize Daytona SDK
+// Initialize Daytona SDK (corrected configuration)
 const daytona = new Daytona({
-  apiKey: process.env.DAYTONA_API_KEY!,
-  apiUrl: process.env.DAYTONA_API_URL || 'https://app.daytona.io/api'
-  // DO NOT USE: target, orgId - these cause "No available runners" errors
+  apiKey: process.env.DAYTONA_API_KEY!
+  // Removed apiUrl as per SDK best practices - let SDK use default
 })
 
 export interface SandboxConfig {
@@ -60,18 +59,18 @@ export class DaytonaSandboxManager {
       console.log('⏳ Waiting for sandbox to be ready...')
       await new Promise(resolve => setTimeout(resolve, 5000)) // Wait 5 seconds
       
-      // Install Node.js dependencies using SDK
+      // Install Node.js dependencies using SDK with retry logic
       console.log('Installing Node.js dependencies...')
-      await sandbox.process.executeCommand('npm init -y')
-      await sandbox.process.executeCommand('npm install playwright puppeteer --save')
+      await this.executeCommandWithRetry(sandbox, 'npm init -y')
+      await this.executeCommandWithRetry(sandbox, 'npm install playwright puppeteer --save')
       
       // Install multiple browsers for different strategies
       console.log('Installing Playwright browsers...')
-      await sandbox.process.executeCommand('npx playwright install chromium firefox webkit')
+      await this.executeCommandWithRetry(sandbox, 'npx playwright install chromium firefox webkit')
       
       // Install Puppeteer browser (separate from Playwright)
       console.log('Installing Puppeteer browser...')
-      await sandbox.process.executeCommand('npx puppeteer browsers install chrome')
+      await this.executeCommandWithRetry(sandbox, 'npx puppeteer browsers install chrome')
       
       console.log('✅ Sandbox environment setup complete')
     } catch (error: unknown) {
@@ -1772,6 +1771,39 @@ const puppeteer = require('puppeteer');
   }
 
   // Execute script in background without waiting for completion
+  private static async executeCommandWithRetry(sandbox: any, command: string, maxRetries: number = 3): Promise<any> {
+    let retryCount = 0
+    
+    while (retryCount < maxRetries) {
+      try {
+        console.log(`🔄 Executing: ${command} (attempt ${retryCount + 1}/${maxRetries})`)
+        const result = await sandbox.process.executeCommand(command)
+        console.log(`✅ Command executed successfully`)
+        return result
+      } catch (apiError: any) {
+        retryCount++
+        console.error(`❌ Attempt ${retryCount}/${maxRetries} failed:`, apiError?.message || 'Unknown error')
+        
+        // Check if it's a 502 error (Bad Gateway) - Daytona service issue
+        if (apiError?.statusCode === 502 || apiError?.message?.includes('502')) {
+          console.log('🔄 Daytona API returned 502 - service may be temporarily unavailable')
+          
+          if (retryCount < maxRetries) {
+            const delay = retryCount * 2000 // 2s, 4s, 6s delays
+            console.log(`⏳ Waiting ${delay}ms before retry...`)
+            await new Promise(resolve => setTimeout(resolve, delay))
+            continue
+          }
+        }
+        
+        // If not a retryable error or max retries reached, throw
+        if (retryCount >= maxRetries) {
+          throw new Error(`Command failed after ${maxRetries} attempts: ${command}. Last error: ${apiError?.message || 'Unknown error'}`)
+        }
+      }
+    }
+  }
+
   private static async executeScriptInBackground(sandbox: any, command: string): Promise<void> {
     try {
       console.log(`🔄 Executing command in background: ${command}`)
@@ -1782,8 +1814,8 @@ const puppeteer = require('puppeteer');
       
       while (retryCount < maxRetries) {
         try {
-          // Use Daytona SDK to execute command without waiting
-          await sandbox.process.codeRun(command)
+          // Use Daytona SDK executeCommand (more reliable than codeRun)
+          await sandbox.process.executeCommand(command)
           console.log('✅ Background script execution started successfully')
           return
         } catch (apiError: any) {
