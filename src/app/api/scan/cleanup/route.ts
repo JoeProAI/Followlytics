@@ -20,14 +20,14 @@ export async function POST(request: NextRequest) {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
     
     // Simplified query to avoid complex index requirements
-    const stuckScansSnapshot = await adminDb
-      .collection('follower_scans')
+    // Get all scans for this user (remove orderBy to avoid index requirement)
+    const scansQuery = adminDb.collection('follower_scans')
       .where('userId', '==', userId)
       .where('createdAt', '<=', oneHourAgo)
       .get()
 
     // Filter for stuck scans (running statuses only)
-    const stuckScans = stuckScansSnapshot.docs.filter(doc => {
+    const stuckScans = (await scansQuery).docs.filter(doc => {
       const data = doc.data()
       const stuckStatuses = ['pending', 'initializing', 'setting_up', 'scanning']
       return stuckStatuses.includes(data.status)
