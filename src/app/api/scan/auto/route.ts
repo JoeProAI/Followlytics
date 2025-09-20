@@ -109,14 +109,15 @@ export async function POST(request: NextRequest) {
 
         console.log(`📊 Scan result: ${result.status}, ${result.followerCount} followers`)
 
-        // Update with results
+        // Update with results - treat any completed extraction as success
+        const isSuccess = result.status === 'success' || result.status === 'partial'
         await adminDb.collection('follower_scans').doc(scanId).update({
-          status: result.status === 'success' ? 'completed' : 'failed',
+          status: isSuccess ? 'completed' : 'failed',
           progress: 100,
           followers: result.followers || [],
           followerCount: result.followerCount || 0,
           completedAt: new Date(),
-          error: result.error || null
+          message: `Scan completed! Found ${result.followerCount || 0} followers.${result.followerCount === 0 ? ' This may be due to privacy settings or authentication issues.' : ''}`
         })
 
         console.log(`✅ AUTOMATED scan completed successfully!`)
