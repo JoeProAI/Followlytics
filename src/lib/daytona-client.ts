@@ -185,9 +185,45 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     
     console.log('✅ User signed in successfully!');
     
-    // Take screenshot after successful login
+    // Take screenshot after successful login for verification
     await page.screenshot({ path: '/tmp/02_signed_in.png', fullPage: true });
     console.log('📸 Screenshot saved: User signed in');
+    
+    // CRITICAL: Verify login status before proceeding
+    const loginVerification = await page.evaluate(() => {
+      const body = document.body.textContent || '';
+      const url = window.location.href;
+      const title = document.title;
+      
+      // Check for login indicators
+      const isLoggedIn = !body.includes('Sign in to X') && 
+                        !body.includes('Log in') && 
+                        !url.includes('/login') &&
+                        !url.includes('/i/flow/login');
+      
+      // Check for user profile elements
+      const hasUserElements = document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]') ||
+                             document.querySelector('[data-testid="AppTabBar_Profile_Link"]') ||
+                             document.querySelector('[aria-label*="Profile"]');
+      
+      return {
+        isLoggedIn,
+        hasUserElements: !!hasUserElements,
+        currentUrl: url,
+        pageTitle: title,
+        bodySnippet: body.substring(0, 200)
+      };
+    });
+    
+    console.log('🔍 Login verification:', loginVerification);
+    
+    if (!loginVerification.isLoggedIn) {
+      console.log('❌ LOGIN VERIFICATION FAILED - User does not appear to be logged in');
+      await page.screenshot({ path: '/tmp/02_login_failed.png', fullPage: true });
+      throw new Error('Authentication verification failed - user not logged in');
+    }
+    
+    console.log('✅ LOGIN VERIFIED - User is successfully authenticated');
     
     // Now navigate to the followers page (use twitter.com like the working test)
     const followersUrl = \`https://twitter.com/\${username}/followers\`;
@@ -209,54 +245,142 @@ console.log('🔐 Starting INTERACTIVE Twitter sign-in for follower extraction..
     console.log(\`🔍 Current URL: \${currentUrl}\`);
     console.log(\`🔍 Page title: \${pageTitle}\`);
     
-    // Take screenshot of followers page
+    // Take screenshot of followers page for verification
     await page.screenshot({ path: '/tmp/03_followers_page.png', fullPage: true });
     console.log('📸 Screenshot saved: Followers page loaded');
     
-    // Check if we're actually on the followers page or redirected
-    if (currentUrl.includes('/login') || pageTitle.includes('Login')) {
-      console.log('⚠️ Redirected to login page - authentication may have failed');
+    // CRITICAL: Comprehensive followers page verification
+    const followersPageVerification = await page.evaluate(() => {
+      const body = document.body.textContent || '';
+      const url = window.location.href;
+      const title = document.title;
+      
+      // Check if redirected to login
+      const isLoginPage = url.includes('/login') || 
+                         url.includes('/i/flow/login') ||
+                         body.includes('Sign in to X') ||
+                         body.includes('Log in');
+      
+      // Check if on followers page
+      const isFollowersPage = url.includes('/followers');
+      
+      // Look for followers-specific elements
+      const followersHeader = document.querySelector('[data-testid="primaryColumn"] h2, [role="heading"]');
+      const followersText = followersHeader?.textContent || '';
+      
+      // Count follower cells
+      const followerCells = document.querySelectorAll('[data-testid="UserCell"]');
+      
+      // Look for "Follow" buttons
+      const followButtons = document.querySelectorAll('[data-testid*="follow"], [aria-label*="Follow"]');
+      
+      // Check for error messages
+      const isPrivate = body.includes('This account owner limits who can view their followers');
+      const noFollowers = body.includes("doesn't have any followers");
+      const suspended = body.includes('Account suspended');
+      const notFound = body.includes('This account doesn't exist');
+      
+      // Look for navigation elements (proves we're logged in)
+      const hasNavigation = document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]') ||
+                           document.querySelector('[data-testid="AppTabBar_Profile_Link"]') ||
+                           document.querySelector('[role="navigation"]');
+      
+      return {
+        isLoginPage,
+        isFollowersPage,
+        hasNavigation: !!hasNavigation,
+        followersHeader: followersText,
+        followerCellCount: followerCells.length,
+        followButtonCount: followButtons.length,
+        hasFollowersIndicator: followersText.toLowerCase().includes('followers') || followersText.toLowerCase().includes('follow'),
+        isPrivate,
+        noFollowers,
+        suspended,
+        notFound,
+        currentUrl: url,
+        pageTitle: title,
+        bodySnippet: body.substring(0, 300)
+      };
+    });
+    
+    console.log('🔍 FOLLOWERS PAGE VERIFICATION:', JSON.stringify(followersPageVerification, null, 2));
+    
+    // Check for critical failures
+    if (followersPageVerification.isLoginPage) {
+      console.log('❌ REDIRECTED TO LOGIN - Authentication failed');
+      await page.screenshot({ path: '/tmp/03_login_redirect.png', fullPage: true });
       throw new Error('Authentication failed - redirected to login page');
+    }
+    
+    if (!followersPageVerification.hasNavigation) {
+      console.log('❌ NO NAVIGATION ELEMENTS - Not properly logged in');
+      await page.screenshot({ path: '/tmp/03_no_navigation.png', fullPage: true });
+      throw new Error('Not properly authenticated - missing navigation elements');
+    }
+    
+    if (!followersPageVerification.isFollowersPage) {
+      console.log('❌ NOT ON FOLLOWERS PAGE - Wrong URL');
+      await page.screenshot({ path: '/tmp/03_wrong_page.png', fullPage: true });
+      throw new Error(\`Not on followers page. Current URL: \${followersPageVerification.currentUrl}\`);
+    }
+    
+    // Check for account-specific issues
+    if (followersPageVerification.isPrivate) {
+      console.log('🔒 Account has private followers list');
+      await page.screenshot({ path: '/tmp/03_private_account.png', fullPage: true });
+      throw new Error('Account has private followers list');
+    }
+    
+    if (followersPageVerification.suspended) {
+      console.log('🚫 Account is suspended');
+      throw new Error('Target account is suspended');
+    }
+    
+    if (followersPageVerification.notFound) {
+      console.log('❓ Account does not exist');
+      throw new Error('Target account does not exist');
+    }
+    
+    // Final verification before extraction
+    if (followersPageVerification.followerCellCount === 0 && !followersPageVerification.noFollowers) {
+      console.log('⚠️ No follower cells found - may need to wait for loading');
+      await page.waitForTimeout(3000); // Wait 3 seconds for loading
       
-    } else if (currentUrl.includes('/followers')) {
-      console.log('✅ Successfully on followers page');
+      // Take another screenshot after waiting
+      await page.screenshot({ path: '/tmp/03_after_wait.png', fullPage: true });
       
-      // Verify this is actually the followers page by looking for specific elements
-      const followersPageElements = await page.evaluate(() => {
-        // Look for followers-specific elements
-        const followersHeader = document.querySelector('[data-testid="primaryColumn"] h2, [role="heading"]');
-        const followersText = followersHeader?.textContent || '';
-        
-        // Look for follower cells
-        const followerCells = document.querySelectorAll('[data-testid="UserCell"]');
-        
-        // Look for "Follow" buttons (indicates follower list)
-        const followButtons = document.querySelectorAll('[data-testid*="follow"], [aria-label*="Follow"]');
-        
-        return {
-          headerText: followersText,
-          followerCells: followerCells.length,
-          followButtons: followButtons.length,
-          hasFollowersIndicator: followersText.toLowerCase().includes('followers') || followersText.toLowerCase().includes('follow')
-        };
+      // Re-check for follower cells
+      const recheckCells = await page.evaluate(() => {
+        return document.querySelectorAll('[data-testid="UserCell"]').length;
       });
       
-      console.log('🔍 Followers page verification:', followersPageElements);
-      
-      if (!followersPageElements.hasFollowersIndicator && followersPageElements.followerCells === 0) {
-        console.log('⚠️ This might not be the actual followers page - no follower indicators found');
-      }
-      
-      // Check for common error messages or empty states
-      const pageText = await page.textContent('body');
-      if (pageText?.includes('This account owner limits who can view their followers')) {
-        console.log('🔒 Account has private followers list');
-        throw new Error('Account has private followers list');
-      } else if (pageText?.includes("doesn't have any followers")) {
-        console.log('📭 Account has no followers');
-      } else {
-        console.log('📊 Followers page loaded successfully');
-      }
+      console.log(\`🔄 After waiting: Found \${recheckCells} follower cells\`);
+    }
+    
+    if (followersPageVerification.noFollowers) {
+      console.log('📭 Account has no followers');
+      return {
+        followers: [],
+        followerCount: 0,
+        status: 'completed',
+        message: 'Account has no followers'
+      };
+    }
+    
+    console.log('✅ FOLLOWERS PAGE VERIFIED - Ready to start extraction');
+    console.log(\`📊 Found \${followersPageVerification.followerCellCount} initial follower cells\`);
+    
+    // Take final confirmation screenshot before extraction
+    await page.screenshot({ path: '/tmp/04_extraction_ready.png', fullPage: true });
+    console.log('📸 Screenshot saved: Ready for extraction');
+    
+    // IMPORTANT: Save screenshot data to results for debugging
+    const screenshotData = await page.screenshot({ fullPage: true, encoding: 'base64' });
+    fs.writeFileSync('/tmp/extraction_ready_screenshot.json', JSON.stringify({
+      timestamp: new Date().toISOString(),
+      verification: followersPageVerification,
+      screenshotBase64: screenshotData
+    }, null, 2));
       
     } else {
       console.log(\`⚠️ Unexpected page: \${currentUrl}\`);
@@ -927,22 +1051,6 @@ async function scanWithStrategy(strategy, username, accessToken, accessTokenSecr
           break;
         }
       } else {
-        consecutiveEmptyScrolls++;
-        console.log(\`⚠️ No new followers found in scroll \${i + 1}, consecutive empty: \${consecutiveEmptyScrolls}\`);
-      }
-    }
-  }
-    console.log(\`✅ \${strategy.name} completed: \${followers.length} followers found\`);
-    
-    return {
-      followers: followers,
-      followerCount: followers.length,
-      scanDate: new Date().toISOString(),
-      status: 'success',
-      username: username,
-      strategy: strategy.name
-    };
-    
   } catch (error) {
     console.error(\`❌ Strategy \${strategy.name} failed:\`, error);
     throw error;
