@@ -87,16 +87,214 @@ export class DaytonaSandboxManager {
   ): Promise<FollowerScanResult> {
     console.log(`🚀 Starting minimal test scan for @${username}`)
 
-    // Create minimal test script to avoid upload timeout
+    // Create interactive script with OAuth authentication and screenshot monitoring
     const interactiveScript = `
-console.log('🚀 Minimal test script starting...');
-console.log('Testing sandbox execution...');
+const fs = require('fs');
+const { chromium } = require('playwright');
 
-// Simple test that completes quickly
-setTimeout(() => {
-  console.log('✅ Test completed successfully!');
-  process.exit(0);
-}, 2000);
+console.log('🔐 Starting OAuth-authenticated Twitter follower extraction...');
+console.log('👤 Target username: ${username}');
+
+// Screenshot helper function
+async function takeScreenshot(page, step, description) {
+  try {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = \`/tmp/screenshot_\${step}_\${timestamp}.png\`;
+    await page.screenshot({ path: filename, fullPage: true });
+    console.log(\`📸 Screenshot saved: \${step} - \${description}\`);
+    
+    // Save debug data as JSON
+    const debugData = {
+      step: step,
+      description: description,
+      timestamp: timestamp,
+      url: page.url(),
+      title: await page.title()
+    };
+    
+    fs.writeFileSync(\`/tmp/debug_\${step}_\${timestamp}.json\`, JSON.stringify(debugData, null, 2));
+    console.log(\`📋 Debug data saved: \${step}\`);
+    
+    return filename;
+  } catch (error) {
+    console.log(\`⚠️ Screenshot failed for \${step}: \${error.message}\`);
+    return null;
+  }
+}
+
+(async () => {
+  try {
+    console.log('🚀 Launching browser with OAuth authentication...');
+    
+    const browser = await chromium.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor'
+      ]
+    });
+    
+    const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    
+    // Take initial screenshot
+    await takeScreenshot(page, '01_browser_startup', 'Browser launched successfully');
+    
+    console.log('🔑 Injecting OAuth tokens for authentication...');
+    
+    // Navigate to Twitter login page first
+    await page.goto('https://twitter.com/login', { waitUntil: 'networkidle0', timeout: 30000 });
+    await takeScreenshot(page, '02_login_page', 'Twitter login page loaded');
+    
+    // Inject OAuth tokens into browser session
+    await page.evaluate((accessToken, accessTokenSecret) => {
+      // Set OAuth tokens in localStorage
+      localStorage.setItem('twitter_access_token', accessToken);
+      localStorage.setItem('twitter_access_token_secret', accessTokenSecret);
+      
+      // Set authentication cookies
+      document.cookie = \`auth_token=\${accessToken}; domain=.twitter.com; path=/\`;
+      document.cookie = \`auth_token=\${accessToken}; domain=.x.com; path=/\`;
+      
+      console.log('✅ OAuth tokens injected into browser session');
+    }, '${accessToken}', '${accessTokenSecret}');
+    
+    await takeScreenshot(page, '03_oauth_injected', 'OAuth tokens injected into browser');
+    
+    console.log('🌐 Navigating to followers page...');
+    const followersUrl = \`https://twitter.com/${username}/followers\`;
+    
+    await page.goto(followersUrl, { waitUntil: 'networkidle0', timeout: 30000 });
+    await takeScreenshot(page, '04_followers_page', 'Navigated to followers page');
+    
+    // Check authentication status
+    const authStatus = await page.evaluate(() => {
+      const body = document.body.textContent || '';
+      const url = window.location.href;
+      
+      return {
+        isLoginPage: url.includes('/login') || body.includes('Sign in to X'),
+        isFollowersPage: url.includes('/followers'),
+        currentUrl: url,
+        pageTitle: document.title,
+        hasFollowerElements: document.querySelectorAll('[data-testid="UserCell"]').length > 0
+      };
+    });
+    
+    console.log('🔍 Authentication status:', JSON.stringify(authStatus, null, 2));
+    
+    if (authStatus.isLoginPage) {
+      console.log('❌ Still on login page - OAuth authentication failed');
+      await takeScreenshot(page, '05_auth_failed', 'OAuth authentication failed - still on login');
+      
+      // Save failure result
+      const result = {
+        status: 'authentication_failed',
+        error: 'OAuth token injection failed - redirected to login page',
+        followers: [],
+        followerCount: 0,
+        authStatus: authStatus
+      };
+      
+      fs.writeFileSync('/tmp/followers_result.json', JSON.stringify(result, null, 2));
+      await browser.close();
+      return;
+    }
+    
+    if (!authStatus.isFollowersPage) {
+      console.log('⚠️ Not on followers page - checking current location');
+      await takeScreenshot(page, '05_wrong_page', 'Not on expected followers page');
+    }
+    
+    console.log('✅ Authentication successful - extracting followers...');
+    await takeScreenshot(page, '06_extraction_start', 'Starting follower extraction');
+    
+    // Extract followers
+    const followers = [];
+    let scrollAttempts = 0;
+    const maxScrolls = 10; // Limit for testing
+    
+    while (scrollAttempts < maxScrolls) {
+      console.log(\`🔍 Extraction attempt \${scrollAttempts + 1}/\${maxScrolls}\`);
+      
+      const newFollowers = await page.evaluate(() => {
+        const followerElements = document.querySelectorAll('[data-testid="UserCell"] a[href^="/"]');
+        const extracted = [];
+        
+        followerElements.forEach((element, index) => {
+          if (index >= 20) return; // Limit per scroll
+          
+          const href = element.getAttribute('href');
+          if (href && href.startsWith('/')) {
+            const username = href.substring(1);
+            if (username && username.length > 0 && username.length <= 15) {
+              extracted.push({
+                username: username,
+                displayName: element.textContent || username
+              });
+            }
+          }
+        });
+        
+        return extracted;
+      });
+      
+      // Add unique followers
+      const existingUsernames = new Set(followers.map(f => f.username));
+      const uniqueNewFollowers = newFollowers.filter(f => !existingUsernames.has(f.username));
+      
+      if (uniqueNewFollowers.length > 0) {
+        followers.push(...uniqueNewFollowers);
+        console.log(\`📊 Found \${uniqueNewFollowers.length} new followers (total: \${followers.length})\`);
+      } else {
+        console.log('📭 No new followers found');
+      }
+      
+      // Scroll for more
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await page.waitForTimeout(2000);
+      
+      scrollAttempts++;
+      
+      // Stop if no new followers for several attempts
+      if (uniqueNewFollowers.length === 0 && scrollAttempts > 3) {
+        console.log('🛑 No new followers found, stopping extraction');
+        break;
+      }
+    }
+    
+    console.log(\`🎉 Extraction completed! Found \${followers.length} followers\`);
+    await takeScreenshot(page, '07_extraction_complete', \`Extraction completed - \${followers.length} followers found\`);
+    
+    // Save results
+    const result = {
+      status: 'completed',
+      followers: followers,
+      followerCount: followers.length,
+      extractionTime: new Date().toISOString(),
+      authStatus: authStatus
+    };
+    
+    fs.writeFileSync('/tmp/followers_result.json', JSON.stringify(result, null, 2));
+    
+    await browser.close();
+    console.log('✅ OAuth extraction completed successfully!');
+    
+  } catch (error) {
+    console.error('❌ OAuth extraction failed:', error);
+    
+    const errorResult = {
+      status: 'failed',
+      error: error.message,
+      followers: [],
+      followerCount: 0
+    };
+    
+    fs.writeFileSync('/tmp/followers_result.json', JSON.stringify(errorResult, null, 2));
+  }
+})();
 `;
 
     console.log('📝 Interactive sign-in script created')
@@ -109,8 +307,8 @@ setTimeout(() => {
       // Execute the script in background and return immediately
       console.log('🚀 Starting background extraction with screenshot monitoring...')
       
-      // Start the script execution (don't await - let it run in background)
-      this.executeScriptInBackground(sandbox, 'node interactive-scanner.js')
+      // Start the script execution in true background mode
+      this.executeScriptInBackgroundAsync(sandbox, 'cd scanner && node interactive-scanner.js')
       
       console.log('✅ Background interactive extraction started - returning immediately to avoid timeout')
       console.log('🎯 Returning immediately to avoid Vercel timeout - interactive extraction running in background')
@@ -1401,6 +1599,37 @@ const puppeteer = require('puppeteer');
         }
       }
     }
+  }
+
+  private static executeScriptInBackgroundAsync(sandbox: any, command: string): void {
+    // Execute script asynchronously without blocking
+    (async () => {
+      try {
+        console.log(`🔄 Executing command in true background: ${command}`)
+        
+        // Execute the command and let it run
+        const result = await sandbox.process.executeCommand(command)
+        console.log('📊 Background script execution completed')
+        console.log('Exit code:', result.exitCode)
+        console.log('Output preview:', result.result?.substring(0, 500) + '...')
+        
+        // Try to read results if available
+        try {
+          const resultsCmd = await sandbox.process.executeCommand('cat /tmp/followers_result.json 2>/dev/null || echo "No results yet"')
+          if (resultsCmd.exitCode === 0 && !resultsCmd.result.includes('No results yet')) {
+            console.log('📋 Background extraction results available')
+            console.log('Results preview:', resultsCmd.result.substring(0, 300) + '...')
+          }
+        } catch (resultsError: any) {
+          console.log('⚠️ Could not read results:', resultsError.message)
+        }
+        
+      } catch (error: any) {
+        console.error('❌ Background script execution failed:', error.message)
+      }
+    })().catch(error => {
+      console.error('❌ Async background execution error:', error.message)
+    })
   }
 
   private static async executeScriptInBackground(sandbox: any, command: string): Promise<void> {

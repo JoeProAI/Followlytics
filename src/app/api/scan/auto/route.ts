@@ -131,14 +131,20 @@ export async function POST(request: NextRequest) {
           completedAt: new Date()
         })
       } finally {
-        // Cleanup sandbox
+        // Delay cleanup to allow background process to complete
         if (sandbox) {
-          try {
-            console.log('🧹 Cleaning up sandbox...')
-            await DaytonaSandboxManager.cleanupSandbox(sandbox)
-          } catch (cleanupError) {
-            console.error('Sandbox cleanup failed:', cleanupError)
-          }
+          console.log('⏰ Scheduling delayed sandbox cleanup in 5 minutes...')
+          
+          // Schedule cleanup after 5 minutes to allow background process to complete
+          setTimeout(async () => {
+            try {
+              console.log('🧹 Executing delayed sandbox cleanup...')
+              await DaytonaSandboxManager.cleanupSandbox(sandbox)
+              console.log('✅ Delayed sandbox cleanup completed')
+            } catch (cleanupError) {
+              console.error('❌ Delayed sandbox cleanup failed:', cleanupError)
+            }
+          }, 5 * 60 * 1000) // 5 minutes delay
         }
       }
     })
