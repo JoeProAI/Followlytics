@@ -131,6 +131,11 @@ console.log('🔑 OAuth tokens received:');
 console.log('  Access token: ' + ('${accessToken}'.substring(0, 10) + '...'));
 console.log('  Secret token: ' + ('${accessTokenSecret}'.substring(0, 10) + '...'));
 
+// OAuth tokens for authentication
+const accessToken = '${accessToken}';
+const accessTokenSecret = '${accessTokenSecret}';
+const targetUsername = '${username}';
+
 // Screenshot helper function
 async function takeScreenshot(page, step, description) {
   try {
@@ -251,11 +256,11 @@ async function takeScreenshot(page, step, description) {
     
     // Try multiple followers page URLs
     const followersUrls = [
-      \`https://x.com/${username}/followers\`,
-      \`https://twitter.com/${username}/followers\`,
-      \`https://mobile.twitter.com/${username}/followers\`,
-      \`https://x.com/${username}/verified_followers\`,
-      \`https://twitter.com/${username}/verified_followers\`
+      \`https://x.com/\${targetUsername}/followers\`,
+      \`https://twitter.com/\${targetUsername}/followers\`,
+      \`https://mobile.twitter.com/\${targetUsername}/followers\`,
+      \`https://x.com/\${targetUsername}/verified_followers\`,
+      \`https://twitter.com/\${targetUsername}/verified_followers\`
     ];
     
     let followersPageLoaded = false;
