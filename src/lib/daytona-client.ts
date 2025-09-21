@@ -64,6 +64,38 @@ export class DaytonaSandboxManager {
       await this.executeCommandWithRetry(sandbox, 'npm init -y')
       await this.executeCommandWithRetry(sandbox, 'npm install playwright puppeteer --save')
       
+      // Install Playwright system dependencies first
+      console.log('🔧 Installing Playwright system dependencies...')
+      try {
+        await this.executeCommandWithRetry(sandbox, 'npx playwright install-deps')
+        console.log('✅ Playwright system dependencies installed')
+      } catch (depsError) {
+        console.log('⚠️ Playwright install-deps failed, trying apt-get...')
+        
+        // Fallback to manual apt-get installation
+        try {
+          await this.executeCommandWithRetry(sandbox, `
+            apt-get update && apt-get install -y \\
+            libnspr4 \\
+            libnss3 \\
+            libdbus-1-3 \\
+            libatk1.0-0 \\
+            libatk-bridge2.0-0 \\
+            libatspi2.0-0 \\
+            libxcomposite1 \\
+            libxdamage1 \\
+            libxfixes3 \\
+            libxrandr2 \\
+            libgbm1 \\
+            libxkbcommon0 \\
+            libasound2
+          `)
+          console.log('✅ System dependencies installed via apt-get')
+        } catch (aptError) {
+          console.log('⚠️ System dependencies installation failed, continuing anyway...')
+        }
+      }
+      
       // Install multiple browsers for different strategies
       console.log('Installing Playwright browsers...')
       await this.executeCommandWithRetry(sandbox, 'npx playwright install chromium firefox webkit')
@@ -95,6 +127,9 @@ const { chromium } = require('playwright');
 
 console.log('🔐 Starting OAuth-authenticated Twitter follower extraction...');
 console.log('👤 Target username: ${username}');
+console.log('🔑 OAuth tokens received:');
+console.log('  Access token: ' + ('${accessToken}'.substring(0, 10) + '...'));
+console.log('  Secret token: ' + ('${accessTokenSecret}'.substring(0, 10) + '...'));
 
 // Screenshot helper function
 async function takeScreenshot(page, step, description) {
@@ -197,12 +232,18 @@ async function takeScreenshot(page, step, description) {
       localStorage.setItem('twitter_access_token', accessToken);
       localStorage.setItem('twitter_access_token_secret', accessTokenSecret);
       
-      // Set authentication cookies
-      document.cookie = \`auth_token=\${accessToken}; domain=.twitter.com; path=/\`;
-      document.cookie = \`auth_token=\${accessToken}; domain=.x.com; path=/\`;
+      // Set authentication cookies for Twitter domains
+      document.cookie = \`auth_token=\${accessToken}; domain=.twitter.com; path=/; secure; samesite=none\`;
+      document.cookie = \`auth_token=\${accessToken}; domain=.x.com; path=/; secure; samesite=none\`;
       
-      console.log('✅ OAuth tokens injected into browser session');
-    }, '${accessToken}', '${accessTokenSecret}');
+      // Additional Twitter authentication cookies
+      document.cookie = \`ct0=\${accessToken}; domain=.twitter.com; path=/; secure; samesite=lax\`;
+      document.cookie = \`ct0=\${accessToken}; domain=.x.com; path=/; secure; samesite=lax\`;
+      
+      console.log('✅ Real OAuth tokens injected into browser session');
+      console.log('🔑 Access token length:', accessToken ? accessToken.length : 0);
+      console.log('🔑 Secret length:', accessTokenSecret ? accessTokenSecret.length : 0);
+    }, accessToken, accessTokenSecret);
     
     await takeScreenshot(page, '03_oauth_injected', 'OAuth tokens injected into browser');
     
@@ -1996,28 +2037,16 @@ const puppeteer = require('puppeteer');
       const verifyResult = await sandbox.process.executeCommand('ls -la /tmp/oauth_extract.js')
       console.log('📋 Script verification:', verifyResult.result)
       
-      // Install puppeteer in /tmp directory
-      console.log('📦 Installing Puppeteer in /tmp...')
-      await sandbox.process.executeCommand('cd /tmp && npm init -y && npm install puppeteer')
+      // Execute the OAuth script
+      console.log('🚀 Executing OAuth script...')
+      const oauthResult = await sandbox.process.executeCommand('node /tmp/oauth_extract.js')
+      console.log('📊 OAuth execution result:', oauthResult.exitCode)
       
-      // Run the script
-      console.log('🚀 Executing simple OAuth extraction...')
-      const extractResult = await sandbox.process.executeCommand('cd /tmp && node oauth_extract.js')
-      
-      console.log('📊 Extraction output:', extractResult.result)
-      
-      // Read the results using command instead of SDK
-      const resultResponse = await sandbox.process.executeCommand('cat /tmp/followers_result.json')
-      const result = JSON.parse(resultResponse.result || '{}')
-      
-      console.log('✅ Simple OAuth extraction completed: ' + result.followerCount + ' followers found')
-      console.log('📋 Page status was:', result.pageStatus)
-      
-      return result
+      return { status: 'oauth_attempted', result: oauthResult }
       
     } catch (error: unknown) {
-      console.error('❌ GUI automation failed:', error)
-      throw new Error('GUI automation failed: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      console.error('❌ OAuth extraction failed:', error)
+      throw new Error('OAuth extraction failed: ' + (error instanceof Error ? error.message : 'Unknown error'))
     }
   }
 
