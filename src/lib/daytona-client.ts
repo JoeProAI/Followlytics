@@ -408,32 +408,6 @@ async function takeScreenshot(page, step, description) {
     
     // Take final confirmation screenshot before extraction
     await takeScreenshot(page, '09_extraction_ready', 'All verification passed - ready to start extraction');
-      
-    } else {
-      console.log(\`⚠️ Unexpected page: \${currentUrl}\`);
-      console.log(\`Page title: \${pageTitle}\`);
-      
-      // Try to navigate to followers page again with both URL formats
-      const retryUrls = [
-        \`https://twitter.com/\${username}/followers\`,
-        \`https://x.com/\${username}/followers\`
-      ];
-      
-      for (const retryUrl of retryUrls) {
-        try {
-          console.log(\`🔄 Attempting to navigate to: \${retryUrl}\`);
-          await page.goto(retryUrl, { waitUntil: 'networkidle0', timeout: 15000 });
-          
-          const newUrl = page.url();
-          if (newUrl.includes('/followers')) {
-            console.log(\`✅ Successfully navigated to followers page: \${newUrl}\`);
-            break;
-          }
-        } catch (navError) {
-          console.log(\`❌ Failed to navigate to \${retryUrl}: \${navError.message}\`);
-        }
-      }
-    }
     
     console.log('📜 Starting follower extraction...');
     
