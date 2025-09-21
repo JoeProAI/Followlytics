@@ -14,6 +14,46 @@ function DashboardContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [showSessionCookieHelper, setShowSessionCookieHelper] = useState(false)
+  const [twitterAuthStatus, setTwitterAuthStatus] = useState<{
+    authorized: boolean
+    loading: boolean
+    xUsername?: string
+  }>({ authorized: false, loading: true })
+
+  // Check Twitter authorization status
+  const checkTwitterAuthStatus = async () => {
+    if (!user) return
+    
+    try {
+      const token = await user.getIdToken()
+      const response = await fetch('/api/auth/twitter/status', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setTwitterAuthStatus({
+          authorized: data.authorized,
+          loading: false,
+          xUsername: data.xUsername
+        })
+      } else {
+        setTwitterAuthStatus({ authorized: false, loading: false })
+      }
+    } catch (error) {
+      console.error('Failed to check Twitter auth status:', error)
+      setTwitterAuthStatus({ authorized: false, loading: false })
+    }
+  }
+
+  // Check Twitter auth status when user is available
+  useEffect(() => {
+    if (user && !loading) {
+      checkTwitterAuthStatus()
+    }
+  }, [user, loading])
 
   useEffect(() => {
     const handleXAuthSuccess = async () => {
@@ -42,6 +82,8 @@ function DashboardContent() {
           console.log('🔑 Signing in with custom token...')
           await signInWithCustomToken(auth, token)
           console.log('✅ Successfully signed in with custom token')
+          // Refresh Twitter auth status after successful OAuth
+          await checkTwitterAuthStatus()
           // Clear URL parameters after successful auth
           router.replace('/dashboard')
         } catch (error) {
@@ -158,8 +200,62 @@ function DashboardContent() {
             onAuthenticationRequired={() => setShowSessionCookieHelper(true)}
           />
 
-          {/* Follower Scanner Component */}
-          <FollowerScanner />
+          {/* Twitter Authorization & Follower Scanner */}
+          {twitterAuthStatus.loading ? (
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-2 text-gray-600">Checking Twitter authorization...</p>
+              </div>
+            </div>
+          ) : !twitterAuthStatus.authorized ? (
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="text-center">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                  Step 1: Authorize Twitter Access
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  To scan followers, you need to authorize Followlytics to access your Twitter account.
+                </p>
+                <button
+                  onClick={() => window.location.href = '/api/auth/twitter'}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+                >
+                  🐦 Authorize Twitter Access
+                </button>
+                <p className="text-sm text-gray-500 mt-4">
+                  You'll be redirected to Twitter to grant permission, then returned here.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-green-800">
+                      ✓ Twitter Access Authorized
+                      {twitterAuthStatus.xUsername && (
+                        <span className="ml-2 text-green-600">(@{twitterAuthStatus.xUsername})</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                  Step 2: Start Follower Scan
+                </h2>
+                <FollowerScanner />
+              </div>
+            </div>
+          )}
 
           {/* How It Works Section */}
           <div className="bg-white rounded-lg shadow p-6 mt-8">
