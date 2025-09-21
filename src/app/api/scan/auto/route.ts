@@ -105,7 +105,8 @@ export async function POST(request: NextRequest) {
           sandbox, 
           xUsername, 
           accessToken,
-          accessTokenSecret
+          accessTokenSecret,
+          scanId
         )
 
         console.log(`📊 Scan result: ${result.status}, ${result.followerCount} followers`)

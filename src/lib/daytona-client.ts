@@ -83,7 +83,8 @@ export class DaytonaSandboxManager {
     sandbox: any,
     username: string,
     accessToken: string,
-    accessTokenSecret: string
+    accessTokenSecret: string,
+    scanId?: string
   ): Promise<FollowerScanResult> {
     console.log(`🚀 Starting minimal test scan for @${username}`)
 
@@ -388,7 +389,7 @@ async function takeScreenshot(page, step, description) {
       console.log('🚀 Starting background extraction with screenshot monitoring...')
       
       // Start the script execution in true background mode
-      this.executeScriptInBackgroundAsync(sandbox, 'cd scanner && node interactive-scanner.js')
+      this.executeScriptInBackgroundAsync(sandbox, 'cd scanner && node interactive-scanner.js', scanId)
       
       console.log('✅ Background interactive extraction started - returning immediately to avoid timeout')
       console.log('🎯 Returning immediately to avoid Vercel timeout - interactive extraction running in background')
@@ -1681,7 +1682,7 @@ const puppeteer = require('puppeteer');
     }
   }
 
-  private static executeScriptInBackgroundAsync(sandbox: any, command: string): void {
+  private static executeScriptInBackgroundAsync(sandbox: any, command: string, scanId?: string): void {
     // Execute script asynchronously without blocking
     (async () => {
       try {
@@ -1693,12 +1694,66 @@ const puppeteer = require('puppeteer');
         console.log('Exit code:', result.exitCode)
         console.log('Output preview:', result.result?.substring(0, 500) + '...')
         
-        // Try to read results if available
+        // Try to read results and update database
         try {
           const resultsCmd = await sandbox.process.executeCommand('cat /tmp/followers_result.json 2>/dev/null || echo "No results yet"')
           if (resultsCmd.exitCode === 0 && !resultsCmd.result.includes('No results yet')) {
             console.log('📋 Background extraction results available')
             console.log('Results preview:', resultsCmd.result.substring(0, 300) + '...')
+            
+            // Parse results and update database if scanId provided
+            if (scanId) {
+              try {
+                const scanResults = JSON.parse(resultsCmd.result)
+                console.log(`🔄 Updating database for scan ${scanId}...`)
+                
+                // Import Firebase Admin here to avoid circular dependencies
+                const { adminDb } = await import('@/lib/firebase-admin')
+                
+                const updateData: any = {
+                  status: scanResults.status === 'completed' ? 'completed' : 'failed',
+                  followerCount: scanResults.followerCount || 0,
+                  completedAt: new Date(),
+                  updatedAt: new Date()
+                }
+                
+                if (scanResults.followers && scanResults.followers.length > 0) {
+                  updateData.followers = scanResults.followers
+                }
+                
+                if (scanResults.error) {
+                  updateData.error = scanResults.error
+                }
+                
+                if (scanResults.authStatus) {
+                  updateData.authStatus = scanResults.authStatus
+                }
+                
+                await adminDb.collection('follower_scans').doc(scanId).update(updateData)
+                console.log(`✅ Database updated for scan ${scanId}: ${scanResults.status}, ${scanResults.followerCount || 0} followers`)
+                
+              } catch (dbError: any) {
+                console.error('❌ Failed to update database:', dbError.message)
+              }
+            }
+          } else {
+            console.log('⚠️ No results file found - script may have failed')
+            
+            // Update database with failure if scanId provided
+            if (scanId) {
+              try {
+                const { adminDb } = await import('@/lib/firebase-admin')
+                await adminDb.collection('follower_scans').doc(scanId).update({
+                  status: 'failed',
+                  error: 'No results file generated - script execution failed',
+                  completedAt: new Date(),
+                  updatedAt: new Date()
+                })
+                console.log(`❌ Database updated with failure for scan ${scanId}`)
+              } catch (dbError: any) {
+                console.error('❌ Failed to update database with failure:', dbError.message)
+              }
+            }
           }
         } catch (resultsError: any) {
           console.log('⚠️ Could not read results:', resultsError.message)
@@ -1706,6 +1761,22 @@ const puppeteer = require('puppeteer');
         
       } catch (error: any) {
         console.error('❌ Background script execution failed:', error.message)
+        
+        // Update database with execution failure if scanId provided
+        if (scanId) {
+          try {
+            const { adminDb } = await import('@/lib/firebase-admin')
+            await adminDb.collection('follower_scans').doc(scanId).update({
+              status: 'failed',
+              error: `Script execution failed: ${error.message}`,
+              completedAt: new Date(),
+              updatedAt: new Date()
+            })
+            console.log(`❌ Database updated with execution failure for scan ${scanId}`)
+          } catch (dbError: any) {
+            console.error('❌ Failed to update database with execution failure:', dbError.message)
+          }
+        }
       }
     })().catch(error => {
       console.error('❌ Async background execution error:', error.message)
