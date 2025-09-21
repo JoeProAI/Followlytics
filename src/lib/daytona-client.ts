@@ -232,7 +232,9 @@ async function takeScreenshot(page, step, description) {
     await takeScreenshot(page, '02_login_page', \`Twitter page loaded: \${currentUrl}\`);
     
     // Inject OAuth tokens into browser session
-    await page.evaluate((accessToken, accessTokenSecret) => {
+    await page.evaluate((tokens) => {
+      const { accessToken, accessTokenSecret } = tokens;
+      
       // Set OAuth tokens in localStorage
       localStorage.setItem('twitter_access_token', accessToken);
       localStorage.setItem('twitter_access_token_secret', accessTokenSecret);
@@ -248,7 +250,9 @@ async function takeScreenshot(page, step, description) {
       console.log('✅ Real OAuth tokens injected into browser session');
       console.log('🔑 Access token length:', accessToken ? accessToken.length : 0);
       console.log('🔑 Secret length:', accessTokenSecret ? accessTokenSecret.length : 0);
-    }, accessToken, accessTokenSecret);
+      
+      return { success: true, tokenLength: accessToken ? accessToken.length : 0 };
+    }, { accessToken, accessTokenSecret });
     
     await takeScreenshot(page, '03_oauth_injected', 'OAuth tokens injected into browser');
     
