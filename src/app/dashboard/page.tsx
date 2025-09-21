@@ -205,26 +205,26 @@ function DashboardContent() {
             <div className="bg-white rounded-lg shadow p-6">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-2 text-gray-600">Checking Twitter authorization...</p>
+                <p className="mt-2 text-gray-600">Checking X authorization...</p>
               </div>
             </div>
           ) : !twitterAuthStatus.authorized ? (
             <div className="bg-white rounded-lg shadow p-6">
               <div className="text-center">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  Step 1: Authorize Twitter Access
+                  Step 1: Authorize X Access
                 </h2>
                 <p className="text-gray-600 mb-6">
-                  To scan followers, you need to authorize Followlytics to access your Twitter account.
+                  To scan followers, you need to authorize Followlytics to access your X account.
                 </p>
                 <button
                   onClick={() => window.location.href = '/api/auth/twitter'}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+                  className="bg-black hover:bg-gray-800 text-white font-medium py-2 px-6 rounded-lg transition-colors"
                 >
-                  🐦 Authorize Twitter Access
+                  𝕏 Authorize X Access
                 </button>
                 <p className="text-sm text-gray-500 mt-4">
-                  You'll be redirected to Twitter to grant permission, then returned here.
+                  You'll be redirected to X to grant permission, then returned here.
                 </p>
               </div>
             </div>
@@ -239,7 +239,7 @@ function DashboardContent() {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm font-medium text-green-800">
-                      ✓ Twitter Access Authorized
+                      ✓ X Access Authorized
                       {twitterAuthStatus.xUsername && (
                         <span className="ml-2 text-green-600">(@{twitterAuthStatus.xUsername})</span>
                       )}
