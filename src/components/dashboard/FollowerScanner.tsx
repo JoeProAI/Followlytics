@@ -263,28 +263,7 @@ export default function FollowerScanner() {
     }
   }
 
-  const getAuthenticationLink = async (scanId: string) => {
-    try {
-      // Open our Twitter auth page with the scan ID
-      const authUrl = `/twitter-auth?scanId=${scanId}`
-      
-      const authWindow = window.open(
-        authUrl, 
-        'twitter-auth',
-        'width=600,height=700,scrollbars=yes,resizable=yes'
-      )
-      
-      if (authWindow) {
-        alert('✅ Authentication page opened!\n\nPlease follow the instructions in the new tab to sign into Twitter and continue your scan.')
-      } else {
-        // Fallback: navigate to the auth page in the same tab
-        window.location.href = authUrl
-      }
-    } catch (error) {
-      console.error('Failed to open authentication page:', error)
-      alert(`Failed to open authentication: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
-  }
+  // Removed old authentication link - now handled at dashboard level
 
   const fetchScreenshots = async (scanId: string) => {
     try {
@@ -507,12 +486,9 @@ export default function FollowerScanner() {
                         💡 <strong>Important:</strong> This is your personal Twitter login - your data stays secure and private.
                       </p>
                       <div className="mt-4 space-x-3">
-                        <button
-                          onClick={() => getAuthenticationLink(scanProgress.scanId)}
-                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        >
-                          🔗 Get Sign-In Link
-                        </button>
+                        <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded-lg">
+                          ℹ️ Authentication is now handled automatically with your Twitter OAuth tokens. No manual sign-in required.
+                        </div>
                         <button
                           onClick={() => fetchScreenshots(scanProgress.scanId)}
                           className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
