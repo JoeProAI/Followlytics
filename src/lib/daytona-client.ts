@@ -145,11 +145,50 @@ async function takeScreenshot(page, step, description) {
     // Take initial screenshot
     await takeScreenshot(page, '01_browser_startup', 'Browser launched successfully');
     
-    console.log('🔑 Injecting OAuth tokens for authentication...');
+    console.log('🔑 Attempting to reach Twitter with multiple fallback URLs...');
     
-    // Navigate to Twitter login page first
-    await page.goto('https://twitter.com/login', { waitUntil: 'networkidle0', timeout: 30000 });
-    await takeScreenshot(page, '02_login_page', 'Twitter login page loaded');
+    // Try multiple Twitter URLs with different strategies
+    const twitterUrls = [
+      'https://x.com/login',
+      'https://twitter.com/login', 
+      'https://mobile.twitter.com/login',
+      'https://x.com',
+      'https://twitter.com'
+    ];
+    
+    let loginPageLoaded = false;
+    let currentUrl = '';
+    
+    for (const url of twitterUrls) {
+      try {
+        console.log(\`🌐 Trying URL: \${url}\`);
+        
+        // Use longer timeout and different wait strategies
+        await page.goto(url, { 
+          waitUntil: 'domcontentloaded', // Less strict than networkidle0
+          timeout: 60000 // Increased to 60 seconds
+        });
+        
+        currentUrl = page.url();
+        console.log(\`✅ Successfully loaded: \${currentUrl}\`);
+        
+        // Wait a bit for page to stabilize
+        await page.waitForTimeout(3000);
+        
+        loginPageLoaded = true;
+        break;
+        
+      } catch (urlError) {
+        console.log(\`❌ Failed to load \${url}: \${urlError.message}\`);
+        await page.waitForTimeout(2000); // Wait before trying next URL
+      }
+    }
+    
+    if (!loginPageLoaded) {
+      throw new Error('Failed to load any Twitter URL - all attempts timed out');
+    }
+    
+    await takeScreenshot(page, '02_login_page', \`Twitter page loaded: \${currentUrl}\`);
     
     // Inject OAuth tokens into browser session
     await page.evaluate((accessToken, accessTokenSecret) => {
@@ -166,11 +205,49 @@ async function takeScreenshot(page, step, description) {
     
     await takeScreenshot(page, '03_oauth_injected', 'OAuth tokens injected into browser');
     
-    console.log('🌐 Navigating to followers page...');
-    const followersUrl = \`https://twitter.com/${username}/followers\`;
+    console.log('🌐 Navigating to followers page with multiple URL attempts...');
     
-    await page.goto(followersUrl, { waitUntil: 'networkidle0', timeout: 30000 });
-    await takeScreenshot(page, '04_followers_page', 'Navigated to followers page');
+    // Try multiple followers page URLs
+    const followersUrls = [
+      \`https://x.com/${username}/followers\`,
+      \`https://twitter.com/${username}/followers\`,
+      \`https://mobile.twitter.com/${username}/followers\`,
+      \`https://x.com/${username}/verified_followers\`,
+      \`https://twitter.com/${username}/verified_followers\`
+    ];
+    
+    let followersPageLoaded = false;
+    let finalUrl = '';
+    
+    for (const url of followersUrls) {
+      try {
+        console.log(\`🎯 Trying followers URL: \${url}\`);
+        
+        await page.goto(url, { 
+          waitUntil: 'domcontentloaded',
+          timeout: 60000 
+        });
+        
+        finalUrl = page.url();
+        console.log(\`✅ Followers page loaded: \${finalUrl}\`);
+        
+        // Wait for page to stabilize
+        await page.waitForTimeout(5000);
+        
+        followersPageLoaded = true;
+        break;
+        
+      } catch (urlError) {
+        console.log(\`❌ Failed to load \${url}: \${urlError.message}\`);
+        await page.waitForTimeout(2000);
+      }
+    }
+    
+    if (!followersPageLoaded) {
+      throw new Error('Failed to load any followers page URL - all attempts timed out');
+    }
+    
+    await takeScreenshot(page, '04_followers_page', \`Followers page loaded: \${finalUrl}\`);
     
     // Check authentication status
     const authStatus = await page.evaluate(() => {
