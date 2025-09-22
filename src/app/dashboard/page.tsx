@@ -252,6 +252,42 @@ function DashboardContent() {
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">
                   Step 2: Start Follower Scan
                 </h2>
+                
+                {/* Force Cleanup Button */}
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-medium text-yellow-800">
+                        🧹 Cleanup Running Scans
+                      </h3>
+                      <p className="text-xs text-yellow-700 mt-1">
+                        If you have stuck scans or sandboxes, click to force cleanup
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const token = await user?.getIdToken()
+                          const response = await fetch('/api/scan/force-cleanup', {
+                            method: 'POST',
+                            headers: {
+                              'Authorization': `Bearer ${token}`,
+                            },
+                          })
+                          const result = await response.json()
+                          alert(`Cleanup completed: ${result.message}`)
+                          window.location.reload()
+                        } catch (error) {
+                          alert(`Cleanup failed: ${error}`)
+                        }
+                      }}
+                      className="bg-yellow-600 hover:bg-yellow-700 text-white text-xs px-3 py-1 rounded"
+                    >
+                      Force Cleanup
+                    </button>
+                  </div>
+                </div>
+                
                 <FollowerScanner />
               </div>
             </div>
