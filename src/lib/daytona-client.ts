@@ -125,16 +125,18 @@ export class DaytonaSandboxManager {
 const fs = require('fs');
 const { chromium } = require('playwright');
 
-console.log('🔐 Starting OAuth-authenticated Twitter follower extraction...');
+console.log('🔐 Starting OAuth-authenticated X follower extraction...');
 console.log('👤 Target username: ${username}');
-console.log('🔑 OAuth tokens received:');
-console.log('  Access token: ' + ('${accessToken}'.substring(0, 10) + '...'));
-console.log('  Secret token: ' + ('${accessTokenSecret}'.substring(0, 10) + '...'));
+console.log('🔑 X OAuth tokens received:');
+console.log('  Access token: ' + ('${accessToken}'.substring(0, 15) + '...'));
+console.log('  Secret token: ' + ('${accessTokenSecret}'.substring(0, 15) + '...'));
 
-// OAuth tokens for authentication
+// X OAuth tokens for authentication (7-step method)
 const accessToken = '${accessToken}';
 const accessTokenSecret = '${accessTokenSecret}';
 const targetUsername = '${username}';
+
+console.log('🎯 Implementing 7-Step X OAuth Injection Method...');
 
 // Screenshot helper function
 async function takeScreenshot(page, step, description) {
@@ -231,40 +233,64 @@ async function takeScreenshot(page, step, description) {
     
     await takeScreenshot(page, '02_login_page', \`Twitter page loaded: \${currentUrl}\`);
     
-    // Inject OAuth tokens into browser session
+    // STEP 5: Comprehensive X OAuth token injection (7-step method)
+    console.log('🔑 STEP 5: Injecting real X OAuth tokens into browser session...');
+    
     await page.evaluate((tokens) => {
       const { accessToken, accessTokenSecret } = tokens;
       
-      // Set OAuth tokens in localStorage
+      console.log('🎯 Implementing comprehensive X OAuth injection...');
+      
+      // Method 1: localStorage injection (legacy Twitter + new X)
       localStorage.setItem('twitter_access_token', accessToken);
       localStorage.setItem('twitter_access_token_secret', accessTokenSecret);
+      localStorage.setItem('x_access_token', accessToken);
+      localStorage.setItem('x_access_token_secret', accessTokenSecret);
       
-      // Set authentication cookies for Twitter domains
-      document.cookie = \`auth_token=\${accessToken}; domain=.twitter.com; path=/; secure; samesite=none\`;
+      // Method 2: Cookie injection for both X and Twitter domains
       document.cookie = \`auth_token=\${accessToken}; domain=.x.com; path=/; secure; samesite=none\`;
-      
-      // Additional Twitter authentication cookies
-      document.cookie = \`ct0=\${accessToken}; domain=.twitter.com; path=/; secure; samesite=lax\`;
+      document.cookie = \`auth_token=\${accessToken}; domain=.twitter.com; path=/; secure; samesite=none\`;
       document.cookie = \`ct0=\${accessToken}; domain=.x.com; path=/; secure; samesite=lax\`;
+      document.cookie = \`ct0=\${accessToken}; domain=.twitter.com; path=/; secure; samesite=lax\`;
       
-      console.log('✅ Real OAuth tokens injected into browser session');
+      // Method 3: Session storage injection
+      sessionStorage.setItem('x_oauth_token', accessToken);
+      sessionStorage.setItem('x_oauth_secret', accessTokenSecret);
+      sessionStorage.setItem('twitter_oauth_token', accessToken);
+      sessionStorage.setItem('twitter_oauth_secret', accessTokenSecret);
+      
+      // Method 4: Additional X authentication cookies
+      document.cookie = \`twid="u=\${tokens.xUserId || 'unknown'}"; domain=.x.com; path=/; secure\`;
+      document.cookie = \`twid="u=\${tokens.xUserId || 'unknown'}"; domain=.twitter.com; path=/; secure\`;
+      
+      // Method 5: Bearer token simulation
+      document.cookie = \`bearer_token=\${accessToken}; domain=.x.com; path=/; secure\`;
+      document.cookie = \`bearer_token=\${accessToken}; domain=.twitter.com; path=/; secure\`;
+      
+      console.log('✅ X OAuth tokens injected via 5 methods');
       console.log('🔑 Access token length:', accessToken ? accessToken.length : 0);
       console.log('🔑 Secret length:', accessTokenSecret ? accessTokenSecret.length : 0);
       
-      return { success: true, tokenLength: accessToken ? accessToken.length : 0 };
-    }, { accessToken, accessTokenSecret });
+      return { 
+        success: true, 
+        tokenLength: accessToken ? accessToken.length : 0,
+        methods: ['localStorage', 'cookies', 'sessionStorage', 'userCookies', 'bearerToken']
+      };
+    }, { accessToken, accessTokenSecret, xUserId: 'user_id_placeholder' });
     
     await takeScreenshot(page, '03_oauth_injected', 'OAuth tokens injected into browser');
     
-    console.log('🌐 Navigating to followers page with multiple URL attempts...');
+    // STEP 6: Test X authentication with injected tokens
+    console.log('🔐 STEP 6: Testing X authentication with injected tokens...');
+    console.log('🌐 Navigating to X followers page...');
     
-    // Try multiple followers page URLs
+    // Try multiple X followers page URLs (prioritize X.com)
     const followersUrls = [
       \`https://x.com/\${targetUsername}/followers\`,
-      \`https://twitter.com/\${targetUsername}/followers\`,
-      \`https://mobile.twitter.com/\${targetUsername}/followers\`,
       \`https://x.com/\${targetUsername}/verified_followers\`,
-      \`https://twitter.com/\${targetUsername}/verified_followers\`
+      \`https://twitter.com/\${targetUsername}/followers\`,
+      \`https://mobile.x.com/\${targetUsername}/followers\`,
+      \`https://mobile.twitter.com/\${targetUsername}/followers\`
     ];
     
     let followersPageLoaded = false;
@@ -300,7 +326,10 @@ async function takeScreenshot(page, step, description) {
     
     await takeScreenshot(page, '04_followers_page', \`Followers page loaded: \${finalUrl}\`);
     
-    // Check authentication status
+    // STEP 7: Extract real followers data from authenticated X session
+    console.log('👥 STEP 7: Extracting followers data from authenticated X session...');
+    console.log('🔍 Looking for follower elements on the page...');
+    
     const authStatus = await page.evaluate(() => {
       const body = document.body.textContent || '';
       const url = window.location.href;
