@@ -12,19 +12,22 @@ function XCaptureContent() {
   const [isOnX, setIsOnX] = useState(false)
 
   useEffect(() => {
+    console.log('🔍 X-Capture page loaded, checking location...')
+    console.log('Current hostname:', window.location.hostname)
+    console.log('Current URL:', window.location.href)
+    
     // Check if we're already on X.com
     const currentHost = window.location.hostname
     const isXSite = currentHost.includes('x.com') || currentHost.includes('twitter.com')
     
     if (isXSite) {
+      console.log('✅ On X.com, ready to capture')
       setIsOnX(true)
       setStatus('ready')
     } else {
-      // We're on Followlytics domain, need to redirect to X.com
-      setStatus('redirecting')
-      // Redirect to X.com with our capture page URL
-      const redirectUrl = `https://x.com`
-      window.location.href = redirectUrl
+      console.log('ℹ️ Not on X.com, showing instructions to go there')
+      // Instead of auto-redirecting, show instructions
+      setStatus('ready')
     }
   }, [])
 
@@ -35,8 +38,21 @@ function XCaptureContent() {
       return
     }
 
+    console.log('🔐 Starting session capture for user:', userId)
+
+    // Check if we're on X.com first
+    const currentHost = window.location.hostname
+    const isXSite = currentHost.includes('x.com') || currentHost.includes('twitter.com')
+    
+    if (!isXSite) {
+      setError('Please navigate to X.com first, then try capturing your session.')
+      setStatus('error')
+      return
+    }
+
     try {
       setStatus('capturing')
+      console.log('📊 Extracting session data...')
       
       // Extract session data
       const cookies: Record<string, string> = {}
@@ -74,9 +90,18 @@ function XCaptureContent() {
         timestamp: new Date().toISOString()
       }
 
+      console.log('📊 Session data extracted:', {
+        cookieCount: Object.keys(cookies).length,
+        localStorageCount: Object.keys(localStorage).length,
+        sessionStorageCount: Object.keys(sessionStorage).length,
+        url: window.location.href
+      })
+
       if (Object.keys(cookies).length === 0) {
         throw new Error('No cookies found. Please make sure you are logged into X.com!')
       }
+
+      console.log('📤 Sending session data to API...')
 
       // Send to Followlytics API
       const response = await fetch('https://followlytics-zeta.vercel.app/api/auth/capture-x-session-direct', {
@@ -87,17 +112,38 @@ function XCaptureContent() {
         body: JSON.stringify({ sessionData, userId }),
       })
 
+      console.log('📥 API Response status:', response.status)
+
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`)
+      }
+
       const result = await response.json()
+      console.log('📥 API Response data:', result)
 
       if (result.success) {
+        console.log('✅ Session capture successful!')
         setStatus('success')
         
-        // Notify parent window
+        // Notify parent window with multiple origin attempts
         if (window.opener) {
-          window.opener.postMessage({
-            type: 'SESSION_CAPTURED',
-            data: result
-          }, window.location.origin.replace('x.com', 'followlytics-zeta.vercel.app'))
+          const origins = [
+            'https://followlytics-zeta.vercel.app',
+            window.location.origin,
+            '*'
+          ]
+          
+          origins.forEach(origin => {
+            try {
+              window.opener.postMessage({
+                type: 'SESSION_CAPTURED',
+                data: result
+              }, origin)
+              console.log('📨 Sent success message to origin:', origin)
+            } catch (e) {
+              console.log('Failed to send to origin:', origin, e)
+            }
+          })
         }
         
         // Auto-close after 3 seconds
@@ -111,15 +157,29 @@ function XCaptureContent() {
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      console.error('❌ Session capture error:', errorMessage)
       setError(errorMessage)
       setStatus('error')
       
       // Notify parent window of error
       if (window.opener) {
-        window.opener.postMessage({
-          type: 'CAPTURE_ERROR',
-          error: errorMessage
-        }, window.location.origin.replace('x.com', 'followlytics-zeta.vercel.app'))
+        const origins = [
+          'https://followlytics-zeta.vercel.app',
+          window.location.origin,
+          '*'
+        ]
+        
+        origins.forEach(origin => {
+          try {
+            window.opener.postMessage({
+              type: 'CAPTURE_ERROR',
+              error: errorMessage
+            }, origin)
+            console.log('📨 Sent error message to origin:', origin)
+          } catch (e) {
+            console.log('Failed to send error to origin:', origin, e)
+          }
+        })
       }
     }
   }
@@ -154,19 +214,50 @@ function XCaptureContent() {
         )
 
       case 'ready':
+        const currentHost = window.location.hostname
+        const isXSite = currentHost.includes('x.com') || currentHost.includes('twitter.com')
+        
         return (
           <div className="text-center">
             <div className="mb-6">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
-                <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
+              <div className={`mx-auto flex items-center justify-center h-12 w-12 rounded-full ${isXSite ? 'bg-green-100' : 'bg-yellow-100'}`}>
+                {isXSite ? (
+                  <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                )}
               </div>
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Ready to Capture X Session</h2>
-            <p className="text-gray-600 mb-6">
-              Make sure you're logged into X.com, then click the button below to capture your session.
-            </p>
+            
+            {isXSite ? (
+              <>
+                <h2 className="text-xl font-semibold text-green-900 mb-2">✅ Ready to Capture X Session</h2>
+                <p className="text-green-700 mb-6">
+                  Perfect! You're on X.com. Make sure you're logged in, then click capture.
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-xl font-semibold text-yellow-900 mb-2">⚠️ Need to Go to X.com First</h2>
+                <p className="text-yellow-700 mb-4">
+                  You need to be on X.com to capture your session.
+                </p>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                  <h3 className="text-sm font-medium text-yellow-800 mb-2">Steps:</h3>
+                  <ol className="text-sm text-yellow-700 space-y-1 text-left list-decimal list-inside">
+                    <li>Click "Go to X.com" below</li>
+                    <li>Login to your X account</li>
+                    <li>Come back to this window</li>
+                    <li>Click "Capture X Session"</li>
+                  </ol>
+                </div>
+              </>
+            )}
+            
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <h3 className="text-sm font-medium text-blue-800 mb-2">What this does:</h3>
               <ul className="text-sm text-blue-700 space-y-1 text-left">
@@ -176,10 +267,25 @@ function XCaptureContent() {
                 <li>• No passwords or sensitive data stored</li>
               </ul>
             </div>
+            
             <div className="space-x-4">
+              {!isXSite && (
+                <a
+                  href="https://x.com"
+                  target="_blank"
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors inline-block"
+                >
+                  🌐 Go to X.com
+                </a>
+              )}
               <button
                 onClick={captureSession}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
+                disabled={!isXSite}
+                className={`font-medium py-3 px-6 rounded-lg transition-colors ${
+                  isXSite 
+                    ? 'bg-green-600 hover:bg-green-700 text-white' 
+                    : 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                }`}
               >
                 🔐 Capture X Session
               </button>
@@ -190,6 +296,10 @@ function XCaptureContent() {
                 Cancel
               </button>
             </div>
+            
+            <p className="text-xs text-gray-500 mt-4">
+              Current site: {window.location.hostname}
+            </p>
           </div>
         )
 
