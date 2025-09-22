@@ -12,19 +12,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // If no userId provided, try to extract from session data or use a temporary ID
-    let targetUserId = userId
-    
-    if (!targetUserId) {
-      // Try to find user by matching session characteristics
-      // For now, we'll create a temporary session that can be claimed later
-      targetUserId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    }
+    // If userId provided, store in main collection, otherwise use temp
+    const targetUserId = userId || `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const collection = userId ? 'x_sessions' : 'x_sessions_temp'
 
-    console.log('🔐 Direct X session capture for:', targetUserId)
+    console.log('🔐 Direct X session capture for:', targetUserId, 'in collection:', collection)
 
     // Store the captured X session data
-    await adminDb.collection('x_sessions_temp').doc(targetUserId).set({
+    await adminDb.collection(collection).doc(targetUserId).set({
       cookies: sessionData.cookies,
       localStorage: sessionData.localStorage || {},
       sessionStorage: sessionData.sessionStorage || {},

