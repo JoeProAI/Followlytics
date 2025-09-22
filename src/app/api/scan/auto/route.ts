@@ -91,12 +91,11 @@ export async function POST(request: NextRequest) {
         await DaytonaSandboxManager.setupSandboxEnvironment(sandbox)
 
         await adminDb.collection('follower_scans').doc(scanId).update({
-          status: 'awaiting_user_signin',
+          status: 'scanning_followers',
           progress: 50,
-          message: 'Browser ready - you have 10 minutes to complete Twitter OAuth and click "I\'ve signed in"',
-          userActionRequired: true,
-          timeoutMinutes: 10,
-          actionDescription: 'Sign into Twitter in the browser window that opened'
+          message: 'Using 7-step X OAuth injection method - no manual sign-in required',
+          userActionRequired: false,
+          authenticationMethod: '7-step-oauth-injection'
         })
 
         // Execute AUTOMATED scan using OAuth tokens

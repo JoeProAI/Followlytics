@@ -480,10 +480,10 @@ export default function FollowerScanner() {
                       🚨 User Action Required
                     </h3>
                     <div className="mt-2 text-sm text-yellow-700">
-                      <p className="font-semibold">A browser window has opened in your sandbox.</p>
-                      <p className="mt-1">{scanProgress.actionDescription || 'Please sign into your Twitter account to continue the follower extraction.'}</p>
+                      <p className="font-semibold">X OAuth authentication in progress.</p>
+                      <p className="mt-1">{scanProgress.actionDescription || 'Using your stored X OAuth tokens for automatic authentication.'}</p>
                       <p className="mt-2 text-xs">
-                        💡 <strong>Important:</strong> This is your personal Twitter login - your data stays secure and private.
+                        💡 <strong>7-Step OAuth Method:</strong> No manual sign-in required - using your authorized X tokens.
                       </p>
                       <div className="mt-4 space-x-3">
                         <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded-lg">
