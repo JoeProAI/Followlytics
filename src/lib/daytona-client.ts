@@ -116,7 +116,8 @@ export class DaytonaSandboxManager {
     username: string,
     accessToken: string,
     accessTokenSecret: string,
-    scanId?: string
+    scanId?: string,
+    sessionData?: any
   ): Promise<FollowerScanResult> {
     console.log(`🚀 Starting minimal test scan for @${username}`)
 
@@ -233,50 +234,76 @@ async function takeScreenshot(page, step, description) {
     
     await takeScreenshot(page, '02_login_page', \`Twitter page loaded: \${currentUrl}\`);
     
-    // STEP 5: Comprehensive X OAuth token injection (7-step method)
-    console.log('🔑 STEP 5: Injecting real X OAuth tokens into browser session...');
+    // STEP 5: Inject captured X session data (cookies + localStorage + sessionStorage)
+    console.log('🔑 STEP 5: Injecting captured X session data into browser...');
     
-    await page.evaluate((tokens) => {
-      const { accessToken, accessTokenSecret } = tokens;
+    // Use passed session data or fallback to OAuth tokens
+    const hasSessionData = sessionData && sessionData.cookies && Object.keys(sessionData.cookies).length > 0;
+    console.log(hasSessionData ? '✅ Using captured X session data' : '⚠️ No session data, using OAuth tokens as fallback');
+    
+    if (sessionData && sessionData.cookies && Object.keys(sessionData.cookies).length > 0) {
+      console.log('🎯 Using captured X session data for authentication...');
       
-      console.log('🎯 Implementing comprehensive X OAuth injection...');
+      await page.evaluate((session) => {
+        console.log('🔐 Injecting captured X session...');
+        
+        // Inject captured cookies
+        Object.entries(session.cookies).forEach(([name, value]) => {
+          document.cookie = \`\${name}=\${value}; domain=.x.com; path=/; secure\`;
+          document.cookie = \`\${name}=\${value}; domain=.twitter.com; path=/; secure\`;
+        });
+        
+        // Inject captured localStorage
+        Object.entries(session.localStorage).forEach(([key, value]) => {
+          localStorage.setItem(key, value);
+        });
+        
+        // Inject captured sessionStorage
+        Object.entries(session.sessionStorage || {}).forEach(([key, value]) => {
+          sessionStorage.setItem(key, value);
+        });
+        
+        console.log('✅ Captured X session injected successfully');
+        console.log(\`🍪 Cookies: \${Object.keys(session.cookies).length}\`);
+        console.log(\`💾 localStorage: \${Object.keys(session.localStorage).length}\`);
+        console.log(\`🗂️ sessionStorage: \${Object.keys(session.sessionStorage || {}).length}\`);
+        
+        return { 
+          success: true, 
+          method: 'captured_session',
+          cookieCount: Object.keys(session.cookies).length,
+          localStorageCount: Object.keys(session.localStorage).length
+        };
+      }, sessionData);
       
-      // Method 1: localStorage injection (legacy Twitter + new X)
-      localStorage.setItem('twitter_access_token', accessToken);
-      localStorage.setItem('twitter_access_token_secret', accessTokenSecret);
-      localStorage.setItem('x_access_token', accessToken);
-      localStorage.setItem('x_access_token_secret', accessTokenSecret);
+    } else {
+      console.log('🔄 Fallback: Using OAuth token injection...');
       
-      // Method 2: Cookie injection for both X and Twitter domains
-      document.cookie = \`auth_token=\${accessToken}; domain=.x.com; path=/; secure; samesite=none\`;
-      document.cookie = \`auth_token=\${accessToken}; domain=.twitter.com; path=/; secure; samesite=none\`;
-      document.cookie = \`ct0=\${accessToken}; domain=.x.com; path=/; secure; samesite=lax\`;
-      document.cookie = \`ct0=\${accessToken}; domain=.twitter.com; path=/; secure; samesite=lax\`;
-      
-      // Method 3: Session storage injection
-      sessionStorage.setItem('x_oauth_token', accessToken);
-      sessionStorage.setItem('x_oauth_secret', accessTokenSecret);
-      sessionStorage.setItem('twitter_oauth_token', accessToken);
-      sessionStorage.setItem('twitter_oauth_secret', accessTokenSecret);
-      
-      // Method 4: Additional X authentication cookies
-      document.cookie = \`twid="u=\${tokens.xUserId || 'unknown'}"; domain=.x.com; path=/; secure\`;
-      document.cookie = \`twid="u=\${tokens.xUserId || 'unknown'}"; domain=.twitter.com; path=/; secure\`;
-      
-      // Method 5: Bearer token simulation
-      document.cookie = \`bearer_token=\${accessToken}; domain=.x.com; path=/; secure\`;
-      document.cookie = \`bearer_token=\${accessToken}; domain=.twitter.com; path=/; secure\`;
-      
-      console.log('✅ X OAuth tokens injected via 5 methods');
-      console.log('🔑 Access token length:', accessToken ? accessToken.length : 0);
-      console.log('🔑 Secret length:', accessTokenSecret ? accessTokenSecret.length : 0);
-      
-      return { 
-        success: true, 
-        tokenLength: accessToken ? accessToken.length : 0,
-        methods: ['localStorage', 'cookies', 'sessionStorage', 'userCookies', 'bearerToken']
-      };
-    }, { accessToken, accessTokenSecret, xUserId: 'user_id_placeholder' });
+      await page.evaluate((tokens) => {
+        const { accessToken, accessTokenSecret } = tokens;
+        
+        console.log('🎯 Implementing OAuth token fallback injection...');
+        
+        // OAuth token injection as fallback
+        localStorage.setItem('twitter_access_token', accessToken);
+        localStorage.setItem('twitter_access_token_secret', accessTokenSecret);
+        localStorage.setItem('x_access_token', accessToken);
+        localStorage.setItem('x_access_token_secret', accessTokenSecret);
+        
+        document.cookie = \`auth_token=\${accessToken}; domain=.x.com; path=/; secure; samesite=none\`;
+        document.cookie = \`auth_token=\${accessToken}; domain=.twitter.com; path=/; secure; samesite=none\`;
+        document.cookie = \`ct0=\${accessToken}; domain=.x.com; path=/; secure; samesite=lax\`;
+        document.cookie = \`ct0=\${accessToken}; domain=.twitter.com; path=/; secure; samesite=lax\`;
+        
+        console.log('✅ OAuth tokens injected as fallback');
+        
+        return { 
+          success: true, 
+          method: 'oauth_fallback',
+          tokenLength: accessToken ? accessToken.length : 0
+        };
+      }, { accessToken, accessTokenSecret });
+    }
     
     await takeScreenshot(page, '03_oauth_injected', 'OAuth tokens injected into browser');
     

@@ -33,9 +33,9 @@ export async function POST(request: NextRequest) {
     
     if (!tokensDoc.exists) {
       return NextResponse.json({ 
-        error: 'No Twitter authorization found. Please authorize Twitter access first.',
-        needsAuth: true
-      }, { status: 400 })
+        error: 'No X OAuth tokens found. Please authorize X access first.',
+        requiresAuth: true 
+      }, { status: 401 })
     }
 
     const tokenData = tokensDoc.data()
@@ -44,9 +44,37 @@ export async function POST(request: NextRequest) {
 
     if (!accessToken || !accessTokenSecret) {
       return NextResponse.json({ 
-        error: 'Invalid Twitter tokens. Please re-authorize Twitter access.',
-        needsAuth: true
-      }, { status: 400 })
+        error: 'Invalid X tokens. Please re-authorize X access.',
+        requiresAuth: true 
+      }, { status: 401 })
+    }
+
+    // Try to get captured X session data (preferred method)
+    let sessionData = null
+    try {
+      const sessionDoc = await adminDb.collection('x_sessions').doc(userId).get()
+      if (sessionDoc.exists) {
+        const session = sessionDoc.data()
+        // Check if session is recent (within 24 hours)
+        const capturedAt = session?.capturedAt?.toDate()
+        const isRecent = capturedAt && (Date.now() - capturedAt.getTime()) < 24 * 60 * 60 * 1000
+        
+        if (isRecent && session?.isValid) {
+          sessionData = {
+            cookies: session.cookies || {},
+            localStorage: session.localStorage || {},
+            sessionStorage: session.sessionStorage || {},
+            userAgent: session.userAgent || ''
+          }
+          console.log('✅ Found recent captured X session data')
+        } else {
+          console.log('⚠️ Captured session data is too old or invalid')
+        }
+      } else {
+        console.log('ℹ️ No captured X session data found, will use OAuth tokens')
+      }
+    } catch (error) {
+      console.log('⚠️ Error retrieving session data:', error)
     }
 
     console.log('✅ OAuth tokens retrieved successfully')
@@ -98,14 +126,18 @@ export async function POST(request: NextRequest) {
           authenticationMethod: '7-step-oauth-injection'
         })
 
-        // Execute AUTOMATED scan using OAuth tokens
+        // Execute AUTOMATED scan using OAuth tokens and/or session data
         console.log('🔍 Executing AUTOMATED follower scan...')
+        const authMethod = sessionData ? 'captured_session' : 'oauth_tokens'
+        console.log(`🔐 Authentication method: ${authMethod}`)
+        
         const result = await DaytonaSandboxManager.executeFollowerScan(
           sandbox, 
           xUsername, 
           accessToken,
           accessTokenSecret,
-          scanId
+          scanId,
+          sessionData
         )
 
         console.log(`📊 Scan result: ${result.status}, ${result.followerCount} followers`)
