@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Extension Icons</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .icon-container { margin: 20px 0; }
+        canvas { border: 1px solid #ccc; margin: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Followlytics Extension Icons</h1>
+    <p>Right-click each icon and "Save image as..." to save as PNG files.</p>
+    
+    <div class="icon-container">
+        <h3>16x16 Icon</h3>
+        <canvas id="icon16" width="16" height="16"></canvas>
+    </div>
+    
+    <div class="icon-container">
+        <h3>48x48 Icon</h3>
+        <canvas id="icon48" width="48" height="48"></canvas>
+    </div>
+    
+    <div class="icon-container">
+        <h3>128x128 Icon</h3>
+        <canvas id="icon128" width="128" height="128"></canvas>
+    </div>
+
+    <script>
+        function drawIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+            
+            // Background
+            ctx.fillStyle = '#1d4ed8';
+            ctx.fillRect(0, 0, size, size);
+            
+            // White "F" for Followlytics
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${size * 0.6}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('F', size / 2, size / 2);
+        }
+
+        // Create all icons
+        drawIcon(document.getElementById('icon16'), 16);
+        drawIcon(document.getElementById('icon48'), 48);
+        drawIcon(document.getElementById('icon128'), 128);
+    </script>
+    
+    <div style="margin-top: 40px; padding: 20px; background: #f0f0f0; border-radius: 8px;">
+        <h3>Instructions:</h3>
+        <ol>
+            <li>Right-click each icon above</li>
+            <li>Select "Save image as..."</li>
+            <li>Save as:
+                <ul>
+                    <li>First icon → <code>icon16.png</code></li>
+                    <li>Second icon → <code>icon48.png</code></li>
+                    <li>Third icon → <code>icon128.png</code></li>
+                </ul>
+            </li>
+            <li>Place all PNG files in the browser-extension folder</li>
+        </ol>
+    </div>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 300px;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .logo {
+      font-size: 24px;
+      font-weight: bold;
+      color: #1d4ed8;
+    }
+    .status {
+      padding: 10px;
+      border-radius: 6px;
+      margin: 10px 0;
+      text-align: center;
+    }
+    .status.success {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+    }
+    .status.error {
+      background: #fef2f2;
+      color: #dc2626;
+      border: 1px solid #fecaca;
+    }
+    .status.info {
+      background: #dbeafe;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #1d4ed8;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 5px 0;
+    }
+    button:hover {
+      background: #1e40af;
+    }
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    .instructions {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 10px;
+    }
+    .user-input {
+      margin: 10px 0;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">📊 Followlytics</div>
+    <div>X Session Capturer</div>
+  </div>
+
+  <div id="status" class="status info">
+    Ready to capture X session
+  </div>
+
+  <div class="user-input">
+    <label for="userId">Your Followlytics User ID:</label>
+    <input type="text" id="userId" placeholder="Enter your user ID from dashboard">
+  </div>
+
+  <button id="captureBtn">🔐 Capture X Session</button>
+  <button id="testBtn">🧪 Test Connection</button>
+
+  <div class="instructions">
+    <strong>Instructions:</strong>
+    <ol>
+      <li>Make sure you're logged into X.com</li>
+      <li>Enter your User ID from Followlytics dashboard</li>
+      <li>Click "Capture X Session"</li>
+      <li>Return to Followlytics to run scans</li>
+    </ol>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
