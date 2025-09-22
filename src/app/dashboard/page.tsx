@@ -253,38 +253,60 @@ function DashboardContent() {
                   Step 2: Start Follower Scan
                 </h2>
                 
-                {/* Force Cleanup Button */}
-                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-medium text-yellow-800">
-                        🧹 Cleanup Running Scans
-                      </h3>
-                      <p className="text-xs text-yellow-700 mt-1">
-                        If you have stuck scans or sandboxes, click to force cleanup
-                      </p>
+                {/* 7-Step OAuth Status & Cleanup */}
+                <div className="mb-4 space-y-3">
+                  {/* 7-Step OAuth Status */}
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <h3 className="text-sm font-medium text-green-800">
+                          🎯 7-Step X OAuth Injection Method Active
+                        </h3>
+                        <p className="text-xs text-green-700 mt-1">
+                          System will use your stored X OAuth tokens automatically - no popups or manual sign-in required
+                        </p>
+                      </div>
                     </div>
-                    <button
-                      onClick={async () => {
-                        try {
-                          const token = await user?.getIdToken()
-                          const response = await fetch('/api/scan/force-cleanup', {
-                            method: 'POST',
-                            headers: {
-                              'Authorization': `Bearer ${token}`,
-                            },
-                          })
-                          const result = await response.json()
-                          alert(`Cleanup completed: ${result.message}`)
-                          window.location.reload()
-                        } catch (error) {
-                          alert(`Cleanup failed: ${error}`)
-                        }
-                      }}
-                      className="bg-yellow-600 hover:bg-yellow-700 text-white text-xs px-3 py-1 rounded"
-                    >
-                      Force Cleanup
-                    </button>
+                  </div>
+
+                  {/* Force Cleanup Button */}
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-medium text-yellow-800">
+                          🧹 Cleanup Running Scans
+                        </h3>
+                        <p className="text-xs text-yellow-700 mt-1">
+                          If you have stuck scans or sandboxes, click to force cleanup
+                        </p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const token = await user?.getIdToken()
+                            const response = await fetch('/api/scan/force-cleanup', {
+                              method: 'POST',
+                              headers: {
+                                'Authorization': `Bearer ${token}`,
+                              },
+                            })
+                            const result = await response.json()
+                            alert(`Cleanup completed: ${result.message}`)
+                            window.location.reload()
+                          } catch (error) {
+                            alert(`Cleanup failed: ${error}`)
+                          }
+                        }}
+                        className="bg-yellow-600 hover:bg-yellow-700 text-white text-xs px-3 py-1 rounded"
+                      >
+                        Force Cleanup
+                      </button>
+                    </div>
                   </div>
                 </div>
                 
