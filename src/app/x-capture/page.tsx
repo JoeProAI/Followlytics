@@ -45,9 +45,9 @@ function XCaptureContent() {
     const isXSite = currentHost.includes('x.com') || currentHost.includes('twitter.com')
     
     if (!isXSite) {
-      // Instead of failing, redirect to X.com and try again
-      console.log('ℹ️ Not on X.com, redirecting...')
-      window.location.href = 'https://x.com'
+      // Show instructions instead of auto-redirecting
+      setError('Please open X.com in a new tab, login, then come back to this window and try again.')
+      setStatus('error')
       return
     }
 
