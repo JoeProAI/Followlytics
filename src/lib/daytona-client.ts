@@ -2115,6 +2115,192 @@ const puppeteer = require('puppeteer');
     }
   }
 
+  static async captureXSession(sandbox: any, xUsername: string, xPassword: string): Promise<any> {
+    try {
+      console.log('🔐 Starting X session capture in sandbox...')
+      
+      // Create X session capture script
+      const captureScript = `
+const puppeteer = require('puppeteer');
+
+async function captureXSession() {
+  console.log('🚀 Starting X session capture...');
+  
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--single-process',
+      '--disable-gpu'
+    ]
+  });
+  
+  try {
+    const page = await browser.newPage();
+    
+    // Set user agent
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    
+    console.log('📱 Navigating to X.com login...');
+    await page.goto('https://x.com/i/flow/login', { 
+      waitUntil: 'networkidle2',
+      timeout: 30000 
+    });
+    
+    // Wait for and fill username
+    console.log('👤 Entering username...');
+    await page.waitForSelector('input[name="text"]', { timeout: 15000 });
+    await page.type('input[name="text"]', '${xUsername}');
+    
+    // Click next button
+    await page.click('[role="button"]:has-text("Next")');
+    await page.waitForTimeout(2000);
+    
+    // Wait for and fill password
+    console.log('🔑 Entering password...');
+    await page.waitForSelector('input[name="password"]', { timeout: 15000 });
+    await page.type('input[name="password"]', '${xPassword}');
+    
+    // Click login button
+    await page.click('[data-testid="LoginForm_Login_Button"]');
+    
+    // Wait for successful login (home page)
+    console.log('⏳ Waiting for login success...');
+    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 });
+    
+    // Extract session data
+    console.log('📊 Extracting session data...');
+    const sessionData = await page.evaluate(() => {
+      // Get cookies
+      const cookies = {};
+      document.cookie.split(';').forEach(cookie => {
+        const [name, value] = cookie.trim().split('=');
+        if (name && value) cookies[name] = value;
+      });
+      
+      // Get localStorage
+      const localStorage = {};
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const key = window.localStorage.key(i);
+        if (key) localStorage[key] = window.localStorage.getItem(key);
+      }
+      
+      // Get sessionStorage
+      const sessionStorage = {};
+      for (let i = 0; i < window.sessionStorage.length; i++) {
+        const key = window.sessionStorage.key(i);
+        if (key) sessionStorage[key] = window.sessionStorage.getItem(key);
+      }
+      
+      return {
+        cookies,
+        localStorage,
+        sessionStorage,
+        url: window.location.href,
+        timestamp: new Date().toISOString()
+      };
+    });
+    
+    console.log('✅ Session data extracted successfully');
+    console.log('📊 Data summary:', {
+      cookieCount: Object.keys(sessionData.cookies).length,
+      localStorageCount: Object.keys(sessionData.localStorage).length,
+      sessionStorageCount: Object.keys(sessionData.sessionStorage).length
+    });
+    
+    return {
+      success: true,
+      sessionData,
+      message: 'Session captured successfully'
+    };
+    
+  } catch (error) {
+    console.error('❌ Capture failed:', error.message);
+    return {
+      success: false,
+      error: error.message,
+      message: 'Session capture failed'
+    };
+  } finally {
+    await browser.close();
+  }
+}
+
+// Execute capture
+captureXSession()
+  .then(result => {
+    console.log('📋 Final result:', JSON.stringify(result, null, 2));
+    process.exit(result.success ? 0 : 1);
+  })
+  .catch(error => {
+    console.error('💥 Script error:', error);
+    process.exit(1);
+  });
+      `
+      
+      // Write the capture script to sandbox
+      console.log('📝 Writing X session capture script...')
+      await sandbox.process.executeCommand(`cat > /tmp/x_session_capture.js << 'EOF'
+${captureScript}
+EOF`)
+      
+      // Install Puppeteer
+      console.log('📦 Installing Puppeteer...')
+      const installResult = await sandbox.process.executeCommand('npm install puppeteer')
+      console.log('📦 Puppeteer installation:', installResult.exitCode === 0 ? 'Success' : 'Failed')
+      
+      if (installResult.exitCode !== 0) {
+        throw new Error('Failed to install Puppeteer: ' + installResult.result)
+      }
+      
+      // Execute the capture script
+      console.log('🚀 Executing X session capture...')
+      const captureResult = await sandbox.process.executeCommand('node /tmp/x_session_capture.js')
+      console.log('📊 Capture execution result:', captureResult.exitCode)
+      console.log('📋 Capture output:', captureResult.result)
+      
+      if (captureResult.exitCode === 0) {
+        // Parse the result to extract session data
+        try {
+          const lines = captureResult.result.split('\n')
+          const resultLine = lines.find((line: string) => line.includes('Final result:'))
+          if (resultLine) {
+            const resultJson = resultLine.substring(resultLine.indexOf('{'))
+            const parsedResult = JSON.parse(resultJson)
+            return parsedResult
+          }
+        } catch (parseError) {
+          console.error('❌ Failed to parse capture result:', parseError)
+        }
+        
+        return {
+          success: true,
+          message: 'Session capture completed',
+          sessionData: null // Will be extracted from logs if needed
+        }
+      } else {
+        return {
+          success: false,
+          error: 'Capture script failed with exit code: ' + captureResult.exitCode,
+          output: captureResult.result
+        }
+      }
+      
+    } catch (error: unknown) {
+      console.error('❌ X session capture failed:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        message: 'Session capture failed'
+      }
+    }
+  }
+
   static async cleanupSandbox(sandbox: any): Promise<void> {
     try {
       console.log('🧹 Cleaning up sandbox:', sandbox.id)
