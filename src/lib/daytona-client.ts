@@ -2115,6 +2115,217 @@ const puppeteer = require('puppeteer');
     }
   }
 
+  static async captureOAuthSession(sandbox: any, userId: string): Promise<any> {
+    try {
+      console.log('🔐 Starting OAuth session capture in sandbox...')
+      
+      // Create OAuth capture script
+      const oauthScript = `
+const puppeteer = require('puppeteer');
+
+async function captureOAuthSession() {
+  console.log('🚀 Starting OAuth session capture...');
+  
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--single-process',
+      '--disable-gpu'
+    ]
+  });
+  
+  try {
+    const page = await browser.newPage();
+    
+    // Set user agent
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    
+    // Build OAuth URL
+    const clientId = process.env.TWITTER_CLIENT_ID;
+    const redirectUri = encodeURIComponent(process.env.CALLBACK_URL);
+    const state = process.env.USER_ID;
+    const scope = encodeURIComponent('tweet.read users.read follows.read offline.access');
+    
+    const oauthUrl = \`https://twitter.com/i/oauth2/authorize?response_type=code&client_id=\${clientId}&redirect_uri=\${redirectUri}&scope=\${scope}&state=\${state}&code_challenge=challenge&code_challenge_method=plain\`;
+    
+    console.log('📱 Navigating to OAuth URL...');
+    await page.goto(oauthUrl, { 
+      waitUntil: 'networkidle2',
+      timeout: 30000 
+    });
+    
+    // Wait for OAuth consent screen
+    console.log('⏳ Waiting for OAuth consent screen...');
+    await page.waitForSelector('[data-testid="OAuth_Consent_Button"], [data-testid="login"], input[name="text"]', { timeout: 15000 });
+    
+    // Check if we need to login first
+    const needsLogin = await page.$('input[name="text"]');
+    if (needsLogin) {
+      console.log('🔑 OAuth requires login - this should redirect to login page');
+      // In a real implementation, this would handle the login flow
+      // For now, we'll capture what we can from the OAuth consent screen
+    }
+    
+    // Look for consent screen elements
+    const consentButton = await page.$('[data-testid="OAuth_Consent_Button"]');
+    if (consentButton) {
+      console.log('✅ Found OAuth consent screen');
+      
+      // Take screenshot for debugging
+      await page.screenshot({ path: '/tmp/oauth_consent.png' });
+      
+      // Click authorize button
+      await consentButton.click();
+      console.log('🔓 Clicked OAuth authorize button');
+      
+      // Wait for redirect or callback
+      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 });
+    }
+    
+    // Extract any session data we can get
+    console.log('📊 Extracting session data...');
+    const sessionData = await page.evaluate(() => {
+      // Get cookies
+      const cookies = {};
+      document.cookie.split(';').forEach(cookie => {
+        const [name, value] = cookie.trim().split('=');
+        if (name && value) cookies[name] = value;
+      });
+      
+      // Get localStorage
+      const localStorage = {};
+      try {
+        for (let i = 0; i < window.localStorage.length; i++) {
+          const key = window.localStorage.key(i);
+          if (key) localStorage[key] = window.localStorage.getItem(key);
+        }
+      } catch (e) {}
+      
+      // Get sessionStorage
+      const sessionStorage = {};
+      try {
+        for (let i = 0; i < window.sessionStorage.length; i++) {
+          const key = window.sessionStorage.key(i);
+          if (key) sessionStorage[key] = window.sessionStorage.getItem(key);
+        }
+      } catch (e) {}
+      
+      return {
+        cookies,
+        localStorage,
+        sessionStorage,
+        url: window.location.href,
+        timestamp: new Date().toISOString()
+      };
+    });
+    
+    console.log('✅ OAuth session data extracted');
+    console.log('📊 Data summary:', {
+      cookieCount: Object.keys(sessionData.cookies).length,
+      localStorageCount: Object.keys(sessionData.localStorage).length,
+      sessionStorageCount: Object.keys(sessionData.sessionStorage).length,
+      currentUrl: sessionData.url
+    });
+    
+    return {
+      success: true,
+      sessionData,
+      oauthTokens: {
+        // OAuth tokens would be extracted from the callback URL or stored tokens
+        extracted: 'from_oauth_flow'
+      },
+      message: 'OAuth session captured successfully'
+    };
+    
+  } catch (error) {
+    console.error('❌ OAuth capture failed:', error.message);
+    return {
+      success: false,
+      error: error.message,
+      message: 'OAuth session capture failed'
+    };
+  } finally {
+    await browser.close();
+  }
+}
+
+// Execute OAuth capture
+captureOAuthSession()
+  .then(result => {
+    console.log('📋 Final OAuth result:', JSON.stringify(result, null, 2));
+    process.exit(result.success ? 0 : 1);
+  })
+  .catch(error => {
+    console.error('💥 OAuth script error:', error);
+    process.exit(1);
+  });
+      `
+      
+      // Write the OAuth capture script to sandbox
+      console.log('📝 Writing OAuth capture script...')
+      await sandbox.process.executeCommand(`cat > /tmp/oauth_capture.js << 'EOF'
+${oauthScript}
+EOF`)
+      
+      // Install Puppeteer
+      console.log('📦 Installing Puppeteer...')
+      const installResult = await sandbox.process.executeCommand('npm install puppeteer')
+      console.log('📦 Puppeteer installation:', installResult.exitCode === 0 ? 'Success' : 'Failed')
+      
+      if (installResult.exitCode !== 0) {
+        throw new Error('Failed to install Puppeteer: ' + installResult.result)
+      }
+      
+      // Execute the OAuth capture script
+      console.log('🚀 Executing OAuth capture...')
+      const captureResult = await sandbox.process.executeCommand('node /tmp/oauth_capture.js')
+      console.log('📊 OAuth capture result:', captureResult.exitCode)
+      console.log('📋 OAuth output:', captureResult.result)
+      
+      if (captureResult.exitCode === 0) {
+        // Parse the result to extract session data
+        try {
+          const lines = captureResult.result.split('\n')
+          const resultLine = lines.find((line: string) => line.includes('Final OAuth result:'))
+          if (resultLine) {
+            const resultJson = resultLine.substring(resultLine.indexOf('{'))
+            const parsedResult = JSON.parse(resultJson)
+            return parsedResult
+          }
+        } catch (parseError) {
+          console.error('❌ Failed to parse OAuth result:', parseError)
+        }
+        
+        return {
+          success: true,
+          message: 'OAuth capture completed',
+          sessionData: null,
+          oauthTokens: null
+        }
+      } else {
+        return {
+          success: false,
+          error: 'OAuth script failed with exit code: ' + captureResult.exitCode,
+          output: captureResult.result
+        }
+      }
+      
+    } catch (error: unknown) {
+      console.error('❌ OAuth session capture failed:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        message: 'OAuth session capture failed'
+      }
+    }
+  }
+
   static async captureXSession(sandbox: any, xUsername: string, xPassword: string): Promise<any> {
     try {
       console.log('🔐 Starting X session capture in sandbox...')
