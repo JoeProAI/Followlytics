@@ -45,8 +45,9 @@ function XCaptureContent() {
     const isXSite = currentHost.includes('x.com') || currentHost.includes('twitter.com')
     
     if (!isXSite) {
-      setError('Please navigate to X.com first, then try capturing your session.')
-      setStatus('error')
+      // Instead of failing, redirect to X.com and try again
+      console.log('ℹ️ Not on X.com, redirecting...')
+      window.location.href = 'https://x.com'
       return
     }
 
@@ -269,25 +270,15 @@ function XCaptureContent() {
             </div>
             
             <div className="space-x-4">
-              {!isXSite && (
-                <a
-                  href="https://x.com"
-                  target="_blank"
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors inline-block"
-                >
-                  🌐 Go to X.com
-                </a>
-              )}
               <button
                 onClick={captureSession}
-                disabled={!isXSite}
                 className={`font-medium py-3 px-6 rounded-lg transition-colors ${
                   isXSite 
                     ? 'bg-green-600 hover:bg-green-700 text-white' 
-                    : 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
                 }`}
               >
-                🔐 Capture X Session
+                {isXSite ? '🔐 Capture X Session' : '🌐 Go to X.com & Capture'}
               </button>
               <button
                 onClick={cancelCapture}
