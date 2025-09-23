@@ -2273,13 +2273,34 @@ captureOAuthSession()
 ${oauthScript}
 EOF`)
       
-      // Install Puppeteer
+      // Install Puppeteer with proper setup
+      console.log('📦 Setting up Node.js environment...')
+      await sandbox.process.executeCommand('npm init -y')
+      
       console.log('📦 Installing Puppeteer...')
-      const installResult = await sandbox.process.executeCommand('npm install puppeteer')
-      console.log('📦 Puppeteer installation:', installResult.exitCode === 0 ? 'Success' : 'Failed')
+      const installResult = await sandbox.process.executeCommand('npm install puppeteer --save')
+      console.log('📦 Puppeteer installation output:', installResult.result)
+      console.log('📦 Puppeteer installation exit code:', installResult.exitCode)
       
       if (installResult.exitCode !== 0) {
         throw new Error('Failed to install Puppeteer: ' + installResult.result)
+      }
+      
+      // Verify Puppeteer installation
+      console.log('🔍 Verifying Puppeteer installation...')
+      const verifyResult = await sandbox.process.executeCommand('node -e "console.log(require(\'puppeteer\').version || \'installed\')"')
+      console.log('📋 Puppeteer verification:', verifyResult.result)
+      
+      if (verifyResult.exitCode !== 0) {
+        // Try alternative installation method
+        console.log('🔄 Trying alternative Puppeteer installation...')
+        await sandbox.process.executeCommand('npm install --global puppeteer')
+        
+        // Verify again
+        const verifyResult2 = await sandbox.process.executeCommand('node -e "console.log(require(\'puppeteer\').version || \'installed\')"')
+        if (verifyResult2.exitCode !== 0) {
+          throw new Error('Puppeteer installation verification failed: ' + verifyResult2.result)
+        }
       }
       
       // Execute the OAuth capture script
@@ -2460,13 +2481,34 @@ captureXSession()
 ${captureScript}
 EOF`)
       
-      // Install Puppeteer
+      // Install Puppeteer with proper setup
+      console.log('📦 Setting up Node.js environment...')
+      await sandbox.process.executeCommand('npm init -y')
+      
       console.log('📦 Installing Puppeteer...')
-      const installResult = await sandbox.process.executeCommand('npm install puppeteer')
-      console.log('📦 Puppeteer installation:', installResult.exitCode === 0 ? 'Success' : 'Failed')
+      const installResult = await sandbox.process.executeCommand('npm install puppeteer --save')
+      console.log('📦 Puppeteer installation output:', installResult.result)
+      console.log('📦 Puppeteer installation exit code:', installResult.exitCode)
       
       if (installResult.exitCode !== 0) {
         throw new Error('Failed to install Puppeteer: ' + installResult.result)
+      }
+      
+      // Verify Puppeteer installation
+      console.log('🔍 Verifying Puppeteer installation...')
+      const verifyResult = await sandbox.process.executeCommand('node -e "console.log(require(\'puppeteer\').version || \'installed\')"')
+      console.log('📋 Puppeteer verification:', verifyResult.result)
+      
+      if (verifyResult.exitCode !== 0) {
+        // Try alternative installation method
+        console.log('🔄 Trying alternative Puppeteer installation...')
+        await sandbox.process.executeCommand('npm install --global puppeteer')
+        
+        // Verify again
+        const verifyResult2 = await sandbox.process.executeCommand('node -e "console.log(require(\'puppeteer\').version || \'installed\')"')
+        if (verifyResult2.exitCode !== 0) {
+          throw new Error('Puppeteer installation verification failed: ' + verifyResult2.result)
+        }
       }
       
       // Execute the capture script
