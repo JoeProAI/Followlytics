@@ -45,6 +45,27 @@ export default function FollowerScanner() {
     }
   }, [user])
 
+  // Listen for auto-scan trigger from session capture
+  useEffect(() => {
+    const handleAutoScan = (event: CustomEvent) => {
+      if (event.detail?.hasSessionData && xAuthorized && xUsername.trim()) {
+        // Auto-start scan with captured session data
+        startFollowerScan(true) // true indicates we have session data
+      } else if (event.detail?.hasSessionData) {
+        // Prompt for username if not set
+        const username = prompt('Enter the X username to scan (without @):')
+        if (username) {
+          setXUsername(username)
+          // Start scan after username is set
+          setTimeout(() => startFollowerScan(true), 100)
+        }
+      }
+    }
+
+    window.addEventListener('startFollowerScan', handleAutoScan as EventListener)
+    return () => window.removeEventListener('startFollowerScan', handleAutoScan as EventListener)
+  }, [xAuthorized, xUsername])
+
   const checkXAuthorization = async () => {
     try {
       const token = await user?.getIdToken()

@@ -66,7 +66,16 @@ export default function XSessionCaptureZeroInstall() {
           popup.close()
           setCapturing(false)
           checkSessionStatus() // Refresh status
-          alert('✅ X session captured successfully! You can now run follower scans.')
+          
+          // Auto-trigger follower scan
+          const shouldStartScan = confirm('✅ X session captured successfully!\n\nWould you like to start a follower scan now?')
+          if (shouldStartScan) {
+            // Trigger the follower scanner
+            const scanEvent = new CustomEvent('startFollowerScan', {
+              detail: { hasSessionData: true }
+            })
+            window.dispatchEvent(scanEvent)
+          }
         } else if (event.data.type === 'CAPTURE_ERROR') {
           window.removeEventListener('message', handleMessage)
           popup.close()
