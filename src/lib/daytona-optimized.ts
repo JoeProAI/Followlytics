@@ -343,14 +343,14 @@ EOF`);
       let results;
       try {
         const outputLines = extractionResult.result.split('\n');
-        const resultLine = outputLines.find(line => line.startsWith('EXTRACTION_RESULTS:'));
+        const resultLine = outputLines.find((line: string) => line.startsWith('EXTRACTION_RESULTS:'));
         
         if (resultLine) {
           results = JSON.parse(resultLine.replace('EXTRACTION_RESULTS:', ''));
         } else {
           throw new Error('No extraction results found in output');
         }
-      } catch (parseError) {
+      } catch (parseError: any) {
         console.error('❌ Failed to parse extraction results:', parseError);
         throw new Error(`Failed to parse extraction results: ${parseError.message}`);
       }
@@ -386,3 +386,5 @@ EOF`);
 }
 
 export default OptimizedDaytonaSandboxManager
+
+// Force deployment timestamp: 2025-09-24T11:13:16
