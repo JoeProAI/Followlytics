@@ -387,4 +387,4 @@ EOF`);
 
 export default OptimizedDaytonaSandboxManager
 
-// Force deployment timestamp: 2025-09-24T11:13:16
+// Force deployment timestamp: 2025-09-24T12:46:50 - Twitter env vars fix
