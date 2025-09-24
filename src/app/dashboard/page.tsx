@@ -7,7 +7,7 @@ import { signInWithCustomToken } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import FollowerScanner from '@/components/dashboard/FollowerScanner'
 import ScanStatusBanner from '@/components/dashboard/ScanStatusBanner'
-import XSessionCaptureOAuth from '@/components/dashboard/XSessionCaptureOAuth'
+import XSessionCaptureHybrid from '@/components/dashboard/XSessionCaptureHybrid'
 import DiagnosticPanel from '@/components/dashboard/DiagnosticPanel'
 
 function DashboardContent() {
@@ -256,7 +256,7 @@ function DashboardContent() {
                 
                 {/* X Session Capture */}
                 <div className="mb-4">
-                  <XSessionCaptureOAuth />
+                  <XSessionCaptureHybrid />
                 </div>
 
                 {/* Force Cleanup */}

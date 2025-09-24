@@ -2115,6 +2115,268 @@ const puppeteer = require('puppeteer');
     }
   }
 
+  static async captureHybridSession(sandbox: any, userId: string, twitterTokens: any): Promise<any> {
+    try {
+      console.log('🔐 Starting hybrid session capture in sandbox...')
+      
+      // Create hybrid capture script that uses OAuth tokens
+      const hybridScript = `
+const puppeteer = require('puppeteer');
+
+async function captureHybridSession() {
+  console.log('🚀 Starting hybrid session capture with OAuth tokens...');
+  
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--single-process',
+      '--disable-gpu'
+    ]
+  });
+  
+  try {
+    const page = await browser.newPage();
+    
+    // Set user agent
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    
+    console.log('🔑 Using OAuth tokens to access X.com...');
+    
+    // First, go to X.com
+    await page.goto('https://x.com', { 
+      waitUntil: 'networkidle2',
+      timeout: 30000 
+    });
+    
+    // Inject OAuth tokens into the page
+    console.log('💉 Injecting OAuth tokens...');
+    await page.evaluate((tokens) => {
+      // Set OAuth-related cookies and localStorage
+      if (tokens.access_token) {
+        localStorage.setItem('twitter_oauth_token', tokens.access_token);
+        localStorage.setItem('twitter_oauth_refresh', tokens.refresh_token || '');
+      }
+      
+      // Set authentication headers for future requests
+      window.twitterAuth = {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token
+      };
+      
+    }, {
+      access_token: process.env.TWITTER_ACCESS_TOKEN,
+      refresh_token: process.env.TWITTER_REFRESH_TOKEN
+    });
+    
+    // Try to navigate to a protected page to trigger authentication
+    console.log('🔐 Accessing authenticated X.com page...');
+    await page.goto('https://x.com/home', { 
+      waitUntil: 'networkidle2',
+      timeout: 30000 
+    });
+    
+    // Wait a bit for any authentication to complete
+    await page.waitForTimeout(3000);
+    
+    // Check if we're logged in by looking for user-specific elements
+    console.log('✅ Checking authentication status...');
+    const isLoggedIn = await page.evaluate(() => {
+      // Look for elements that indicate we're logged in
+      const userMenu = document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]');
+      const tweetButton = document.querySelector('[data-testid="SideNav_NewTweet_Button"]');
+      const homeTimeline = document.querySelector('[data-testid="primaryColumn"]');
+      
+      return !!(userMenu || tweetButton || homeTimeline);
+    });
+    
+    console.log('🔍 Login status:', isLoggedIn ? 'Authenticated' : 'Not authenticated');
+    
+    // Extract comprehensive session data
+    console.log('📊 Extracting session data...');
+    const sessionData = await page.evaluate(() => {
+      // Get all cookies
+      const cookies = {};
+      document.cookie.split(';').forEach(cookie => {
+        const [name, value] = cookie.trim().split('=');
+        if (name && value) cookies[name] = value;
+      });
+      
+      // Get localStorage
+      const localStorage = {};
+      try {
+        for (let i = 0; i < window.localStorage.length; i++) {
+          const key = window.localStorage.key(i);
+          if (key) localStorage[key] = window.localStorage.getItem(key);
+        }
+      } catch (e) {}
+      
+      // Get sessionStorage
+      const sessionStorage = {};
+      try {
+        for (let i = 0; i < window.sessionStorage.length; i++) {
+          const key = window.sessionStorage.key(i);
+          if (key) sessionStorage[key] = window.sessionStorage.getItem(key);
+        }
+      } catch (e) {}
+      
+      // Get any authentication tokens from the page
+      const authTokens = {};
+      try {
+        // Look for common auth token patterns in scripts or global variables
+        const scripts = Array.from(document.scripts);
+        scripts.forEach(script => {
+          if (script.textContent && script.textContent.includes('bearer')) {
+            // Extract bearer tokens if found
+            const bearerMatch = script.textContent.match(/bearer["\s]*:[\s]*["']([^"']+)["']/i);
+            if (bearerMatch) {
+              authTokens.bearer = bearerMatch[1];
+            }
+          }
+        });
+        
+        // Check for auth tokens in window object
+        if (window.twitterAuth) {
+          authTokens.injected = window.twitterAuth;
+        }
+      } catch (e) {}
+      
+      return {
+        cookies,
+        localStorage,
+        sessionStorage,
+        authTokens,
+        url: window.location.href,
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent
+      };
+    });
+    
+    console.log('✅ Hybrid session data extracted');
+    console.log('📊 Data summary:', {
+      cookieCount: Object.keys(sessionData.cookies).length,
+      localStorageCount: Object.keys(sessionData.localStorage).length,
+      sessionStorageCount: Object.keys(sessionData.sessionStorage).length,
+      authTokensFound: Object.keys(sessionData.authTokens).length,
+      currentUrl: sessionData.url
+    });
+    
+    return {
+      success: true,
+      sessionData,
+      authenticationStatus: isLoggedIn ? 'authenticated' : 'partial',
+      message: 'Hybrid session captured successfully'
+    };
+    
+  } catch (error) {
+    console.error('❌ Hybrid capture failed:', error.message);
+    return {
+      success: false,
+      error: error.message,
+      message: 'Hybrid session capture failed'
+    };
+  } finally {
+    await browser.close();
+  }
+}
+
+// Execute hybrid capture
+captureHybridSession()
+  .then(result => {
+    console.log('📋 Final hybrid result:', JSON.stringify(result, null, 2));
+    process.exit(result.success ? 0 : 1);
+  })
+  .catch(error => {
+    console.error('💥 Hybrid script error:', error);
+    process.exit(1);
+  });
+      `
+      
+      // Write the hybrid capture script to sandbox
+      console.log('📝 Writing hybrid capture script...')
+      await sandbox.process.executeCommand(`cat > /tmp/hybrid_capture.js << 'EOF'
+${hybridScript}
+EOF`)
+      
+      // Install Puppeteer with proper setup
+      console.log('📦 Setting up Node.js environment...')
+      await sandbox.process.executeCommand('npm init -y')
+      
+      console.log('📦 Installing Puppeteer...')
+      const installResult = await sandbox.process.executeCommand('npm install puppeteer --save')
+      console.log('📦 Puppeteer installation output:', installResult.result)
+      console.log('📦 Puppeteer installation exit code:', installResult.exitCode)
+      
+      if (installResult.exitCode !== 0) {
+        throw new Error('Failed to install Puppeteer: ' + installResult.result)
+      }
+      
+      // Verify Puppeteer installation
+      console.log('🔍 Verifying Puppeteer installation...')
+      const verifyResult = await sandbox.process.executeCommand('node -e "console.log(require(\'puppeteer\').version || \'installed\')"')
+      console.log('📋 Puppeteer verification:', verifyResult.result)
+      
+      if (verifyResult.exitCode !== 0) {
+        // Try alternative installation method
+        console.log('🔄 Trying alternative Puppeteer installation...')
+        await sandbox.process.executeCommand('npm install --global puppeteer')
+        
+        // Verify again
+        const verifyResult2 = await sandbox.process.executeCommand('node -e "console.log(require(\'puppeteer\').version || \'installed\')"')
+        if (verifyResult2.exitCode !== 0) {
+          throw new Error('Puppeteer installation verification failed: ' + verifyResult2.result)
+        }
+      }
+      
+      // Execute the hybrid capture script
+      console.log('🚀 Executing hybrid capture...')
+      const captureResult = await sandbox.process.executeCommand('node /tmp/hybrid_capture.js')
+      console.log('📊 Hybrid capture result:', captureResult.exitCode)
+      console.log('📋 Hybrid output:', captureResult.result)
+      
+      if (captureResult.exitCode === 0) {
+        // Parse the result to extract session data
+        try {
+          const lines = captureResult.result.split('\n')
+          const resultLine = lines.find((line: string) => line.includes('Final hybrid result:'))
+          if (resultLine) {
+            const resultJson = resultLine.substring(resultLine.indexOf('{'))
+            const parsedResult = JSON.parse(resultJson)
+            return parsedResult
+          }
+        } catch (parseError) {
+          console.error('❌ Failed to parse hybrid result:', parseError)
+        }
+        
+        return {
+          success: true,
+          message: 'Hybrid capture completed',
+          sessionData: null,
+          authenticationStatus: 'unknown'
+        }
+      } else {
+        return {
+          success: false,
+          error: 'Hybrid script failed with exit code: ' + captureResult.exitCode,
+          output: captureResult.result
+        }
+      }
+      
+    } catch (error: unknown) {
+      console.error('❌ Hybrid session capture failed:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        message: 'Hybrid session capture failed'
+      }
+    }
+  }
+
   static async captureOAuthSession(sandbox: any, userId: string): Promise<any> {
     try {
       console.log('🔐 Starting OAuth session capture in sandbox...')
