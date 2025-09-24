@@ -9,6 +9,7 @@ import FollowerScanner from '@/components/dashboard/FollowerScanner'
 import ScanStatusBanner from '@/components/dashboard/ScanStatusBanner'
 import XSessionCaptureHybrid from '@/components/dashboard/XSessionCaptureHybrid'
 import DiagnosticPanel from '@/components/dashboard/DiagnosticPanel'
+import OptimizedScanInterface from '@/components/dashboard/OptimizedScanInterface'
 
 function DashboardContent() {
   const { user, logout, loading } = useAuth()
@@ -249,57 +250,66 @@ function DashboardContent() {
                 </div>
               </div>
               
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  Step 2: Start Follower Scan
-                </h2>
-                
-                {/* X Session Capture */}
-                <div className="mb-4">
-                  <XSessionCaptureHybrid />
-                </div>
+              {/* Optimized Scan Interface */}
+              <OptimizedScanInterface />
+              
+              {/* Legacy Components (Hidden by default) */}
+              <details className="mt-8">
+                <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
+                  🔧 Advanced Options & Legacy Tools
+                </summary>
+                <div className="mt-4 space-y-4 p-4 bg-gray-50 rounded-lg">
+                  {/* X Session Capture */}
+                  <div className="mb-4">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Legacy Session Capture</h3>
+                    <XSessionCaptureHybrid />
+                  </div>
 
-                {/* Force Cleanup */}
-                <div className="mb-4 space-y-3">
-
-                  {/* Force Cleanup Button */}
-                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-sm font-medium text-yellow-800">
-                          🧹 Cleanup Running Scans
-                        </h3>
-                        <p className="text-xs text-yellow-700 mt-1">
-                          If you have stuck scans or sandboxes, click to force cleanup
-                        </p>
+                  {/* Force Cleanup */}
+                  <div className="mb-4 space-y-3">
+                    {/* Force Cleanup Button */}
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-sm font-medium text-yellow-800">
+                            🧹 Cleanup Running Scans
+                          </h3>
+                          <p className="text-xs text-yellow-700 mt-1">
+                            If you have stuck scans or sandboxes, click to force cleanup
+                          </p>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            try {
+                              const token = await user?.getIdToken()
+                              const response = await fetch('/api/scan/force-cleanup', {
+                                method: 'POST',
+                                headers: {
+                                  'Authorization': `Bearer ${token}`,
+                                },
+                              })
+                              const result = await response.json()
+                              alert(`Cleanup completed: ${result.message}`)
+                              window.location.reload()
+                            } catch (error) {
+                              alert(`Cleanup failed: ${error}`)
+                            }
+                          }}
+                          className="bg-yellow-600 hover:bg-yellow-700 text-white text-xs px-3 py-1 rounded"
+                        >
+                          Force Cleanup
+                        </button>
                       </div>
-                      <button
-                        onClick={async () => {
-                          try {
-                            const token = await user?.getIdToken()
-                            const response = await fetch('/api/scan/force-cleanup', {
-                              method: 'POST',
-                              headers: {
-                                'Authorization': `Bearer ${token}`,
-                              },
-                            })
-                            const result = await response.json()
-                            alert(`Cleanup completed: ${result.message}`)
-                            window.location.reload()
-                          } catch (error) {
-                            alert(`Cleanup failed: ${error}`)
-                          }
-                        }}
-                        className="bg-yellow-600 hover:bg-yellow-700 text-white text-xs px-3 py-1 rounded"
-                      >
-                        Force Cleanup
-                      </button>
                     </div>
                   </div>
+                  
+                  {/* Legacy Follower Scanner */}
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Legacy Follower Scanner</h3>
+                    <FollowerScanner />
+                  </div>
                 </div>
-                
-                <FollowerScanner />
-              </div>
+              </details>
             </div>
           )}
 
