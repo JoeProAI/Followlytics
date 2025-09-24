@@ -64,74 +64,308 @@ export class OptimizedDaytonaSandboxManager {
   }
 
   /**
-   * Setup optimized environment - simple implementation
+   * Setup optimized environment - REAL dependency installation
    */
   static async setupOptimizedEnvironment(sandbox: any, usingSnapshot: boolean = false) {
     try {
-      console.log(`⚙️ Setting up optimized environment (snapshot: ${usingSnapshot})...`)
+      console.log(`⚙️ Setting up REAL optimized environment (snapshot: ${usingSnapshot})...`)
       
       if (usingSnapshot) {
-        console.log('📸 Using pre-configured snapshot - skipping dependency installation')
-        // With snapshot, dependencies should already be installed
-        return { status: 'ready', message: 'Environment ready from snapshot' }
+        console.log('📸 Using pre-configured snapshot - verifying dependencies...')
+        
+        // Verify Puppeteer is installed in snapshot
+        try {
+          const puppeteerCheck = await sandbox.process.executeCommand('node -e "console.log(require(\'puppeteer\').version)"');
+          console.log('✅ Puppeteer verified in snapshot:', puppeteerCheck.result.trim());
+          return { status: 'ready', message: 'Environment ready from snapshot with Puppeteer' }
+        } catch (error) {
+          console.log('⚠️ Puppeteer not found in snapshot, installing...');
+          // Fall through to installation
+        }
       }
       
-      console.log('📦 Installing dependencies in fresh environment...')
-      // Note: In a real implementation, this would install Python packages
-      // For now, we'll simulate the setup
+      console.log('📦 Installing REAL dependencies in environment...')
       
-      console.log('✅ Environment setup completed')
-      return { status: 'ready', message: 'Environment configured successfully' }
+      // Install Node.js if not present
+      console.log('🔧 Ensuring Node.js is available...')
+      await sandbox.process.executeCommand('which node || (curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && apt-get install -y nodejs)');
+      
+      // Install Puppeteer and required dependencies
+      console.log('🎭 Installing Puppeteer for browser automation...')
+      const puppeteerInstall = await sandbox.process.executeCommand('npm install puppeteer');
+      console.log('📦 Puppeteer installation result:', puppeteerInstall.result);
+      
+      // Install system dependencies for Chromium
+      console.log('🔧 Installing Chromium system dependencies...')
+      await sandbox.process.executeCommand(`
+        apt-get update && apt-get install -y \\
+          wget \\
+          ca-certificates \\
+          fonts-liberation \\
+          libappindicator3-1 \\
+          libasound2 \\
+          libatk-bridge2.0-0 \\
+          libatk1.0-0 \\
+          libc6 \\
+          libcairo2 \\
+          libcups2 \\
+          libdbus-1-3 \\
+          libexpat1 \\
+          libfontconfig1 \\
+          libgbm1 \\
+          libgcc1 \\
+          libglib2.0-0 \\
+          libgtk-3-0 \\
+          libnspr4 \\
+          libnss3 \\
+          libpango-1.0-0 \\
+          libpangocairo-1.0-0 \\
+          libstdc++6 \\
+          libx11-6 \\
+          libx11-xcb1 \\
+          libxcb1 \\
+          libxcomposite1 \\
+          libxcursor1 \\
+          libxdamage1 \\
+          libxext6 \\
+          libxfixes3 \\
+          libxi6 \\
+          libxrandr2 \\
+          libxrender1 \\
+          libxss1 \\
+          libxtst6 \\
+          lsb-release \\
+          xdg-utils
+      `);
+      
+      // Verify installation
+      console.log('✅ Verifying Puppeteer installation...')
+      const verifyResult = await sandbox.process.executeCommand('node -e "console.log(\'Puppeteer version:\', require(\'puppeteer\').version)"');
+      console.log('🎭 Verification result:', verifyResult.result);
+      
+      console.log('✅ REAL environment setup completed with browser automation capabilities')
+      return { 
+        status: 'ready', 
+        message: 'Real environment configured with Puppeteer and Chromium',
+        puppeteerVersion: verifyResult.result.trim()
+      }
       
     } catch (error: any) {
-      console.error('❌ Environment setup failed:', error)
-      throw new Error(`Environment setup failed: ${error.message}`)
+      console.error('❌ REAL environment setup failed:', error)
+      throw new Error(`Real environment setup failed: ${error.message}`)
     }
   }
 
   /**
-   * Execute optimized scan - simple implementation
+   * Execute optimized scan - REAL Twitter extraction
    */
   static async executeOptimizedScan(sandbox: any, config: OptimizedSandboxConfig) {
     try {
-      console.log(`🚀 Executing optimized scan for @${config.userId}...`)
+      console.log(`🚀 Executing REAL optimized scan for target username...`)
       
-      // Simulate the scanning process
-      console.log('📊 Scan configuration:', {
-        scanType: config.scanType,
-        maxFollowers: config.maxFollowers,
-        timeoutDisabled: config.timeoutDisabled,
-        useSnapshot: config.useSnapshot
-      })
-      
-      // Return mock results for now - in real implementation this would:
-      // 1. Deploy Python scanning script to sandbox
-      // 2. Execute the script with OAuth tokens
-      // 3. Extract followers using browser automation
-      // 4. Return the results
-      
-      const mockResults = {
-        status: 'completed',
-        followers: [
-          'elonmusk',
-          'sundarpichai', 
-          'satyanadella',
-          'tim_cook',
-          'jeffbezos'
-        ],
-        totalFollowers: 5,
-        scanType: config.scanType,
-        executionTime: 45000, // 45 seconds
-        method: 'optimized_browser_automation',
-        sandboxId: sandbox.id
+      // Create the REAL Twitter extraction script
+      const realExtractionScript = `
+const puppeteer = require('puppeteer');
+
+async function extractRealFollowers() {
+  console.log('🚀 Starting REAL Twitter follower extraction...');
+  
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--single-process',
+      '--disable-gpu'
+    ]
+  });
+  
+  try {
+    const page = await browser.newPage();
+    
+    // Set realistic user agent
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    
+    console.log('🔑 Injecting OAuth tokens for authentication...');
+    
+    // Go to X.com first
+    await page.goto('https://x.com', { 
+      waitUntil: 'networkidle2',
+      timeout: 30000 
+    });
+    
+    // INJECT REAL OAUTH TOKENS
+    await page.evaluate((tokens) => {
+      if (tokens.access_token) {
+        localStorage.setItem('twitter_oauth_token', tokens.access_token);
+        localStorage.setItem('twitter_oauth_token_secret', tokens.access_token_secret);
+        localStorage.setItem('twitter_bearer_token', tokens.bearer_token || '');
       }
       
-      console.log(`✅ Optimized scan completed: ${mockResults.totalFollowers} followers found`)
-      return mockResults
+      // Set authentication in window object
+      window.twitterAuth = {
+        accessToken: tokens.access_token,
+        accessTokenSecret: tokens.access_token_secret,
+        bearerToken: tokens.bearer_token
+      };
+      
+    }, {
+      access_token: process.env.TWITTER_ACCESS_TOKEN,
+      access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
+      bearer_token: process.env.TWITTER_BEARER_TOKEN
+    });
+    
+    // Navigate to the target user's followers page
+    const targetUsername = process.env.TARGET_USERNAME || 'JoeProAI';
+    console.log(\`🎯 Navigating to @\${targetUsername}/followers...\`);
+    
+    const followerUrls = [
+      \`https://x.com/\${targetUsername}/followers\`,
+      \`https://twitter.com/\${targetUsername}/followers\`,
+      \`https://x.com/\${targetUsername}/following\`,
+      \`https://twitter.com/\${targetUsername}/following\`
+    ];
+    
+    let followersFound = [];
+    let successfulUrl = null;
+    
+    for (const url of followerUrls) {
+      try {
+        console.log(\`🔍 Trying URL: \${url}\`);
+        await page.goto(url, { 
+          waitUntil: 'networkidle2',
+          timeout: 30000 
+        });
+        
+        // Wait for follower elements to load
+        await page.waitForSelector('[data-testid="UserCell"], [data-testid="cellInnerDiv"]', { 
+          timeout: 15000 
+        });
+        
+        // Extract followers using the REAL method from daytona-client.ts
+        const extractedFollowers = await page.evaluate(() => {
+          const userCells = document.querySelectorAll('[data-testid="UserCell"]');
+          const extracted = [];
+          
+          console.log(\`🔍 Found \${userCells.length} UserCell elements\`);
+          
+          userCells.forEach((cell, index) => {
+            const profileLinks = cell.querySelectorAll('a[href*="x.com/"], a[href*="twitter.com/"]');
+            
+            profileLinks.forEach(link => {
+              const href = link.getAttribute('href');
+              if (href && href.includes('/')) {
+                const username = href.split('/').pop();
+                if (username && 
+                    !username.includes('?') && 
+                    !username.includes('#') && 
+                    username.length > 0 && 
+                    username.length < 16 &&
+                    /^[a-zA-Z0-9_]+$/.test(username)) {
+                  
+                  if (!extracted.includes(username)) {
+                    extracted.push(username);
+                    console.log(\`✅ Extracted: @\${username}\`);
+                  }
+                }
+              }
+            });
+          });
+          
+          return extracted;
+        });
+        
+        if (extractedFollowers.length > 0) {
+          followersFound = extractedFollowers;
+          successfulUrl = url;
+          console.log(\`✅ Successfully extracted \${followersFound.length} followers from \${url}\`);
+          break;
+        }
+        
+      } catch (urlError) {
+        console.log(\`⚠️ Failed to extract from \${url}: \${urlError.message}\`);
+        continue;
+      }
+    }
+    
+    await browser.close();
+    
+    const results = {
+      status: followersFound.length > 0 ? 'completed' : 'failed',
+      followers: followersFound,
+      totalFollowers: followersFound.length,
+      method: 'real_oauth_browser_automation',
+      successfulUrl: successfulUrl,
+      extractionTime: new Date().toISOString(),
+      targetUsername: targetUsername
+    };
+    
+    console.log(\`🎯 REAL extraction completed: \${results.totalFollowers} followers found\`);
+    console.log('📋 Followers:', results.followers.slice(0, 10).join(', ') + (results.followers.length > 10 ? '...' : ''));
+    
+    return results;
+    
+  } catch (error) {
+    await browser.close();
+    throw error;
+  }
+}
+
+// Execute the extraction
+extractRealFollowers().then(results => {
+  console.log('EXTRACTION_RESULTS:', JSON.stringify(results));
+}).catch(error => {
+  console.error('EXTRACTION_ERROR:', error.message);
+});
+`;
+
+      // Deploy and execute the REAL extraction script
+      console.log('📤 Deploying REAL extraction script to sandbox...');
+      
+      // Write the script to the sandbox
+      await sandbox.process.executeCommand(`cat > /tmp/real_extraction.js << 'EOF'
+${realExtractionScript}
+EOF`);
+      
+      // Install required dependencies
+      console.log('📦 Installing Puppeteer in sandbox...');
+      await sandbox.process.executeCommand('npm install puppeteer');
+      
+      // Execute the REAL extraction
+      console.log('🚀 Executing REAL Twitter follower extraction...');
+      const extractionResult = await sandbox.process.executeCommand('node /tmp/real_extraction.js');
+      
+      // Parse the results
+      let results;
+      try {
+        const outputLines = extractionResult.result.split('\n');
+        const resultLine = outputLines.find(line => line.startsWith('EXTRACTION_RESULTS:'));
+        
+        if (resultLine) {
+          results = JSON.parse(resultLine.replace('EXTRACTION_RESULTS:', ''));
+        } else {
+          throw new Error('No extraction results found in output');
+        }
+      } catch (parseError) {
+        console.error('❌ Failed to parse extraction results:', parseError);
+        throw new Error(`Failed to parse extraction results: ${parseError.message}`);
+      }
+      
+      // Add scan metadata
+      results.scanType = config.scanType;
+      results.sandboxId = sandbox.id;
+      results.executionTime = Date.now();
+      
+      console.log(`✅ REAL optimized scan completed: ${results.totalFollowers} followers extracted`);
+      return results;
       
     } catch (error: any) {
-      console.error('❌ Optimized scan execution failed:', error)
-      throw new Error(`Scan execution failed: ${error.message}`)
+      console.error('❌ REAL scan execution failed:', error);
+      throw new Error(`Real scan execution failed: ${error.message}`);
     }
   }
 
