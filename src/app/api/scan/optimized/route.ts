@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+// Force deployment: 2025-09-24T15:52:39 - Fix 404 errors
 import { adminAuth as auth, adminDb as db } from '@/lib/firebase-admin'
 import { FieldValue } from 'firebase-admin/firestore'
 import OptimizedDaytonaSandboxManager from '@/lib/daytona-optimized'
