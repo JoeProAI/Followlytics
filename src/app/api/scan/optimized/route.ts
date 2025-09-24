@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/firebase-admin'
-import { db } from '@/lib/firebase-admin'
+import { adminAuth as auth, adminDb as db } from '@/lib/firebase-admin'
+import { FieldValue } from 'firebase-admin/firestore'
 import OptimizedDaytonaSandboxManager from '@/lib/daytona-optimized'
 
 interface ScanRequest {
@@ -356,7 +356,7 @@ async function storeOptimizedScanResults(
     // Update user's scan history
     await db.collection('users').doc(userId).update({
       lastScan: new Date(),
-      totalScans: db.FieldValue.increment(1),
+      totalScans: FieldValue.increment(1),
       lastScanType: results.scanType
     })
 
