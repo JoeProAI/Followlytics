@@ -192,32 +192,64 @@ async function extractRealFollowers() {
     
     console.log('🔑 Injecting OAuth tokens for authentication...');
     
-    // Go to X.com first
+    // 🎯 SMART AUTHENTICATION: Check if user is already signed in to X
+    console.log('🔍 Checking if user is already signed in to X...');
+    
     await page.goto('https://x.com', { 
-      waitUntil: 'networkidle2',
+      waitUntil: 'domcontentloaded',
       timeout: 30000 
     });
     
-    // INJECT REAL OAUTH TOKENS
-    await page.evaluate((tokens) => {
-      if (tokens.access_token) {
-        localStorage.setItem('twitter_oauth_token', tokens.access_token);
-        localStorage.setItem('twitter_oauth_token_secret', tokens.access_token_secret);
-        localStorage.setItem('twitter_bearer_token', tokens.bearer_token || '');
+    // Check if user is already authenticated
+    const isSignedIn = await page.evaluate(() => {
+      // Look for signs that user is already logged in
+      const loginButton = document.querySelector('[data-testid="loginButton"]');
+      const signUpButton = document.querySelector('[data-testid="signupButton"]');
+      const homeTimeline = document.querySelector('[data-testid="primaryColumn"]');
+      const userMenu = document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]');
+      const profileLink = document.querySelector('a[href*="/"]');
+      
+      const alreadySignedIn = !loginButton && !signUpButton && (homeTimeline || userMenu || profileLink);
+      
+      if (alreadySignedIn) {
+        console.log('✅ User is already signed in to X - using existing session');
+        return true;
+      } else {
+        console.log('❌ User is not signed in to X - will use OAuth tokens');
+        return false;
       }
-      
-      // Set authentication in window object
-      window.twitterAuth = {
-        accessToken: tokens.access_token,
-        accessTokenSecret: tokens.access_token_secret,
-        bearerToken: tokens.bearer_token
-      };
-      
-    }, {
-      access_token: process.env.TWITTER_ACCESS_TOKEN,
-      access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
-      bearer_token: process.env.TWITTER_BEARER_TOKEN
     });
+    
+    if (!isSignedIn) {
+      // User is NOT signed in, inject OAuth tokens for authentication
+      console.log('🔑 User not signed in - injecting OAuth tokens...');
+      
+      await page.evaluate((tokens) => {
+        if (tokens.access_token) {
+          localStorage.setItem('twitter_oauth_token', tokens.access_token);
+          localStorage.setItem('twitter_oauth_token_secret', tokens.access_token_secret);
+          localStorage.setItem('twitter_bearer_token', tokens.bearer_token || '');
+        }
+        
+        // Set authentication in window object
+        window.twitterAuth = {
+          accessToken: tokens.access_token,
+          accessTokenSecret: tokens.access_token_secret,
+          bearerToken: tokens.bearer_token
+        };
+        
+        console.log('🔑 OAuth tokens injected for authentication');
+        
+      }, {
+        access_token: process.env.TWITTER_ACCESS_TOKEN,
+        access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
+        bearer_token: process.env.TWITTER_BEARER_TOKEN
+      });
+    } else {
+      // User IS already signed in - use their existing session
+      console.log('🎉 User already signed in to X - using existing session (no OAuth needed)');
+      console.log('✅ This is the EASIEST authentication - user stays logged in');
+    }
     
     // Navigate to the target user's followers page
     const targetUsername = process.env.TARGET_USERNAME || 'JoeProAI';
