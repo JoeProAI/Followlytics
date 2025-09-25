@@ -339,15 +339,28 @@ EOF`);
       console.log('🚀 Executing REAL Twitter follower extraction...');
       const extractionResult = await sandbox.process.executeCommand('node /tmp/real_extraction.js');
       
-      // Parse the results
+      // Parse the results with enhanced debugging
       let results;
       try {
+        console.log('🔍 Raw extraction output:');
+        console.log(extractionResult.result);
+        console.log('🔍 Output length:', extractionResult.result.length);
+        
         const outputLines = extractionResult.result.split('\n');
+        console.log('🔍 Total output lines:', outputLines.length);
+        console.log('🔍 Looking for EXTRACTION_RESULTS line...');
+        
         const resultLine = outputLines.find((line: string) => line.startsWith('EXTRACTION_RESULTS:'));
         
         if (resultLine) {
+          console.log('✅ Found result line:', resultLine);
           results = JSON.parse(resultLine.replace('EXTRACTION_RESULTS:', ''));
         } else {
+          console.log('❌ No EXTRACTION_RESULTS line found');
+          console.log('📋 All output lines:');
+          outputLines.forEach((line: string, index: number) => {
+            console.log(`Line ${index}: ${line}`);
+          });
           throw new Error('No extraction results found in output');
         }
       } catch (parseError: any) {
