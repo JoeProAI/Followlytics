@@ -200,6 +200,13 @@ async function extractRealFollowers() {
       timeout: 30000 
     });
     
+    // 📸 SCREENSHOT 1: Initial X.com page
+    console.log('📸 Taking screenshot 1: Initial X.com page');
+    await page.screenshot({ 
+      path: '/tmp/screenshot_1_initial_xcom.png',
+      fullPage: true 
+    });
+    
     // Check if user is already authenticated
     const isSignedIn = await page.evaluate(() => {
       // Look for signs that user is already logged in
@@ -211,6 +218,15 @@ async function extractRealFollowers() {
       
       const alreadySignedIn = !loginButton && !signUpButton && (homeTimeline || userMenu || profileLink);
       
+      console.log('🔍 Authentication check results:', {
+        loginButton: !!loginButton,
+        signUpButton: !!signUpButton,
+        homeTimeline: !!homeTimeline,
+        userMenu: !!userMenu,
+        profileLink: !!profileLink,
+        alreadySignedIn
+      });
+      
       if (alreadySignedIn) {
         console.log('✅ User is already signed in to X - using existing session');
         return true;
@@ -219,6 +235,8 @@ async function extractRealFollowers() {
         return false;
       }
     });
+    
+    console.log(\`🔍 Authentication status: \${isSignedIn ? 'SIGNED IN' : 'NOT SIGNED IN'}\`);
     
     if (!isSignedIn) {
       // User is NOT signed in, inject OAuth tokens for authentication
@@ -245,10 +263,25 @@ async function extractRealFollowers() {
         access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
         bearer_token: process.env.TWITTER_BEARER_TOKEN
       });
+      
+      // 📸 SCREENSHOT 2: After OAuth token injection
+      console.log('📸 Taking screenshot 2: After OAuth token injection');
+      await page.screenshot({ 
+        path: '/tmp/screenshot_2_after_oauth.png',
+        fullPage: true 
+      });
+      
     } else {
       // User IS already signed in - use their existing session
       console.log('🎉 User already signed in to X - using existing session (no OAuth needed)');
       console.log('✅ This is the EASIEST authentication - user stays logged in');
+      
+      // 📸 SCREENSHOT 2: Already signed in
+      console.log('📸 Taking screenshot 2: User already signed in');
+      await page.screenshot({ 
+        path: '/tmp/screenshot_2_already_signed_in.png',
+        fullPage: true 
+      });
     }
     
     // Navigate to the target user's followers page
@@ -273,9 +306,23 @@ async function extractRealFollowers() {
           timeout: 30000 
         });
         
+        // 📸 SCREENSHOT 3: After navigating to followers page
+        console.log(\`📸 Taking screenshot 3: Followers page - \${url}\`);
+        await page.screenshot({ 
+          path: \`/tmp/screenshot_3_followers_page_\${url.split('/').pop()}.png\`,
+          fullPage: true 
+        });
+        
         // Wait for follower elements to load
         await page.waitForSelector('[data-testid="UserCell"], [data-testid="cellInnerDiv"]', { 
           timeout: 15000 
+        });
+        
+        // 📸 SCREENSHOT 4: After UserCell elements loaded
+        console.log('📸 Taking screenshot 4: UserCell elements loaded');
+        await page.screenshot({ 
+          path: '/tmp/screenshot_4_usercells_loaded.png',
+          fullPage: true 
         });
         
         // Extract followers using the REAL method from daytona-client.ts
@@ -315,7 +362,22 @@ async function extractRealFollowers() {
           followersFound = extractedFollowers;
           successfulUrl = url;
           console.log(\`✅ Successfully extracted \${followersFound.length} followers from \${url}\`);
+          
+          // 📸 SCREENSHOT 5: Successful extraction
+          console.log('📸 Taking screenshot 5: Successful extraction completed');
+          await page.screenshot({ 
+            path: '/tmp/screenshot_5_extraction_success.png',
+            fullPage: true 
+          });
+          
           break;
+        } else {
+          // 📸 SCREENSHOT: Failed extraction attempt
+          console.log(\`📸 Taking screenshot: Failed extraction from \${url}\`);
+          await page.screenshot({ 
+            path: \`/tmp/screenshot_failed_\${url.split('/').pop()}.png\`,
+            fullPage: true 
+          });
         }
         
       } catch (urlError) {
@@ -383,6 +445,21 @@ EOF`);
       // Execute the REAL extraction
       console.log('🚀 Executing REAL Twitter follower extraction...');
       const extractionResult = await sandbox.process.executeCommand('node /tmp/real_extraction.js');
+      
+      // 📸 RETRIEVE SCREENSHOTS from sandbox
+      console.log('📸 Retrieving screenshots from sandbox...');
+      try {
+        const screenshotList = await sandbox.process.executeCommand('ls -la /tmp/screenshot*.png 2>/dev/null || echo "No screenshots found"');
+        console.log('📸 Available screenshots:', screenshotList.result);
+        
+        if (!screenshotList.result.includes('No screenshots found')) {
+          // Get base64 encoded screenshots for display
+          const screenshots = await sandbox.process.executeCommand('for f in /tmp/screenshot*.png; do echo "=== $f ==="; base64 "$f" | head -20; echo ""; done');
+          console.log('📸 Screenshot data (first 20 lines each):', screenshots.result.substring(0, 2000));
+        }
+      } catch (screenshotError: any) {
+        console.log('⚠️ Could not retrieve screenshots:', screenshotError.message);
+      }
       
       // Parse the results with enhanced debugging
       let results;
