@@ -331,9 +331,22 @@ extractRealFollowers().then(results => {
 ${realExtractionScript}
 EOF`);
       
-      // Install required dependencies
+      // Install required dependencies with better error handling
       console.log('📦 Installing Puppeteer in sandbox...');
-      await sandbox.process.executeCommand('npm install puppeteer');
+      
+      // First ensure npm is available and initialize if needed
+      await sandbox.process.executeCommand('npm --version');
+      await sandbox.process.executeCommand('npm init -y');
+      
+      // Install puppeteer with verbose logging
+      console.log('📦 Installing puppeteer package...');
+      const installResult = await sandbox.process.executeCommand('npm install puppeteer --verbose');
+      console.log('📦 Puppeteer installation result:', installResult.result);
+      
+      // Verify installation
+      console.log('🔍 Verifying puppeteer installation...');
+      const verifyResult = await sandbox.process.executeCommand('node -e "console.log(require(\'puppeteer\').version || \'installed\')"');
+      console.log('✅ Puppeteer verification:', verifyResult.result);
       
       // Execute the REAL extraction
       console.log('🚀 Executing REAL Twitter follower extraction...');
