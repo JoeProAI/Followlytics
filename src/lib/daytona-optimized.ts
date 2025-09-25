@@ -413,4 +413,4 @@ EOF`);
 
 export default OptimizedDaytonaSandboxManager
 
-// Force deployment timestamp: 2025-09-24T12:46:50 - Twitter env vars fix
+// Force deployment timestamp: 2025-09-25T04:12:48 - Puppeteer installation fix
