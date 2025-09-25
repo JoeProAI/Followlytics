@@ -425,22 +425,90 @@ extractRealFollowers().then(results => {
 ${realExtractionScript}
 EOF`);
       
-      // Install required dependencies with better error handling
-      console.log('📦 Installing Puppeteer in sandbox...');
+      // 🔧 ROBUST PUPPETEER INSTALLATION
+      console.log('📦 Installing Puppeteer with robust error handling...');
       
-      // First ensure npm is available and initialize if needed
-      await sandbox.process.executeCommand('npm --version');
-      await sandbox.process.executeCommand('npm init -y');
-      
-      // Install puppeteer with verbose logging
-      console.log('📦 Installing puppeteer package...');
-      const installResult = await sandbox.process.executeCommand('npm install puppeteer --verbose');
-      console.log('📦 Puppeteer installation result:', installResult.result);
-      
-      // Verify installation
-      console.log('🔍 Verifying puppeteer installation...');
-      const verifyResult = await sandbox.process.executeCommand('node -e "console.log(require(\'puppeteer\').version || \'installed\')"');
-      console.log('✅ Puppeteer verification:', verifyResult.result);
+      try {
+        // Step 1: Check system and Node.js
+        console.log('🔍 Checking system environment...');
+        const nodeVersion = await sandbox.process.executeCommand('node --version');
+        const npmVersion = await sandbox.process.executeCommand('npm --version');
+        console.log(`📋 Node.js: ${nodeVersion.result.trim()}, npm: ${npmVersion.result.trim()}`);
+        
+        // Step 2: Initialize npm project
+        console.log('📦 Initializing npm project...');
+        await sandbox.process.executeCommand('npm init -y');
+        
+        // Step 3: Install system dependencies for Puppeteer
+        console.log('🔧 Installing system dependencies...');
+        await sandbox.process.executeCommand(`
+          apt-get update -qq && apt-get install -y -qq \\
+            wget gnupg ca-certificates procps libxss1 \\
+            libgconf-2-4 libxrandr2 libasound2 libpangocairo-1.0-0 \\
+            libatk1.0-0 libcairo-gobject2 libgtk-3-0 libgdk-pixbuf2.0-0 \\
+            libxcomposite1 libxcursor1 libxdamage1 libxi6 libxtst6 \\
+            libappindicator1 libnss3 libxss1 libgconf-2-4 \\
+            || echo "System deps install completed with warnings"
+        `);
+        
+        // Step 4: Install Puppeteer with specific configuration
+        console.log('📦 Installing Puppeteer package...');
+        const installResult = await sandbox.process.executeCommand(`
+          PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false \\
+          npm install puppeteer --no-audit --no-fund --loglevel=error
+        `);
+        console.log('📦 Puppeteer installation output:', installResult.result.substring(0, 1000));
+        
+        // Step 5: Verify installation with detailed check
+        console.log('🔍 Verifying Puppeteer installation...');
+        const verifyResult = await sandbox.process.executeCommand(`
+          node -e "
+            try {
+              const puppeteer = require('puppeteer');
+              console.log('✅ Puppeteer version:', puppeteer.version || 'installed');
+              console.log('✅ Puppeteer executable:', puppeteer.executablePath());
+            } catch (error) {
+              console.log('❌ Puppeteer verification failed:', error.message);
+              throw error;
+            }
+          "
+        `);
+        console.log('✅ Puppeteer verification result:', verifyResult.result);
+        
+        // Step 6: Test browser launch
+        console.log('🧪 Testing browser launch...');
+        const browserTest = await sandbox.process.executeCommand(`
+          node -e "
+            const puppeteer = require('puppeteer');
+            (async () => {
+              try {
+                const browser = await puppeteer.launch({ 
+                  headless: true,
+                  args: ['--no-sandbox', '--disable-setuid-sandbox']
+                });
+                console.log('✅ Browser launch successful');
+                await browser.close();
+              } catch (error) {
+                console.log('❌ Browser launch failed:', error.message);
+                throw error;
+              }
+            })();
+          "
+        `);
+        console.log('✅ Browser test result:', browserTest.result);
+        
+      } catch (installError: any) {
+        console.error('❌ Puppeteer installation failed:', installError.message);
+        
+        // Fallback: Try alternative installation method
+        console.log('🔄 Trying fallback installation method...');
+        try {
+          await sandbox.process.executeCommand('npm install puppeteer-core chromium --no-audit --no-fund');
+          console.log('✅ Fallback installation completed');
+        } catch (fallbackError: any) {
+          throw new Error(`Both primary and fallback Puppeteer installation failed: ${installError.message}, ${fallbackError.message}`);
+        }
+      }
       
       // Execute the REAL extraction
       console.log('🚀 Executing REAL Twitter follower extraction...');
