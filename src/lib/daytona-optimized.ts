@@ -280,15 +280,73 @@ async function extractRealFollowers() {
       console.log('⚠️ Proceeding with scan attempt despite authentication failure...');
     }
     
-    // Navigate to the target user's followers page
-    const targetUsername = process.env.TARGET_USERNAME || 'JoeProAI';
-    console.log(\`🎯 Navigating to @\${targetUsername}/followers...\`);
+    // 🎯 AUTO-DETECT USERNAME from authenticated session
+    console.log('🔍 Auto-detecting username from authenticated session...');
+    
+    let detectedUsername = null;
+    
+    try {
+      // Try to get username from profile page
+      await page.goto('https://x.com/home', { 
+        waitUntil: 'domcontentloaded',
+        timeout: 30000 
+      });
+      
+      // Extract username from the authenticated session
+      detectedUsername = await page.evaluate(() => {
+        // Look for username in various places
+        const profileLink = document.querySelector('a[href*="/"][data-testid="SideNav_NewTweet_Button"]');
+        const userMenuButton = document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]');
+        const profileImage = document.querySelector('[data-testid="DashButton_ProfileSwitcher_Button"]');
+        
+        // Try to extract from URL patterns
+        const links = Array.from(document.querySelectorAll('a[href*="/"]'));
+        for (const link of links) {
+          const href = link.getAttribute('href');
+          if (href && href.match(/^\/[a-zA-Z0-9_]+$/)) {
+            const username = href.substring(1);
+            if (username && username !== 'home' && username !== 'explore' && username !== 'notifications') {
+              console.log('🔍 Found potential username:', username);
+              return username;
+            }
+          }
+        }
+        
+        // Try to extract from meta tags or page title
+        const pageTitle = document.title;
+        if (pageTitle.includes('(@')) {
+          const match = pageTitle.match(/\(@([a-zA-Z0-9_]+)\)/);
+          if (match) {
+            console.log('🔍 Found username in title:', match[1]);
+            return match[1];
+          }
+        }
+        
+        return null;
+      });
+      
+      if (detectedUsername) {
+        console.log(\`✅ Auto-detected username: @\${detectedUsername}\`);
+      } else {
+        console.log('⚠️ Could not auto-detect username, will try followers page directly');
+        detectedUsername = 'unknown'; // Fallback
+      }
+      
+    } catch (detectionError) {
+      console.log('⚠️ Username detection failed:', detectionError.message);
+      detectedUsername = 'unknown'; // Fallback
+    }
+    
+    // Navigate to the authenticated user's followers page
+    console.log(\`🎯 Navigating to authenticated user's followers page...\`);
     
     const followerUrls = [
-      \`https://x.com/\${targetUsername}/followers\`,
-      \`https://twitter.com/\${targetUsername}/followers\`,
-      \`https://x.com/\${targetUsername}/following\`,
-      \`https://twitter.com/\${targetUsername}/following\`
+      \`https://x.com/\${detectedUsername}/followers\`,
+      \`https://twitter.com/\${detectedUsername}/followers\`,
+      \`https://x.com/\${detectedUsername}/following\`,
+      \`https://twitter.com/\${detectedUsername}/following\`,
+      'https://x.com/followers', // Direct followers page (if logged in)
+      'https://twitter.com/followers' // Fallback
     ];
     
     let followersFound = [];
@@ -388,10 +446,10 @@ async function extractRealFollowers() {
       status: followersFound.length > 0 ? 'completed' : 'failed',
       followers: followersFound,
       totalFollowers: followersFound.length,
-      method: 'real_oauth_browser_automation',
+      detectedUsername: detectedUsername, // 🎯 Include auto-detected username
+      method: 'session_cookie_browser_automation',
       successfulUrl: successfulUrl,
-      extractionTime: new Date().toISOString(),
-      targetUsername: targetUsername
+      extractionTime: new Date().toISOString()
     };
     
     console.log(\`🎯 REAL extraction completed: \${results.totalFollowers} followers found\`);

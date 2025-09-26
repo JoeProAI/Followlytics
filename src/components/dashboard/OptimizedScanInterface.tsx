@@ -17,7 +17,6 @@ interface ScanProgress {
 }
 
 interface ScanConfig {
-  username: string
   scanType: 'small' | 'medium' | 'large' | 'enterprise'
   maxFollowers?: number
   useSnapshot: boolean
@@ -62,7 +61,6 @@ const SCAN_TYPE_CONFIGS = {
 export default function OptimizedScanInterface() {
   const [user] = useAuthState(auth)
   const [scanConfig, setScanConfig] = useState<ScanConfig>({
-    username: '',
     scanType: 'medium',
     maxFollowers: undefined,
     useSnapshot: true,
@@ -129,7 +127,7 @@ export default function OptimizedScanInterface() {
   }
 
   const startOptimizedScan = async () => {
-    if (!user || !scanConfig.username) return
+    if (!user) return
 
     setIsScanning(true)
     
@@ -248,18 +246,23 @@ export default function OptimizedScanInterface() {
         <div className="bg-white rounded-lg shadow-lg p-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Configure Optimized Scan</h2>
           
-          {/* Username Input */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Twitter Username (without @)
-            </label>
-            <input
-              type="text"
-              value={scanConfig.username}
-              onChange={(e) => setScanConfig(prev => ({ ...prev, username: e.target.value }))}
-              placeholder="elonmusk"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+          {/* Auto-detected User Info */}
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-blue-800">
+                  🎯 Scanning Your Own Followers
+                </h3>
+                <p className="text-sm text-blue-700 mt-1">
+                  Using your authenticated X session to scan your own follower list. No username needed - we'll auto-detect your account from your session cookies.
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Scan Type Selection */}
@@ -348,7 +351,7 @@ export default function OptimizedScanInterface() {
           {/* Start Scan Button */}
           <button
             onClick={startOptimizedScan}
-            disabled={!scanConfig.username || isScanning}
+            disabled={isScanning}
             className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold py-3 px-6 rounded-lg transition-all transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed"
           >
             {isScanning ? (

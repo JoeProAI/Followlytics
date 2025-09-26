@@ -5,7 +5,6 @@ import { FieldValue } from 'firebase-admin/firestore'
 import OptimizedDaytonaSandboxManager from '@/lib/daytona-optimized'
 
 interface ScanRequest {
-  username: string
   scanType?: 'small' | 'medium' | 'large' | 'enterprise'
   maxFollowers?: number
   useSnapshot?: boolean
@@ -43,11 +42,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body: ScanRequest = await request.json()
-    const { username, scanType = 'medium', maxFollowers, useSnapshot = true, timeoutDisabled = true } = body
-
-    if (!username) {
-      return NextResponse.json({ error: 'Username is required' }, { status: 400 })
-    }
+    const { scanType = 'medium', maxFollowers, useSnapshot = true, timeoutDisabled = true } = body
 
     // 🍪 RETRIEVE X SESSION COOKIES for authentication
     console.log('🍪 Retrieving X session cookies for user:', userId)
@@ -75,7 +70,7 @@ export async function POST(request: NextRequest) {
       console.error('❌ Error retrieving X session:', sessionError)
     }
 
-    console.log(`📋 Scan request: ${username} (type: ${scanType}, max: ${maxFollowers})`)
+    console.log(`📋 Scan request: auto-detect user (type: ${scanType}, max: ${maxFollowers})`)
 
     // Generate scan ID
     const scanId = `scan_${userId}_${Date.now()}`
@@ -105,7 +100,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Start background processing
-    processOptimizedScan(scanId, userId, username, scanType, twitterTokens, {
+    processOptimizedScan(scanId, userId, scanType, twitterTokens, {
       maxFollowers,
       useSnapshot,
       timeoutDisabled,
@@ -174,7 +169,6 @@ export async function GET(request: NextRequest) {
 async function processOptimizedScan(
   scanId: string,
   userId: string,
-  username: string,
   scanType: 'small' | 'medium' | 'large' | 'enterprise',
   twitterTokens: any,
   options: {
@@ -221,7 +215,7 @@ async function processOptimizedScan(
     updateProgress(scanId, 'authenticating', 70, 'Authentication completed')
 
     // Step 4: Extract followers
-    updateProgress(scanId, 'extracting_followers', 75, `Extracting followers for @${username}...`)
+    updateProgress(scanId, 'extracting_followers', 75, 'Extracting followers from authenticated user...')
     
     const scanResult = await OptimizedDaytonaSandboxManager.executeOptimizedScan(sandbox, {
       name: `followlytics-optimized-${scanId}`,
@@ -246,10 +240,11 @@ async function processOptimizedScan(
     // Step 5: Store results
     const followers = scanResult.followers || []
     
-    await storeOptimizedScanResults(userId, username, scanId, {
+    await storeOptimizedScanResults(userId, scanId, {
       followers,
       scanType,
       totalFound: followers.length,
+      detectedUsername: scanResult.detectedUsername || 'unknown',
       scanDuration: Date.now() - scanProgress.get(scanId)!.startTime,
       sandboxId,
       optimizations: {
@@ -352,12 +347,12 @@ async function getUserTwitterTokens(userId: string) {
 
 async function storeOptimizedScanResults(
   userId: string, 
-  username: string, 
   scanId: string, 
   results: {
     followers: string[]
     scanType: string
     totalFound: number
+    detectedUsername: string
     scanDuration: number
     sandboxId?: string
     optimizations: any
@@ -368,7 +363,7 @@ async function storeOptimizedScanResults(
     
     const scanDoc = {
       userId,
-      username,
+      username: results.detectedUsername,
       scanId,
       followers: results.followers,
       totalFollowers: results.totalFound,
