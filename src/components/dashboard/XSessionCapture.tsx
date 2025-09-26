@@ -77,6 +77,38 @@ export default function XSessionCapture() {
               }
             } else {
               console.log('⏳ User needs to log in, waiting...')
+              
+              // After 30 seconds, try to capture session anyway (user might be logged in but detection failed)
+              setTimeout(async () => {
+                if (!sessionCaptured && !error) {
+                  console.log('⏰ 30 seconds elapsed - attempting session capture anyway...')
+                  try {
+                    const sessionData = await captureSessionFromPopup(popup)
+                    if (sessionData) {
+                      const token = await user.getIdToken()
+                      const response = await fetch('/api/auth/capture-x-session', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({ sessionData }),
+                      })
+
+                      const result = await response.json()
+                      
+                      if (result.success) {
+                        setSessionCaptured(true)
+                        popup.close()
+                        clearInterval(checkInterval)
+                        console.log('✅ Session captured via fallback mechanism')
+                      }
+                    }
+                  } catch (fallbackError) {
+                    console.log('⚠️ Fallback session capture failed:', fallbackError)
+                  }
+                }
+              }, 30000)
             }
           }
         } catch (err) {
@@ -111,7 +143,7 @@ export default function XSessionCapture() {
         script.textContent = `
           (function() {
             try {
-              // Check for authentication indicators
+              // Check for authentication indicators - multiple methods
               const loginButton = document.querySelector('[data-testid="loginButton"]');
               const signUpButton = document.querySelector('[data-testid="signupButton"]');
               const homeTimeline = document.querySelector('[data-testid="primaryColumn"]');
@@ -119,8 +151,29 @@ export default function XSessionCapture() {
               const tweetButton = document.querySelector('[data-testid="tweetButtonInline"]');
               const profileImage = document.querySelector('[data-testid="DashButton_ProfileSwitcher_Button"]');
               
-              // User is logged in if we don't see login/signup buttons AND we see authenticated elements
-              const isLoggedIn = !loginButton && !signUpButton && (homeTimeline || userMenu || tweetButton || profileImage);
+              // Additional checks for logged in state
+              const sideNavNewTweet = document.querySelector('[data-testid="SideNav_NewTweet_Button"]');
+              const homeNavLink = document.querySelector('a[href="/home"]');
+              const notificationsLink = document.querySelector('a[href="/notifications"]');
+              const messagesLink = document.querySelector('a[href="/messages"]');
+              const searchInput = document.querySelector('[data-testid="SearchBox_Search_Input"]');
+              const avatarButton = document.querySelector('[data-testid="AppTabBar_Profile_Link"]');
+              
+              // Check URL - if we're on home, explore, notifications etc, we're likely logged in
+              const currentUrl = window.location.href;
+              const isOnAuthenticatedPage = currentUrl.includes('/home') || 
+                                          currentUrl.includes('/notifications') || 
+                                          currentUrl.includes('/messages') || 
+                                          currentUrl.includes('/explore');
+              
+              // User is logged in if:
+              // 1. No login/signup buttons AND has authenticated elements, OR
+              // 2. On an authenticated page (home, notifications, etc), OR  
+              // 3. Has navigation elements that only appear when logged in
+              const isLoggedIn = (!loginButton && !signUpButton && (homeTimeline || userMenu || tweetButton || profileImage || sideNavNewTweet)) ||
+                                isOnAuthenticatedPage ||
+                                (homeNavLink && notificationsLink) ||
+                                (searchInput && avatarButton);
               
               // Send result back to parent window
               window.parent.postMessage({
@@ -315,6 +368,9 @@ export default function XSessionCapture() {
           <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
             <p className="text-xs text-blue-700">
               💡 <strong>Already logged in to X?</strong> The popup should close automatically within a few seconds.
+            </p>
+            <p className="text-xs text-blue-600 mt-1">
+              ⏰ If stuck after 30+ seconds, the system will attempt capture automatically.
             </p>
           </div>
         </div>
