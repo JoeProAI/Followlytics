@@ -8,6 +8,7 @@ import { auth } from '@/lib/firebase'
 import FollowerScanner from '@/components/dashboard/FollowerScanner'
 import ScanStatusBanner from '@/components/dashboard/ScanStatusBanner'
 import XSessionCaptureHybrid from '@/components/dashboard/XSessionCaptureHybrid'
+import XSessionCapture from '@/components/dashboard/XSessionCapture'
 import DiagnosticPanel from '@/components/dashboard/DiagnosticPanel'
 import OptimizedScanInterface from '@/components/dashboard/OptimizedScanInterface'
 
@@ -248,6 +249,11 @@ function DashboardContent() {
                     </p>
                   </div>
                 </div>
+              </div>
+              
+              {/* X Session Authentication */}
+              <div className="mb-6">
+                <XSessionCapture />
               </div>
               
               {/* Optimized Scan Interface */}
