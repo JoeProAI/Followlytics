@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
       status: 'healthy',
       timestamp: new Date().toISOString(),
       version: '1.0.0',
-      deploymentForced: '2025-09-25T13:12:51',
+      deploymentForced: '2025-09-25T20:36:18',
       services: {
         api: 'operational',
         database: 'operational',
