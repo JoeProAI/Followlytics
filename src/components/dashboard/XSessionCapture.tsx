@@ -41,30 +41,42 @@ export default function XSessionCapture() {
           const popupUrl = popup.location.href
           
           if (popupUrl.includes('x.com') || popupUrl.includes('twitter.com')) {
-            // User is on X.com, try to capture session
-            const sessionData = await captureSessionFromPopup(popup)
+            console.log('🔍 User is on X.com, checking authentication status...')
             
-            if (sessionData) {
-              // Send session data to our API
-              const token = await user.getIdToken()
-              const response = await fetch('/api/auth/capture-x-session', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify({ sessionData }),
-              })
-
-              const result = await response.json()
+            // Check if user is already logged in by looking for login indicators
+            const isLoggedIn = await checkIfUserIsLoggedIn(popup)
+            
+            if (isLoggedIn) {
+              console.log('✅ User is already logged in to X.com, capturing session...')
               
-              if (result.success) {
-                setSessionCaptured(true)
-                popup.close()
-                clearInterval(checkInterval)
-              } else {
-                throw new Error(result.error || 'Failed to capture session')
+              // User is already logged in, capture session immediately
+              const sessionData = await captureSessionFromPopup(popup)
+              
+              if (sessionData) {
+                // Send session data to our API
+                const token = await user.getIdToken()
+                const response = await fetch('/api/auth/capture-x-session', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({ sessionData }),
+                })
+
+                const result = await response.json()
+                
+                if (result.success) {
+                  setSessionCaptured(true)
+                  popup.close()
+                  clearInterval(checkInterval)
+                  console.log('✅ Session captured and popup closed automatically')
+                } else {
+                  throw new Error(result.error || 'Failed to capture session')
+                }
               }
+            } else {
+              console.log('⏳ User needs to log in, waiting...')
             }
           }
         } catch (err) {
@@ -89,6 +101,77 @@ export default function XSessionCapture() {
       setError(err instanceof Error ? err.message : 'Failed to capture X session')
       setCapturing(false)
     }
+  }
+
+  const checkIfUserIsLoggedIn = async (popup: Window): Promise<boolean> => {
+    return new Promise((resolve) => {
+      try {
+        // Inject script to check if user is logged in
+        const script = popup.document.createElement('script')
+        script.textContent = `
+          (function() {
+            try {
+              // Check for authentication indicators
+              const loginButton = document.querySelector('[data-testid="loginButton"]');
+              const signUpButton = document.querySelector('[data-testid="signupButton"]');
+              const homeTimeline = document.querySelector('[data-testid="primaryColumn"]');
+              const userMenu = document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]');
+              const tweetButton = document.querySelector('[data-testid="tweetButtonInline"]');
+              const profileImage = document.querySelector('[data-testid="DashButton_ProfileSwitcher_Button"]');
+              
+              // User is logged in if we don't see login/signup buttons AND we see authenticated elements
+              const isLoggedIn = !loginButton && !signUpButton && (homeTimeline || userMenu || tweetButton || profileImage);
+              
+              // Send result back to parent window
+              window.parent.postMessage({
+                type: 'LOGIN_STATUS_CHECK',
+                isLoggedIn: isLoggedIn,
+                indicators: {
+                  loginButton: !!loginButton,
+                  signUpButton: !!signUpButton,
+                  homeTimeline: !!homeTimeline,
+                  userMenu: !!userMenu,
+                  tweetButton: !!tweetButton,
+                  profileImage: !!profileImage
+                }
+              }, '*');
+              
+            } catch (error) {
+              window.parent.postMessage({
+                type: 'LOGIN_STATUS_ERROR',
+                error: error.message
+              }, '*');
+            }
+          })();
+        `
+        popup.document.head.appendChild(script)
+        
+        // Listen for the response
+        const messageHandler = (event: MessageEvent) => {
+          if (event.data.type === 'LOGIN_STATUS_CHECK') {
+            window.removeEventListener('message', messageHandler)
+            console.log('🔍 Login status check:', event.data.indicators)
+            resolve(event.data.isLoggedIn)
+          } else if (event.data.type === 'LOGIN_STATUS_ERROR') {
+            window.removeEventListener('message', messageHandler)
+            console.log('⚠️ Login status check error:', event.data.error)
+            resolve(false)
+          }
+        }
+        
+        window.addEventListener('message', messageHandler)
+        
+        // Timeout after 5 seconds
+        setTimeout(() => {
+          window.removeEventListener('message', messageHandler)
+          resolve(false)
+        }, 5000)
+        
+      } catch (error) {
+        console.log('⚠️ Could not check login status:', error)
+        resolve(false)
+      }
+    })
   }
 
   const captureSessionFromPopup = async (popup: Window): Promise<any> => {
@@ -224,11 +307,16 @@ export default function XSessionCapture() {
           </p>
           <ol className="text-sm text-yellow-700 mt-1 list-decimal list-inside space-y-1">
             <li>A popup window will open to X.com</li>
-            <li>Login to your X account if not already logged in</li>
-            <li>Navigate to your profile or followers page</li>
-            <li>The session will be captured automatically</li>
-            <li>The popup will close when complete</li>
+            <li>If you're already logged in, the session will be captured automatically</li>
+            <li>If not logged in, sign in to your X account</li>
+            <li>The popup will close automatically when complete</li>
+            <li>Wait for the "✅ Session Captured Successfully!" message</li>
           </ol>
+          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+            <p className="text-xs text-blue-700">
+              💡 <strong>Already logged in to X?</strong> The popup should close automatically within a few seconds.
+            </p>
+          </div>
         </div>
       )}
     </div>
