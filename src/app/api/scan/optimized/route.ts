@@ -49,6 +49,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Username is required' }, { status: 400 })
     }
 
+    // 🍪 RETRIEVE X SESSION COOKIES for authentication
+    console.log('🍪 Retrieving X session cookies for user:', userId)
+    let sessionCookies = null
+    
+    try {
+      const sessionDoc = await db.collection('x_sessions').doc(userId).get()
+      if (sessionDoc.exists) {
+        const sessionData = sessionDoc.data()
+        if (sessionData && sessionData.isValid) {
+          sessionCookies = {
+            cookies: sessionData.cookies,
+            localStorage: sessionData.localStorage,
+            sessionStorage: sessionData.sessionStorage,
+            userAgent: sessionData.userAgent
+          }
+          console.log('✅ Found valid X session cookies')
+        } else {
+          console.log('⚠️ X session found but marked as invalid')
+        }
+      } else {
+        console.log('⚠️ No X session found for user - scan may fail without authentication')
+      }
+    } catch (sessionError) {
+      console.error('❌ Error retrieving X session:', sessionError)
+    }
+
     console.log(`📋 Scan request: ${username} (type: ${scanType}, max: ${maxFollowers})`)
 
     // Generate scan ID
@@ -82,7 +108,8 @@ export async function POST(request: NextRequest) {
     processOptimizedScan(scanId, userId, username, scanType, twitterTokens, {
       maxFollowers,
       useSnapshot,
-      timeoutDisabled
+      timeoutDisabled,
+      sessionCookies  // 🍪 Pass session cookies to sandbox
     }).catch(error => {
       console.error('❌ Background scan failed:', error)
       updateProgress(scanId, 'failed', 0, `Scan failed: ${error.message}`)
@@ -154,6 +181,7 @@ async function processOptimizedScan(
     maxFollowers?: number
     useSnapshot?: boolean
     timeoutDisabled?: boolean
+    sessionCookies?: any  // 🍪 X session cookies for authentication
   }
 ) {
   let sandboxId: string | undefined
@@ -173,7 +201,8 @@ async function processOptimizedScan(
       },
       maxFollowers: options.maxFollowers,
       timeoutDisabled: options.timeoutDisabled,
-      useSnapshot: options.useSnapshot
+      useSnapshot: options.useSnapshot,
+      sessionCookies: options.sessionCookies  // 🍪 Pass session cookies to sandbox
     })
 
     sandboxId = sandbox.id

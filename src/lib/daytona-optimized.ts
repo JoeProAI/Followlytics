@@ -12,6 +12,7 @@ export interface OptimizedSandboxConfig {
   maxFollowers?: number
   timeoutDisabled?: boolean
   useSnapshot?: boolean
+  sessionCookies?: any  // 🍪 X session cookies for authentication
 }
 
 export class OptimizedDaytonaSandboxManager {
@@ -192,96 +193,91 @@ async function extractRealFollowers() {
     
     console.log('🔑 Injecting OAuth tokens for authentication...');
     
-    // 🎯 SMART AUTHENTICATION: Check if user is already signed in to X
-    console.log('🔍 Checking if user is already signed in to X...');
+    // 🎯 BROWSER SESSION AUTHENTICATION: Use session cookies from dashboard
+    console.log('🔐 Starting BROWSER SESSION authentication...');
     
+    // First, check if we have session cookies from the dashboard
+    const sessionCookiesEnv = process.env.X_SESSION_COOKIES;
+    const sessionCookies = sessionCookiesEnv || config.sessionCookies;
+    
+    if (sessionCookies) {
+      console.log('🍪 Found X session cookies - injecting into browser...');
+      
+      // Parse and inject session cookies
+      try {
+        const cookies = JSON.parse(sessionCookies);
+        await page.setCookie(...cookies);
+        console.log(\`✅ Injected \${cookies.length} session cookies\`);
+      } catch (cookieError) {
+        console.log('⚠️ Failed to parse session cookies, trying direct approach');
+      }
+    } else {
+      console.log('⚠️ No session cookies found - user needs to sign in to dashboard first');
+    }
+    
+    // Navigate to X.com to test authentication
     await page.goto('https://x.com', { 
       waitUntil: 'domcontentloaded',
       timeout: 30000 
     });
     
     // 📸 SCREENSHOT 1: Initial X.com page
-    console.log('📸 Taking screenshot 1: Initial X.com page');
+    console.log('📸 Taking screenshot 1: X.com with session cookies');
     await page.screenshot({ 
-      path: '/tmp/screenshot_1_initial_xcom.png',
+      path: '/tmp/screenshot_1_x_with_cookies.png',
       fullPage: true 
     });
     
-    // Check if user is already authenticated
-    const isSignedIn = await page.evaluate(() => {
-      // Look for signs that user is already logged in
+    // Check authentication status
+    const authStatus = await page.evaluate(() => {
+      // Check for authentication indicators
       const loginButton = document.querySelector('[data-testid="loginButton"]');
       const signUpButton = document.querySelector('[data-testid="signupButton"]');
       const homeTimeline = document.querySelector('[data-testid="primaryColumn"]');
       const userMenu = document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]');
-      const profileLink = document.querySelector('a[href*="/"]');
+      const tweetButton = document.querySelector('[data-testid="tweetButtonInline"]');
       
-      const alreadySignedIn = !loginButton && !signUpButton && (homeTimeline || userMenu || profileLink);
+      const isAuthenticated = !loginButton && !signUpButton && (homeTimeline || userMenu || tweetButton);
       
-      console.log('🔍 Authentication check results:', {
-        loginButton: !!loginButton,
-        signUpButton: !!signUpButton,
-        homeTimeline: !!homeTimeline,
-        userMenu: !!userMenu,
-        profileLink: !!profileLink,
-        alreadySignedIn
-      });
-      
-      if (alreadySignedIn) {
-        console.log('✅ User is already signed in to X - using existing session');
-        return true;
-      } else {
-        console.log('❌ User is not signed in to X - will use OAuth tokens');
-        return false;
-      }
+      return {
+        isAuthenticated,
+        hasLoginButton: !!loginButton,
+        hasSignUpButton: !!signUpButton,
+        hasHomeTimeline: !!homeTimeline,
+        hasUserMenu: !!userMenu,
+        hasTweetButton: !!tweetButton,
+        currentUrl: window.location.href
+      };
     });
     
-    console.log(\`🔍 Authentication status: \${isSignedIn ? 'SIGNED IN' : 'NOT SIGNED IN'}\`);
+    console.log('🔍 Authentication status:', authStatus);
     
-    if (!isSignedIn) {
-      // User is NOT signed in, inject OAuth tokens for authentication
-      console.log('🔑 User not signed in - injecting OAuth tokens...');
+    if (authStatus.isAuthenticated) {
+      console.log('✅ Successfully authenticated with session cookies!');
       
-      await page.evaluate((tokens) => {
-        if (tokens.access_token) {
-          localStorage.setItem('twitter_oauth_token', tokens.access_token);
-          localStorage.setItem('twitter_oauth_token_secret', tokens.access_token_secret);
-          localStorage.setItem('twitter_bearer_token', tokens.bearer_token || '');
-        }
-        
-        // Set authentication in window object
-        window.twitterAuth = {
-          accessToken: tokens.access_token,
-          accessTokenSecret: tokens.access_token_secret,
-          bearerToken: tokens.bearer_token
-        };
-        
-        console.log('🔑 OAuth tokens injected for authentication');
-        
-      }, {
-        access_token: process.env.TWITTER_ACCESS_TOKEN,
-        access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
-        bearer_token: process.env.TWITTER_BEARER_TOKEN
-      });
-      
-      // 📸 SCREENSHOT 2: After OAuth token injection
-      console.log('📸 Taking screenshot 2: After OAuth token injection');
+      // 📸 SCREENSHOT 2: Successfully authenticated
+      console.log('📸 Taking screenshot 2: Successfully authenticated');
       await page.screenshot({ 
-        path: '/tmp/screenshot_2_after_oauth.png',
+        path: '/tmp/screenshot_2_authenticated.png',
         fullPage: true 
       });
       
     } else {
-      // User IS already signed in - use their existing session
-      console.log('🎉 User already signed in to X - using existing session (no OAuth needed)');
-      console.log('✅ This is the EASIEST authentication - user stays logged in');
+      console.log('❌ Authentication failed - session cookies may be invalid or expired');
+      console.log('💡 SOLUTION: User needs to:');
+      console.log('   1. Sign in to X.com in their browser');
+      console.log('   2. Visit the dashboard to capture session');
+      console.log('   3. Try the scan again');
       
-      // 📸 SCREENSHOT 2: Already signed in
-      console.log('📸 Taking screenshot 2: User already signed in');
+      // 📸 SCREENSHOT 2: Authentication failed
+      console.log('📸 Taking screenshot 2: Authentication failed');
       await page.screenshot({ 
-        path: '/tmp/screenshot_2_already_signed_in.png',
+        path: '/tmp/screenshot_2_auth_failed.png',
         fullPage: true 
       });
+      
+      // Don't throw error immediately - try to proceed and see what happens
+      console.log('⚠️ Proceeding with scan attempt despite authentication failure...');
     }
     
     // Navigate to the target user's followers page
