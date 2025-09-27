@@ -11,6 +11,7 @@ import XSessionCaptureHybrid from '@/components/dashboard/XSessionCaptureHybrid'
 import XSessionCapture from '@/components/dashboard/XSessionCapture'
 import DiagnosticPanel from '@/components/dashboard/DiagnosticPanel'
 import OptimizedScanInterface from '@/components/dashboard/OptimizedScanInterface'
+import DirectFollowerScanner from '@/components/dashboard/DirectFollowerScanner'
 
 function DashboardContent() {
   const { user, logout, loading } = useAuth()
@@ -249,6 +250,11 @@ function DashboardContent() {
                     </p>
                   </div>
                 </div>
+              </div>
+              
+              {/* Direct Follower Scanner - NEW APPROACH */}
+              <div className="mb-6">
+                <DirectFollowerScanner />
               </div>
               
               {/* X Session Authentication */}
