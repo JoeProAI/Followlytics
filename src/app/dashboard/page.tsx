@@ -13,6 +13,7 @@ import DiagnosticPanel from '@/components/dashboard/DiagnosticPanel'
 import OptimizedScanInterface from '@/components/dashboard/OptimizedScanInterface'
 import DirectFollowerScanner from '@/components/dashboard/DirectFollowerScanner'
 import AutoFollowerScanner from '@/components/dashboard/AutoFollowerScanner'
+import DirectXFollowerScanner from '@/components/dashboard/DirectXFollowerScanner'
 
 function DashboardContent() {
   const { user, logout, loading } = useAuth()
@@ -256,17 +257,28 @@ function DashboardContent() {
                 </div>
               </div>
               
-              {/* Automated Follower Scanner - LATEST APPROACH */}
+              {/* Direct X Follower Scanner - SIMPLE & DIRECT */}
               <div className="mb-6">
-                <AutoFollowerScanner detectedUsername={twitterAuthStatus.xUsername} />
+                <DirectXFollowerScanner />
               </div>
               
-              {/* Direct Follower Scanner - BACKUP APPROACH */}
+              {/* Alternative Scanners */}
               <details className="mb-6">
                 <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700 mb-4">
-                  🔧 Alternative: Direct Browser Scanner (if automated fails)
+                  🔧 Alternative Scanners (if direct scanner fails)
                 </summary>
-                <DirectFollowerScanner detectedUsername={twitterAuthStatus.xUsername} />
+                
+                <div className="space-y-4 mt-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Automated Scanner (Sandbox)</h4>
+                    <AutoFollowerScanner detectedUsername={twitterAuthStatus.xUsername} />
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Direct Browser Scanner</h4>
+                    <DirectFollowerScanner detectedUsername={twitterAuthStatus.xUsername} />
+                  </div>
+                </div>
               </details>
               
               {/* X Session Authentication */}
