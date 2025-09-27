@@ -12,6 +12,7 @@ import XSessionCapture from '@/components/dashboard/XSessionCapture'
 import DiagnosticPanel from '@/components/dashboard/DiagnosticPanel'
 import OptimizedScanInterface from '@/components/dashboard/OptimizedScanInterface'
 import DirectFollowerScanner from '@/components/dashboard/DirectFollowerScanner'
+import AutoFollowerScanner from '@/components/dashboard/AutoFollowerScanner'
 
 function DashboardContent() {
   const { user, logout, loading } = useAuth()
@@ -252,10 +253,18 @@ function DashboardContent() {
                 </div>
               </div>
               
-              {/* Direct Follower Scanner - NEW APPROACH */}
+              {/* Automated Follower Scanner - LATEST APPROACH */}
               <div className="mb-6">
-                <DirectFollowerScanner detectedUsername={twitterAuthStatus.xUsername} />
+                <AutoFollowerScanner detectedUsername={twitterAuthStatus.xUsername} />
               </div>
+              
+              {/* Direct Follower Scanner - BACKUP APPROACH */}
+              <details className="mb-6">
+                <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700 mb-4">
+                  🔧 Alternative: Direct Browser Scanner (if automated fails)
+                </summary>
+                <DirectFollowerScanner detectedUsername={twitterAuthStatus.xUsername} />
+              </details>
               
               {/* X Session Authentication */}
               <div className="mb-6">
