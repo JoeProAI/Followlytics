@@ -254,7 +254,7 @@ function DashboardContent() {
               
               {/* Direct Follower Scanner - NEW APPROACH */}
               <div className="mb-6">
-                <DirectFollowerScanner />
+                <DirectFollowerScanner detectedUsername={twitterAuthStatus.xUsername} />
               </div>
               
               {/* X Session Authentication */}

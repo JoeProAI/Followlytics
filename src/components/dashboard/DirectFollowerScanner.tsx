@@ -12,7 +12,11 @@ interface FollowerData {
   followerCount?: string
 }
 
-export default function DirectFollowerScanner() {
+interface DirectFollowerScannerProps {
+  detectedUsername?: string
+}
+
+export default function DirectFollowerScanner({ detectedUsername }: DirectFollowerScannerProps) {
   const [user] = useAuthState(auth)
   const [scanning, setScanning] = useState(false)
   const [followers, setFollowers] = useState<FollowerData[]>([])
@@ -31,15 +35,14 @@ export default function DirectFollowerScanner() {
     setStatus('🚀 Starting direct follower scan...')
 
     try {
-      // Step 1: Get user's own username from their profile
-      setStatus('🔍 Detecting your X username...')
-      const username = await detectUsername()
+      // Use the username from Twitter auth status
+      const username = detectedUsername
       
       if (!username) {
-        throw new Error('Could not detect your X username. Please make sure you are logged into X.com.')
+        throw new Error('Username not available. Please make sure X Access is authorized above.')
       }
 
-      setStatus(`✅ Detected username: @${username}`)
+      setStatus(`✅ Using username: @${username}`)
       setProgress(10)
 
       // Step 2: Start scanning followers
@@ -52,95 +55,6 @@ export default function DirectFollowerScanner() {
     }
   }
 
-  const detectUsername = async (): Promise<string | null> => {
-    return new Promise((resolve) => {
-      // Create hidden iframe to X.com profile
-      const iframe = document.createElement('iframe')
-      iframe.src = 'https://x.com/home'
-      iframe.style.display = 'none'
-      document.body.appendChild(iframe)
-
-      iframe.onload = () => {
-        try {
-          // Try to extract username from the page
-          const script = iframe.contentDocument?.createElement('script')
-          if (script && iframe.contentDocument) {
-            script.textContent = `
-              (function() {
-                try {
-                  // Look for profile links and username indicators
-                  const profileLinks = document.querySelectorAll('a[href*="/"]');
-                  for (const link of profileLinks) {
-                    const href = link.getAttribute('href');
-                    if (href && href.match(/^\\/[a-zA-Z0-9_]+$/)) {
-                      const username = href.substring(1);
-                      if (username && !['home', 'explore', 'notifications', 'messages', 'bookmarks', 'lists', 'profile', 'more'].includes(username)) {
-                        window.parent.postMessage({
-                          type: 'USERNAME_DETECTED',
-                          username: username
-                        }, '*');
-                        return;
-                      }
-                    }
-                  }
-                  
-                  // Fallback: look in page title or meta tags
-                  const title = document.title;
-                  if (title.includes('(@')) {
-                    const match = title.match(/\\(@([a-zA-Z0-9_]+)\\)/);
-                    if (match) {
-                      window.parent.postMessage({
-                        type: 'USERNAME_DETECTED',
-                        username: match[1]
-                      }, '*');
-                      return;
-                    }
-                  }
-                  
-                  window.parent.postMessage({
-                    type: 'USERNAME_ERROR',
-                    error: 'Could not detect username'
-                  }, '*');
-                } catch (error) {
-                  window.parent.postMessage({
-                    type: 'USERNAME_ERROR',
-                    error: error.message
-                  }, '*');
-                }
-              })();
-            `
-            iframe.contentDocument.head.appendChild(script)
-          }
-        } catch (error) {
-          resolve(null)
-        }
-      }
-
-      // Listen for messages
-      const messageHandler = (event: MessageEvent) => {
-        if (event.data.type === 'USERNAME_DETECTED') {
-          window.removeEventListener('message', messageHandler)
-          document.body.removeChild(iframe)
-          resolve(event.data.username)
-        } else if (event.data.type === 'USERNAME_ERROR') {
-          window.removeEventListener('message', messageHandler)
-          document.body.removeChild(iframe)
-          resolve(null)
-        }
-      }
-
-      window.addEventListener('message', messageHandler)
-
-      // Timeout after 10 seconds
-      setTimeout(() => {
-        window.removeEventListener('message', messageHandler)
-        if (document.body.contains(iframe)) {
-          document.body.removeChild(iframe)
-        }
-        resolve(null)
-      }, 10000)
-    })
-  }
 
   const scanFollowersDirectly = async (username: string) => {
     return new Promise<void>((resolve, reject) => {
@@ -328,6 +242,20 @@ export default function DirectFollowerScanner() {
         <p className="text-gray-600">
           Scan your own followers directly from your browser session - no authentication issues!
         </p>
+        {detectedUsername && (
+          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+            <p className="text-sm text-green-800">
+              ✅ Ready to scan: <strong>@{detectedUsername}</strong>
+            </p>
+          </div>
+        )}
+        {!detectedUsername && (
+          <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+            <p className="text-sm text-yellow-800">
+              ⚠️ Please authorize X Access above first to get your username
+            </p>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -353,10 +281,10 @@ export default function DirectFollowerScanner() {
       <div className="flex space-x-4 mb-6">
         <button
           onClick={startDirectScan}
-          disabled={scanning}
+          disabled={scanning || !detectedUsername}
           className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-lg transition-colors"
         >
-          {scanning ? '🔄 Scanning...' : '🚀 Start Direct Scan'}
+          {scanning ? '🔄 Scanning...' : !detectedUsername ? '⚠️ Authorize X Access First' : '🚀 Start Direct Scan'}
         </button>
 
         {followers.length > 0 && !scanning && (
