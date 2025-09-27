@@ -82,19 +82,22 @@ function DashboardContent() {
         return
       }
       
-      if (xAuth === 'success' && token) {
-        try {
-          console.log('🔑 Signing in with custom token...')
-          await signInWithCustomToken(auth, token)
-          console.log('✅ Successfully signed in with custom token')
-          // Refresh Twitter auth status after successful OAuth
-          await checkTwitterAuthStatus()
-          // Clear URL parameters after successful auth
-          router.replace('/dashboard')
-        } catch (error) {
-          console.error('X Auth token error:', error)
-          // Don't redirect to login, stay on dashboard and show error
+      if (xAuth === 'success') {
+        if (token) {
+          try {
+            console.log('🔑 Signing in with custom token...')
+            await signInWithCustomToken(auth, token)
+            console.log('✅ Successfully signed in with custom token')
+          } catch (error) {
+            console.error('X Auth token error:', error)
+            // Continue anyway - the OAuth was successful even if token failed
+          }
         }
+        
+        // Always refresh Twitter auth status after successful OAuth
+        await checkTwitterAuthStatus()
+        // Clear URL parameters after successful auth
+        router.replace('/dashboard')
         return
       }
       

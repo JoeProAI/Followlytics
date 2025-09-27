@@ -148,11 +148,18 @@ export async function GET(request: NextRequest) {
 
     // Create custom token for client-side auth
     console.log('🔑 Creating custom token for user:', firebaseUser.uid)
-    const customToken = await adminAuth.createCustomToken(firebaseUser.uid)
-    console.log('✅ Custom token created successfully')
+    let customToken
+    try {
+      customToken = await adminAuth.createCustomToken(firebaseUser.uid)
+      console.log('✅ Custom token created successfully')
+    } catch (tokenError) {
+      console.error('❌ Failed to create custom token:', tokenError)
+      // Fallback: redirect without token, let user sign in normally
+      return NextResponse.redirect(`${baseUrl}/dashboard?x_auth=success&username=${accessTokens.screen_name}`)
+    }
 
     // Determine redirect URL
-    const redirectUrl = `${baseUrl}/dashboard?x_auth=success&token=${customToken}`
+    const redirectUrl = `${baseUrl}/dashboard?x_auth=success&token=${customToken}&username=${accessTokens.screen_name}`
     
     console.log('🔄 Redirecting to:', redirectUrl)
 

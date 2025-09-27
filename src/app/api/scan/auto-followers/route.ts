@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth as auth, adminDb as db } from '@/lib/firebase-admin'
-import { Daytona } from '@daytonaio/sdk'
+import OptimizedDaytonaSandboxManager from '@/lib/daytona-optimized'
 
 interface AutoScanRequest {
   username: string
@@ -21,10 +21,7 @@ interface ScanProgress {
   sandboxId?: string
 }
 
-const daytona = new Daytona({
-  apiKey: process.env.DAYTONA_API_KEY!,
-  apiUrl: process.env.DAYTONA_API_URL || "https://app.daytona.io/api"
-})
+// Use existing OptimizedDaytonaSandboxManager instead of reinventing
 
 // In-memory progress tracking
 const scanProgress = new Map<string, ScanProgress>()
@@ -141,34 +138,59 @@ async function processAutoScan(
     await new Promise(resolve => setTimeout(resolve, 2000))
     
     if (useSandbox) {
-      // Step 2: Create sandbox
-      updateProgress(scanId, 'creating_sandbox', 20, 'Creating Daytona sandbox for processing...')
+      // Use EXISTING working system instead of reinventing
+      updateProgress(scanId, 'creating_sandbox', 20, 'Using existing optimized sandbox system...')
       
-      sandbox = await daytona.create({
-        image: 'node:18-bullseye'
-      }, {
-        timeout: 60 * 60 * 1000 // 1 hour timeout
+      // Get Twitter tokens (we need these for the existing system)
+      const twitterTokens = await getTwitterTokens(userId)
+      if (!twitterTokens) {
+        throw new Error('Twitter tokens required for sandbox scanning')
+      }
+      
+      // Use the EXISTING OptimizedDaytonaSandboxManager
+      sandbox = await OptimizedDaytonaSandboxManager.createOptimizedSandbox({
+        name: `auto-follower-scan-${scanId}`,
+        userId,
+        targetUsername: username,
+        scanType: 'medium',
+        twitterTokens,
+        maxFollowers: 10000,
+        timeoutDisabled: true,
+        useSnapshot: true
       })
 
       console.log(`✅ Sandbox created: ${sandbox.id}`)
-      updateProgress(scanId, 'creating_sandbox', 30, `Sandbox created: ${sandbox.id}`, sandbox.id)
+      updateProgress(scanId, 'creating_sandbox', 40, `Sandbox created: ${sandbox.id}`, sandbox.id)
 
-      // Step 3: Setup browser in sandbox
-      updateProgress(scanId, 'opening_browser', 40, 'Setting up browser automation...')
+      // Setup environment
+      updateProgress(scanId, 'opening_browser', 50, 'Setting up optimized environment...')
+      await OptimizedDaytonaSandboxManager.setupOptimizedEnvironment(sandbox)
       
-      await setupBrowserInSandbox(sandbox)
+      // Execute scan using existing system
+      updateProgress(scanId, 'navigating', 60, `Scanning @${username} followers...`)
       
-      // Step 4: Navigate and extract
-      updateProgress(scanId, 'navigating', 50, `Navigating to @${username}/followers...`)
+      const scanResult = await OptimizedDaytonaSandboxManager.executeOptimizedScan(sandbox, {
+        name: `auto-follower-scan-${scanId}`,
+        userId,
+        targetUsername: username,
+        scanType: 'medium',
+        twitterTokens,
+        maxFollowers: 10000,
+        timeoutDisabled: true,
+        useSnapshot: true
+      })
       
-      const followers = await extractFollowersInSandbox(sandbox, username, scanId)
+      if (!scanResult.success) {
+        throw new Error(scanResult.error || 'Scan execution failed')
+      }
       
-      // Step 5: Process results
+      const followers = scanResult.followers || []
+      
+      // Process results
       updateProgress(scanId, 'processing', 90, `Processing ${followers.length} followers...`)
-      
       await storeResults(userId, scanId, username, followers)
       
-      updateProgress(scanId, 'completed', 100, `Scan completed! Found ${followers.length} followers`, sandbox.id)
+      updateProgress(scanId, 'completed', 100, `Scan completed! Found ${followers.length} followers`, sandbox.id, undefined, followers.length)
 
     } else {
       // Fallback: simulate extraction without sandbox
@@ -189,145 +211,9 @@ async function processAutoScan(
     console.error(`❌ Auto scan failed for ${scanId}:`, error)
     updateProgress(scanId, 'failed', 0, 'Scan failed', undefined, error.message)
   } finally {
-    // Cleanup sandbox
-    if (sandbox) {
-      try {
-        setTimeout(async () => {
-          await sandbox.destroy()
-          console.log(`🧹 Sandbox cleaned up: ${sandbox.id}`)
-        }, 5 * 60 * 1000) // Cleanup after 5 minutes
-      } catch (cleanupError) {
-        console.log('⚠️ Sandbox cleanup error:', cleanupError)
-      }
-    }
+    // Cleanup handled by OptimizedDaytonaSandboxManager
+    console.log('🧹 Cleanup handled by existing system')
   }
-}
-
-async function setupBrowserInSandbox(sandbox: any) {
-  // Install dependencies
-  await sandbox.process.executeCommand('apt-get update && apt-get install -y wget gnupg')
-  
-  // Install Chrome
-  await sandbox.process.executeCommand(`
-    wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - &&
-    echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list &&
-    apt-get update &&
-    apt-get install -y google-chrome-stable
-  `)
-  
-  // Install Node dependencies
-  await sandbox.process.executeCommand('npm init -y && npm install puppeteer')
-}
-
-async function extractFollowersInSandbox(sandbox: any, username: string, scanId: string): Promise<string[]> {
-  // Create extraction script
-  const extractionScript = `
-const puppeteer = require('puppeteer');
-
-async function extractFollowers() {
-  console.log('🚀 Starting follower extraction for @${username}');
-  
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-  });
-  
-  const page = await browser.newPage();
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
-  
-  try {
-    // Navigate to followers page
-    console.log('🧭 Navigating to followers page...');
-    await page.goto('https://x.com/${username}/followers', { 
-      waitUntil: 'networkidle2',
-      timeout: 30000 
-    });
-    
-    let followers = [];
-    let scrollAttempts = 0;
-    const maxScrolls = 50;
-    
-    // Auto-scroll and extract
-    while (scrollAttempts < maxScrolls) {
-      console.log(\`📜 Scroll attempt \${scrollAttempts + 1}/\${maxScrolls}\`);
-      
-      // Extract current followers
-      const currentFollowers = await page.evaluate(() => {
-        const followerElements = document.querySelectorAll('[data-testid="UserCell"] a[href*="/"]');
-        const usernames = [];
-        
-        followerElements.forEach(link => {
-          const href = link.getAttribute('href');
-          if (href && href.startsWith('/') && !href.includes('/status/')) {
-            const username = href.substring(1);
-            if (username && !usernames.includes(username)) {
-              usernames.push(username);
-            }
-          }
-        });
-        
-        return usernames;
-      });
-      
-      // Add new followers
-      currentFollowers.forEach(follower => {
-        if (!followers.includes(follower)) {
-          followers.push(follower);
-        }
-      });
-      
-      console.log(\`⚡ Found \${followers.length} unique followers so far\`);
-      
-      // Scroll down
-      await page.evaluate(() => {
-        window.scrollTo(0, document.body.scrollHeight);
-      });
-      
-      // Wait for new content to load
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      scrollAttempts++;
-    }
-    
-    console.log(\`🎉 Extraction completed! Found \${followers.length} followers\`);
-    console.log('📋 Followers:', JSON.stringify(followers));
-    
-    return followers;
-    
-  } finally {
-    await browser.close();
-  }
-}
-
-extractFollowers().then(followers => {
-  console.log('EXTRACTION_COMPLETE:', JSON.stringify(followers));
-}).catch(error => {
-  console.error('EXTRACTION_ERROR:', error.message);
-});
-`
-
-  // Upload and execute script
-  await sandbox.process.executeCommand(`cat > /tmp/extract_followers.js << 'EOF'
-${extractionScript}
-EOF`)
-
-  const result = await sandbox.process.executeCommand('node /tmp/extract_followers.js')
-  
-  // Parse results
-  const output = result.result
-  const completeLine = output.split('\n').find((line: string) => line.includes('EXTRACTION_COMPLETE:'))
-  
-  if (completeLine) {
-    const jsonStr = completeLine.replace('EXTRACTION_COMPLETE:', '')
-    try {
-      return JSON.parse(jsonStr)
-    } catch (parseError) {
-      console.log('⚠️ Could not parse extraction results')
-      return []
-    }
-  }
-  
-  return []
 }
 
 async function storeResults(userId: string, scanId: string, username: string, followers: string[]) {
@@ -372,6 +258,29 @@ async function getEstimatedFollowerCount(username: string): Promise<number> {
   // This would normally call Twitter API to get follower count
   // For now, return a reasonable estimate
   return Math.floor(Math.random() * 10000) + 1000
+}
+
+async function getTwitterTokens(userId: string) {
+  try {
+    const userDoc = await db.collection('users').doc(userId).get()
+    if (!userDoc.exists) {
+      return null
+    }
+
+    const userData = userDoc.data()
+    if (!userData?.twitterTokens) {
+      return null
+    }
+
+    return {
+      access_token: userData.twitterTokens.access_token,
+      access_token_secret: userData.twitterTokens.access_token_secret,
+      bearer_token: userData.twitterTokens.bearer_token || process.env.TWITTER_BEARER_TOKEN
+    }
+  } catch (error) {
+    console.error('❌ Error retrieving Twitter tokens:', error)
+    return null
+  }
 }
 
 function getEstimatedTime(followerCount: number): string {
