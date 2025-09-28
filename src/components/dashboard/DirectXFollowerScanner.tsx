@@ -87,30 +87,20 @@ export default function DirectXFollowerScanner() {
             sessionCaptured = true
             setProgress('✅ X session detected! Navigating to followers page...')
             
-            // Navigate to followers page
-            popup.location.href = `https://x.com/${username}/followers`
-            
-            setTimeout(() => {
-              setProgress('📜 Loading followers page...')
-              
-              // Wait a bit more then start extraction
-              setTimeout(() => {
-                setProgress('⚡ Extracting followers...')
-                extractFollowersFromPopup(popup).then(extractedFollowers => {
-                  setFollowers(extractedFollowers)
-                  setProgress(`🎉 Extraction complete! Found ${extractedFollowers.length} followers`)
-                  popup.close()
-                  clearInterval(checkInterval)
-                  window.removeEventListener('message', messageHandler)
-                  resolve(extractedFollowers)
-                }).catch(extractError => {
-                  popup.close()
-                  clearInterval(checkInterval)
-                  window.removeEventListener('message', messageHandler)
-                  reject(extractError)
-                })
-              }, 3000)
-            }, 2000)
+            // Navigate to followers page and start scanning immediately
+            navigateAndScan(popup, username).then(extractedFollowers => {
+              setFollowers(extractedFollowers)
+              setProgress(`🎉 Extraction complete! Found ${extractedFollowers.length} followers`)
+              popup.close()
+              clearInterval(checkInterval)
+              window.removeEventListener('message', messageHandler)
+              resolve(extractedFollowers)
+            }).catch(extractError => {
+              popup.close()
+              clearInterval(checkInterval)
+              window.removeEventListener('message', messageHandler)
+              reject(extractError)
+            })
           }
         }
         
@@ -135,6 +125,62 @@ export default function DirectXFollowerScanner() {
     } finally {
       setScanning(false)
     }
+  }
+
+  const navigateAndScan = async (popup: Window, targetUsername: string): Promise<string[]> => {
+    return new Promise((resolve, reject) => {
+      try {
+        setProgress('🧭 Navigating to followers page...')
+        
+        // Force navigation to followers page
+        const followersUrl = `https://x.com/${targetUsername}/followers`
+        popup.location.href = followersUrl
+        
+        // Monitor navigation and start scanning when ready
+        let navigationChecks = 0
+        const maxChecks = 15 // 30 seconds max
+        
+        const checkNavigation = () => {
+          navigationChecks++
+          
+          try {
+            const currentUrl = popup.location.href
+            console.log(`🔍 Navigation check ${navigationChecks}: ${currentUrl}`)
+            
+            if (currentUrl.includes('/followers')) {
+              setProgress('✅ Followers page loaded! Starting extraction...')
+              
+              // Start extraction immediately
+              setTimeout(() => {
+                extractFollowersFromPopup(popup).then(resolve).catch(reject)
+              }, 1000)
+              
+            } else if (navigationChecks >= maxChecks) {
+              reject(new Error('Navigation to followers page timed out'))
+            } else {
+              setProgress(`📜 Loading followers page... (${navigationChecks}/${maxChecks})`)
+              setTimeout(checkNavigation, 2000)
+            }
+            
+          } catch (crossOriginError) {
+            // Can't access popup URL due to cross-origin, assume it's loading
+            if (navigationChecks >= maxChecks) {
+              setProgress('⚡ Starting extraction (assuming page loaded)...')
+              extractFollowersFromPopup(popup).then(resolve).catch(reject)
+            } else {
+              setProgress(`📜 Loading followers page... (${navigationChecks}/${maxChecks})`)
+              setTimeout(checkNavigation, 2000)
+            }
+          }
+        }
+        
+        // Start checking navigation after initial delay
+        setTimeout(checkNavigation, 3000)
+        
+      } catch (error) {
+        reject(error)
+      }
+    })
   }
 
   const extractFollowersFromPopup = async (popup: Window): Promise<string[]> => {
@@ -288,14 +334,40 @@ export default function DirectXFollowerScanner() {
         </div>
       )}
 
-      {/* Action Button */}
-      <button
-        onClick={startDirectScan}
-        disabled={scanning || !username.trim()}
-        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition-colors"
-      >
-        {scanning ? '🔄 Scanning in Progress...' : '🚀 Start Direct X Scan'}
-      </button>
+      {/* Action Buttons */}
+      <div className="space-y-3">
+        <button
+          onClick={startDirectScan}
+          disabled={scanning || !username.trim()}
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+        >
+          {scanning ? '🔄 Scanning in Progress...' : '🚀 Start Direct X Scan'}
+        </button>
+        
+        {scanning && (
+          <button
+            onClick={() => {
+              // Manual navigation helper
+              const popup = window.open(`https://x.com/${username}/followers`, 'x-manual-scan', 'width=1200,height=800')
+              if (popup) {
+                setProgress('📖 Manual navigation opened - extraction will start automatically')
+                setTimeout(() => {
+                  extractFollowersFromPopup(popup).then(extractedFollowers => {
+                    setFollowers(extractedFollowers)
+                    setProgress(`🎉 Manual extraction complete! Found ${extractedFollowers.length} followers`)
+                    popup.close()
+                  }).catch(err => {
+                    setError(`Manual extraction failed: ${err.message}`)
+                  })
+                }, 3000)
+              }
+            }}
+            className="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+          >
+            🔧 Manual Navigation Backup
+          </button>
+        )}
+      </div>
 
       {/* Instructions */}
       <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
