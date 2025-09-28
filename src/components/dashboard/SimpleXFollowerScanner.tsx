@@ -62,14 +62,30 @@ export default function SimpleXFollowerScanner() {
             }
             
             function navigateToFollowers() {
-              updateProgress('🧭 Navigating to followers page...');
-              window.location.href = 'https://x.com/${username}/followers';
+              updateProgress('🧭 Opening followers page in new tab...');
               
-              // Enable extraction button after navigation
-              setTimeout(() => {
+              // Open followers page in a new tab instead of replacing current window
+              const followersTab = window.open('https://x.com/${username}/followers', '_blank');
+              
+              if (followersTab) {
+                updateProgress('✅ Followers page opened in new tab! Switch to that tab and come back here to extract.');
                 document.getElementById('extractBtn').disabled = false;
-                updateProgress('✅ Ready to extract! Click "Start Extraction" when page loads.');
-              }, 3000);
+                
+                // Add instructions
+                const instructions = document.createElement('div');
+                instructions.innerHTML = \`
+                  <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 5px; margin: 10px 0;">
+                    <strong>📋 Instructions:</strong><br>
+                    1. Switch to the new tab with the followers page<br>
+                    2. Make sure you're logged in to X<br>
+                    3. Come back to this tab<br>
+                    4. Click "Start Extraction" below
+                  </div>
+                \`;
+                document.getElementById('progress').appendChild(instructions);
+              } else {
+                updateProgress('❌ Failed to open new tab. Please allow popups and try again.');
+              }
             }
             
             function startExtraction() {
