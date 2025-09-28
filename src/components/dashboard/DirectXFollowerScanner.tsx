@@ -35,13 +35,17 @@ export default function DirectXFollowerScanner() {
         throw new Error('Popup blocked. Please allow popups for this site.')
       }
 
-      // Wait for user to login
-      setProgress('⏳ Please sign in to X.com in the popup window...')
+      // Wait for user to login - simplified approach
+      setProgress('⏳ Please sign in to X.com in the popup window, then manually navigate to the followers page...')
       
       await new Promise((resolve, reject) => {
         let sessionCaptured = false
+        let checkAttempts = 0
+        const maxAttempts = 60 // 2 minutes
         
         const checkInterval = setInterval(async () => {
+          checkAttempts++
+          
           try {
             if (popup.closed) {
               clearInterval(checkInterval)
@@ -51,15 +55,24 @@ export default function DirectXFollowerScanner() {
               return
             }
 
-            // Try to access popup and check if logged in
+            // Try to inject script to check for followers page
             try {
-              const popupUrl = popup.location.href
-              
-              if (popupUrl.includes('x.com') || popupUrl.includes('twitter.com')) {
-                // Check if user is logged in
-                const script = popup.document.createElement('script')
-                script.textContent = `
-                  (function() {
+              // Check if we're on a followers page
+              const script = popup.document.createElement('script')
+              script.textContent = `
+                (function() {
+                  const currentUrl = window.location.href;
+                  const isFollowersPage = currentUrl.includes('/followers');
+                  const hasUserCells = document.querySelectorAll('[data-testid="UserCell"]').length > 0;
+                  
+                  if (isFollowersPage || hasUserCells) {
+                    window.parent.postMessage({ 
+                      type: 'FOLLOWERS_PAGE_READY',
+                      url: currentUrl,
+                      userCells: hasUserCells
+                    }, '*');
+                  } else {
+                    // Check if logged in
                     const loginButton = document.querySelector('[data-testid="loginButton"]');
                     const homeTimeline = document.querySelector('[data-testid="primaryColumn"]');
                     const userMenu = document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]');
@@ -69,33 +82,45 @@ export default function DirectXFollowerScanner() {
                     if (isLoggedIn) {
                       window.parent.postMessage({ type: 'LOGGED_IN' }, '*');
                     }
-                  })();
-                `
-                popup.document.head.appendChild(script)
-              }
+                  }
+                })();
+              `
+              popup.document.head.appendChild(script)
+              
             } catch (crossOriginError) {
-              // Expected for cross-origin, continue checking
+              // Can't access popup due to cross-origin - this is normal
+              setProgress(`⏳ Waiting for X.com access... (${checkAttempts}/${maxAttempts})`)
             }
+            
+            if (checkAttempts >= maxAttempts) {
+              clearInterval(checkInterval)
+              reject(new Error('Timeout waiting for X.com access'))
+            }
+            
           } catch (err) {
             // Continue checking
           }
         }, 2000)
 
-        // Listen for login confirmation
+        // Listen for messages from popup
         const messageHandler = (event: MessageEvent) => {
           if (event.data.type === 'LOGGED_IN') {
             sessionCaptured = true
-            setProgress('✅ X session detected! Navigating to followers page...')
+            setProgress('✅ X session detected! Please navigate to the followers page manually...')
             
-            // Navigate to followers page and start scanning immediately
-            navigateAndScan(popup, username).then(extractedFollowers => {
+          } else if (event.data.type === 'FOLLOWERS_PAGE_READY') {
+            sessionCaptured = true
+            setProgress('🎉 Followers page detected! Starting extraction...')
+            
+            // Start extraction immediately
+            extractFollowersFromPopup(popup).then((extractedFollowers: string[]) => {
               setFollowers(extractedFollowers)
               setProgress(`🎉 Extraction complete! Found ${extractedFollowers.length} followers`)
               popup.close()
               clearInterval(checkInterval)
               window.removeEventListener('message', messageHandler)
               resolve(extractedFollowers)
-            }).catch(extractError => {
+            }).catch((extractError: any) => {
               popup.close()
               clearInterval(checkInterval)
               window.removeEventListener('message', messageHandler)
@@ -344,44 +369,61 @@ export default function DirectXFollowerScanner() {
           {scanning ? '🔄 Scanning in Progress...' : '🚀 Start Direct X Scan'}
         </button>
         
-        {scanning && (
-          <button
-            onClick={() => {
-              // Manual navigation helper
-              const popup = window.open(`https://x.com/${username}/followers`, 'x-manual-scan', 'width=1200,height=800')
-              if (popup) {
-                setProgress('📖 Manual navigation opened - extraction will start automatically')
-                setTimeout(() => {
-                  extractFollowersFromPopup(popup).then(extractedFollowers => {
-                    setFollowers(extractedFollowers)
-                    setProgress(`🎉 Manual extraction complete! Found ${extractedFollowers.length} followers`)
-                    popup.close()
-                  }).catch(err => {
-                    setError(`Manual extraction failed: ${err.message}`)
-                  })
-                }, 3000)
-              }
-            }}
-            className="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-          >
-            🔧 Manual Navigation Backup
-          </button>
-        )}
+        <button
+          onClick={() => {
+            // Direct followers page opener
+            const popup = window.open(`https://x.com/${username}/followers`, 'x-direct-followers', 'width=1200,height=800,scrollbars=yes,resizable=yes')
+            if (popup) {
+              setScanning(true)
+              setProgress('📖 Opened followers page directly - waiting for page to load...')
+              
+              // Start monitoring for extraction
+              setTimeout(() => {
+                setProgress('⚡ Starting extraction...')
+                extractFollowersFromPopup(popup).then((extractedFollowers: string[]) => {
+                  setFollowers(extractedFollowers)
+                  setProgress(`🎉 Extraction complete! Found ${extractedFollowers.length} followers`)
+                  setScanning(false)
+                  popup.close()
+                }).catch((err: any) => {
+                  setError(`Extraction failed: ${err.message}`)
+                  setScanning(false)
+                  popup.close()
+                })
+              }, 5000) // Wait 5 seconds for page to load
+            }
+          }}
+          disabled={!username.trim()}
+          className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+        >
+          🎯 Open Followers Page Directly
+        </button>
       </div>
 
       {/* Instructions */}
       <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-        <h4 className="text-sm font-medium text-gray-800 mb-2">📋 How it works:</h4>
-        <ol className="text-xs text-gray-600 list-decimal list-inside space-y-1">
-          <li>Opens X.com in a popup window</li>
-          <li>Detects when you're logged in</li>
-          <li>Automatically navigates to /{username}/followers</li>
-          <li>Scrolls through the page to load followers</li>
-          <li>Extracts usernames in real-time</li>
-          <li>Shows progress and results</li>
-        </ol>
+        <h4 className="text-sm font-medium text-gray-800 mb-2">📋 Two Options:</h4>
+        
+        <div className="mb-3">
+          <p className="text-xs font-medium text-blue-700">🚀 Option 1: Start Direct X Scan</p>
+          <ol className="text-xs text-gray-600 list-decimal list-inside space-y-1 ml-2">
+            <li>Opens X.com and waits for login</li>
+            <li>Manually navigate to /{username}/followers</li>
+            <li>Extraction starts automatically</li>
+          </ol>
+        </div>
+        
+        <div>
+          <p className="text-xs font-medium text-green-700">🎯 Option 2: Open Followers Page Directly</p>
+          <ol className="text-xs text-gray-600 list-decimal list-inside space-y-1 ml-2">
+            <li>Opens /{username}/followers directly</li>
+            <li>Waits 5 seconds for page load</li>
+            <li>Starts extraction automatically</li>
+          </ol>
+        </div>
+        
         <p className="text-xs text-blue-600 mt-2">
-          💡 Make sure you're logged into X.com for best results!
+          💡 Make sure you're logged into X.com first! Option 2 is usually faster.
         </p>
       </div>
     </div>
