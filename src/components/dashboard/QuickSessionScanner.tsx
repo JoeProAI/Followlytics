@@ -85,83 +85,114 @@ export default function QuickSessionScanner() {
       let extractedFollowers: string[] = []
       let extractionComplete = false
 
-      // Wait for page to load, then start quick extraction
-      setTimeout(() => {
-        try {
-          // Inject quick extraction script
-          const script = extractorWindow.document.createElement('script')
-          script.textContent = `
-            (function() {
-              console.log('🔍 Starting quick follower extraction...');
-              
-              let followers = [];
-              let scrollCount = 0;
-              const maxScrolls = 10; // Quick scan - only 10 scrolls (about 200-500 followers)
-              
-              function extractCurrentBatch() {
-                const userCells = document.querySelectorAll('[data-testid="UserCell"]');
-                let newCount = 0;
-                
-                userCells.forEach(cell => {
-                  const links = cell.querySelectorAll('a[href*="/"]');
-                  links.forEach(link => {
-                    const href = link.getAttribute('href');
-                    if (href && href.startsWith('/') && !href.includes('/status/')) {
-                      const username = href.substring(1).split('/')[0];
-                      if (username && 
-                          username.length > 0 && 
-                          username.length < 16 &&
-                          /^[a-zA-Z0-9_]+$/.test(username) &&
-                          !followers.includes(username)) {
-                        followers.push(username);
-                        newCount++;
-                      }
-                    }
-                  });
-                });
-                
-                return newCount;
-              }
-              
-              function quickScan() {
-                extractCurrentBatch();
-                
-                window.parent.postMessage({
-                  type: 'EXTRACTION_PROGRESS',
-                  followers: followers,
-                  count: followers.length,
-                  scroll: scrollCount,
-                  maxScrolls: maxScrolls
-                }, '*');
-                
-                if (scrollCount < maxScrolls) {
-                  // Quick scroll
-                  window.scrollTo(0, document.body.scrollHeight);
-                  scrollCount++;
-                  
-                  // Continue quickly
-                  setTimeout(quickScan, 1500); // Faster scrolling
-                } else {
-                  // Quick extraction complete
-                  window.parent.postMessage({
-                    type: 'EXTRACTION_COMPLETE',
-                    followers: followers,
-                    count: followers.length
-                  }, '*');
-                }
-              }
-              
-              // Start quick scan after brief delay
-              setTimeout(quickScan, 2000);
-              
-            })();
-          `
-          extractorWindow.document.head.appendChild(script)
-          
-        } catch (crossOriginError) {
-          reject(new Error('Cannot access X.com - please make sure you\'re logged in'))
+      // Show instructions to user since we can't inject due to cross-origin
+      setProgress({ 
+        phase: 'manual', 
+        progress: 30, 
+        message: '📋 Popup opened! Please copy and paste this code in the browser console on the X page:' 
+      })
+      
+      // Create the extraction code for manual execution
+      const extractionCode = `
+(function() {
+  console.log('🔍 Starting quick follower extraction...');
+  
+  let followers = [];
+  let scrollCount = 0;
+  const maxScrolls = 10;
+  
+  function extractCurrentBatch() {
+    const userCells = document.querySelectorAll('[data-testid="UserCell"]');
+    let newCount = 0;
+    
+    userCells.forEach(cell => {
+      const links = cell.querySelectorAll('a[href*="/"]');
+      links.forEach(link => {
+        const href = link.getAttribute('href');
+        if (href && href.startsWith('/') && !href.includes('/status/')) {
+          const username = href.substring(1).split('/')[0];
+          if (username && 
+              username.length > 0 && 
+              username.length < 16 &&
+              /^[a-zA-Z0-9_]+$/.test(username) &&
+              !followers.includes(username)) {
+            followers.push(username);
+            newCount++;
+          }
         }
-      }, 3000)
+      });
+    });
+    
+    return newCount;
+  }
+  
+  function quickScan() {
+    extractCurrentBatch();
+    console.log('Found', followers.length, 'followers so far...');
+    
+    if (window.opener) {
+      window.opener.postMessage({
+        type: 'EXTRACTION_PROGRESS',
+        followers: followers,
+        count: followers.length,
+        scroll: scrollCount,
+        maxScrolls: maxScrolls
+      }, '*');
+    }
+    
+    if (scrollCount < maxScrolls) {
+      window.scrollTo(0, document.body.scrollHeight);
+      scrollCount++;
+      setTimeout(quickScan, 1500);
+    } else {
+      console.log('Extraction complete! Found', followers.length, 'followers');
+      if (window.opener) {
+        window.opener.postMessage({
+          type: 'EXTRACTION_COMPLETE',
+          followers: followers,
+          count: followers.length
+        }, '*');
+      }
+    }
+  }
+  
+  setTimeout(quickScan, 2000);
+})();
+      `
+      
+      // Copy to clipboard
+      navigator.clipboard.writeText(extractionCode).then(() => {
+        setProgress({ 
+          phase: 'manual', 
+          progress: 40, 
+          message: '📋 Code copied to clipboard! Go to X tab, open console (F12), paste and press Enter' 
+        })
+      }).catch(() => {
+        setProgress({ 
+          phase: 'manual', 
+          progress: 40, 
+          message: '📋 Please manually copy the code shown below and paste it in the X browser console' 
+        })
+      })
+      
+      // Store the code for display
+      setError(`MANUAL STEP REQUIRED:
+      
+1. Go to the X followers page tab that just opened
+2. Press F12 to open browser console
+3. Paste this code and press Enter:
+
+${extractionCode}
+
+4. Wait for extraction to complete
+5. Results will appear here automatically`)
+      
+      setTimeout(() => {
+        // Auto-resolve with empty array if no manual execution
+        if (extractedFollowers.length === 0) {
+          resolve([])
+        }
+      }, 5 * 60 * 1000) // 5 minute timeout
 
       // Listen for extraction results
       const messageHandler = (event: MessageEvent) => {
