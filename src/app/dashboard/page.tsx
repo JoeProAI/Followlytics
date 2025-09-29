@@ -261,9 +261,14 @@ function DashboardContent() {
                 </div>
               </div>
               
-              {/* Manual Quick Scanner - SIMPLE 3-STEP PROCESS */}
+              {/* X Session Capture + Automated Scanning */}
               <div className="mb-6">
-                <ManualQuickScanner />
+                <XSessionCapture />
+              </div>
+              
+              {/* Optimized Scan Interface - Uses Captured Session */}
+              <div className="mb-6">
+                <OptimizedScanInterface />
               </div>
               
               {/* Alternative Scanners */}
@@ -273,6 +278,11 @@ function DashboardContent() {
                 </summary>
                 
                 <div className="space-y-4 mt-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Manual Quick Scanner (Console Required)</h4>
+                    <ManualQuickScanner />
+                  </div>
+                  
                   <div>
                     <h4 className="text-sm font-medium text-gray-700 mb-2">Quick Session Scanner (Cross-Origin Issues)</h4>
                     <QuickSessionScanner />
