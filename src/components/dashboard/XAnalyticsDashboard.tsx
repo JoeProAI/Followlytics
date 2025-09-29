@@ -1,53 +1,82 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useAuthState } from 'react-firebase-hooks/auth'
 import { auth } from '@/lib/firebase'
 
-interface AnalyticsData {
-  totalPosts: number
-  totalEngagement: number
-  avgEngagement: number
-  topPost: string
-  growthRate: number
-  sentimentScore: number
+interface XAnalyticsData {
+  user_metrics: {
+    followers_count: number
+    following_count: number
+    tweet_count: number
+    listed_count: number
+  }
+  recent_tweets: Array<{
+    id: string
+    text: string
+    created_at: string
+    public_metrics: {
+      retweet_count: number
+      like_count: number
+      reply_count: number
+      quote_count: number
+    }
+  }>
+  engagement_rate: number
+  top_performing_tweet: any
+  total_impressions: number
+  total_engagements: number
+  sentiment_analysis: {
+    positive: number
+    negative: number
+    neutral: number
+  }
 }
 
 export default function XAnalyticsDashboard() {
   const [user] = useAuthState(auth)
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
+  const [analyticsData, setAnalyticsData] = useState<XAnalyticsData | null>(null)
   const [loading, setLoading] = useState(false)
-  const [xConnected, setXConnected] = useState(false)
   const [error, setError] = useState('')
+  const [username, setUsername] = useState('')
 
-  // Mock analytics data for demo
-  const generateMockAnalytics = (): AnalyticsData => ({
-    totalPosts: Math.floor(Math.random() * 500) + 100,
-    totalEngagement: Math.floor(Math.random() * 10000) + 1000,
-    avgEngagement: Math.floor(Math.random() * 50) + 10,
-    topPost: "Your post about AI trends got the most engagement!",
-    growthRate: Math.floor(Math.random() * 20) + 5,
-    sentimentScore: Math.floor(Math.random() * 30) + 70
-  })
+  const fetchRealAnalytics = async () => {
+    if (!username.trim()) {
+      setError('Please enter a valid X username')
+      return
+    }
 
-  const connectToX = async () => {
     setLoading(true)
     setError('')
     
     try {
-      // Simulate X connection
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      setXConnected(true)
-      setAnalyticsData(generateMockAnalytics())
-    } catch (err) {
-      setError('Failed to connect to X. Please try again.')
+      const token = await user?.getIdToken()
+      if (!token) {
+        throw new Error('Authentication required')
+      }
+
+      const response = await fetch('/api/x-analytics', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ username: username.replace('@', '') })
+      })
+
+      const result = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch analytics')
+      }
+
+      setAnalyticsData(result.data)
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch X analytics')
+      console.error('Analytics fetch error:', err)
     } finally {
       setLoading(false)
     }
-  }
-
-  const refreshAnalytics = () => {
-    setAnalyticsData(generateMockAnalytics())
   }
 
   if (!user) {
@@ -62,14 +91,14 @@ export default function XAnalyticsDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6 text-white">
-        <h1 className="text-2xl font-bold mb-2">📊 X Analytics Dashboard</h1>
+        <h1 className="text-2xl font-bold mb-2">📊 Real X Analytics Dashboard</h1>
         <p className="text-blue-100">
-          Get insights into your X performance and optimize your social strategy
+          Get REAL insights from X API v2 - Enter any X username to analyze
         </p>
       </div>
 
-      {/* Connection Status */}
-      {!xConnected ? (
+      {/* Username Input */}
+      {!analyticsData ? (
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="text-center">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -78,112 +107,157 @@ export default function XAnalyticsDashboard() {
               </svg>
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Connect Your X Account
+              Analyze Any X Account
             </h3>
             <p className="text-gray-600 mb-4">
-              Connect your X account to start analyzing your posts and engagement
+              Enter an X username to get real analytics powered by X API v2
             </p>
+            
+            <div className="max-w-md mx-auto mb-4">
+              <div className="flex">
+                <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
+                  @
+                </span>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="elonmusk"
+                  className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+                  onKeyPress={(e) => e.key === 'Enter' && fetchRealAnalytics()}
+                />
+              </div>
+            </div>
+
             {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm max-w-md mx-auto">
                 {error}
               </div>
             )}
+            
             <button
-              onClick={connectToX}
-              disabled={loading}
+              onClick={fetchRealAnalytics}
+              disabled={loading || !username.trim()}
               className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-3 rounded-lg font-medium transition-colors"
             >
-              {loading ? '🔄 Connecting...' : '🔗 Connect X Account'}
+              {loading ? '🔄 Analyzing...' : '📊 Get Real Analytics'}
             </button>
           </div>
         </div>
       ) : (
         <>
-          {/* Analytics Cards */}
+          {/* User Info Header */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">@{username}</h2>
+                <p className="text-gray-600">{analyticsData.user_metrics.followers_count.toLocaleString()} followers</p>
+              </div>
+              <button
+                onClick={() => setAnalyticsData(null)}
+                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+              >
+                ← Analyze Different Account
+              </button>
+            </div>
+          </div>
+
+          {/* Real Analytics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Total Posts</p>
-                  <p className="text-2xl font-bold text-gray-900">{analyticsData?.totalPosts}</p>
+                  <p className="text-2xl font-bold text-gray-900">{analyticsData.user_metrics.tweet_count.toLocaleString()}</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                   <span className="text-2xl">📝</span>
                 </div>
               </div>
-              <p className="text-xs text-green-600 mt-2">↗️ +12% from last month</p>
+              <p className="text-xs text-gray-500 mt-2">From X API</p>
             </div>
 
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Total Engagement</p>
-                  <p className="text-2xl font-bold text-gray-900">{analyticsData?.totalEngagement?.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-gray-900">{analyticsData.total_engagements.toLocaleString()}</p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                   <span className="text-2xl">❤️</span>
                 </div>
               </div>
-              <p className="text-xs text-green-600 mt-2">↗️ +{analyticsData?.growthRate}% growth</p>
+              <p className="text-xs text-gray-500 mt-2">Recent posts</p>
             </div>
 
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Avg Engagement</p>
-                  <p className="text-2xl font-bold text-gray-900">{analyticsData?.avgEngagement}</p>
+                  <p className="text-sm font-medium text-gray-600">Engagement Rate</p>
+                  <p className="text-2xl font-bold text-gray-900">{analyticsData.engagement_rate}%</p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
                   <span className="text-2xl">📊</span>
                 </div>
               </div>
-              <p className="text-xs text-purple-600 mt-2">Per post average</p>
+              <p className="text-xs text-purple-600 mt-2">Calculated from real data</p>
             </div>
 
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Sentiment Score</p>
-                  <p className="text-2xl font-bold text-gray-900">{analyticsData?.sentimentScore}%</p>
+                  <p className="text-sm font-medium text-gray-600">Positive Sentiment</p>
+                  <p className="text-2xl font-bold text-gray-900">{analyticsData.sentiment_analysis.positive}%</p>
                 </div>
                 <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
                   <span className="text-2xl">😊</span>
                 </div>
               </div>
-              <p className="text-xs text-green-600 mt-2">Positive sentiment</p>
+              <p className="text-xs text-green-600 mt-2">AI sentiment analysis</p>
             </div>
           </div>
 
-          {/* Insights Section */}
+          {/* Real Data Insights */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Top Performing Post */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">🔥 Top Performing Post</h3>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-gray-700 mb-2">{analyticsData?.topPost}</p>
-                <div className="flex items-center space-x-4 text-sm text-gray-500">
-                  <span>❤️ 234 likes</span>
-                  <span>🔄 89 reposts</span>
-                  <span>💬 45 replies</span>
+              {analyticsData.top_performing_tweet ? (
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-gray-700 mb-2 text-sm">
+                    {analyticsData.top_performing_tweet.text.substring(0, 150)}
+                    {analyticsData.top_performing_tweet.text.length > 150 ? '...' : ''}
+                  </p>
+                  <div className="flex items-center space-x-4 text-sm text-gray-500">
+                    <span>❤️ {analyticsData.top_performing_tweet.public_metrics.like_count}</span>
+                    <span>🔄 {analyticsData.top_performing_tweet.public_metrics.retweet_count}</span>
+                    <span>💬 {analyticsData.top_performing_tweet.public_metrics.reply_count}</span>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <p className="text-gray-500">No recent posts found</p>
+              )}
             </div>
 
-            {/* AI Recommendations */}
+            {/* Real Metrics Breakdown */}
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">🧠 AI Recommendations</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">📈 Account Metrics</h3>
               <div className="space-y-3">
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                  <p className="text-sm text-gray-700">Post between 2-4 PM for maximum engagement</p>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Followers:</span>
+                  <span className="font-semibold">{analyticsData.user_metrics.followers_count.toLocaleString()}</span>
                 </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-                  <p className="text-sm text-gray-700">Use more visual content - images get 2.3x more engagement</p>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Following:</span>
+                  <span className="font-semibold">{analyticsData.user_metrics.following_count.toLocaleString()}</span>
                 </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
-                  <p className="text-sm text-gray-700">Your audience loves tech content - post more about AI trends</p>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Listed:</span>
+                  <span className="font-semibold">{analyticsData.user_metrics.listed_count.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Recent Posts:</span>
+                  <span className="font-semibold">{analyticsData.recent_tweets.length}</span>
                 </div>
               </div>
             </div>
@@ -192,15 +266,22 @@ export default function XAnalyticsDashboard() {
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-4">
             <button
-              onClick={refreshAnalytics}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              onClick={fetchRealAnalytics}
+              disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-3 rounded-lg font-medium transition-colors"
             >
-              🔄 Refresh Analytics
+              {loading ? '🔄 Refreshing...' : '🔄 Refresh Real Data'}
             </button>
-            <button className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+            <button 
+              onClick={() => alert('Report generation coming soon with Daytona processing!')}
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
               📊 Generate Report
             </button>
-            <button className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+            <button 
+              onClick={() => alert('Viral prediction AI coming soon!')}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
               🔮 Predict Viral Posts
             </button>
           </div>

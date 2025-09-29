@@ -1,0 +1,251 @@
+// Real X API v2 Integration - NO MOCK DATA
+import { TwitterApi } from 'twitter-api-v2'
+
+interface XUserMetrics {
+  public_metrics: {
+    followers_count: number
+    following_count: number
+    tweet_count: number
+    listed_count: number
+  }
+}
+
+interface XTweetMetrics {
+  public_metrics: {
+    retweet_count: number
+    like_count: number
+    reply_count: number
+    quote_count: number
+    bookmark_count?: number
+    impression_count?: number
+  }
+}
+
+interface XTweet {
+  id: string
+  text: string
+  created_at: string
+  author_id: string
+  public_metrics: XTweetMetrics['public_metrics']
+  context_annotations?: Array<{
+    domain: { id: string; name: string; description: string }
+    entity: { id: string; name: string; description?: string }
+  }>
+}
+
+interface XAnalyticsData {
+  user_metrics: XUserMetrics['public_metrics']
+  recent_tweets: XTweet[]
+  engagement_rate: number
+  top_performing_tweet: XTweet | null
+  total_impressions: number
+  total_engagements: number
+  growth_metrics: {
+    followers_growth: number
+    engagement_growth: number
+  }
+  sentiment_analysis: {
+    positive: number
+    negative: number
+    neutral: number
+  }
+}
+
+class XAPIService {
+  private client: TwitterApi
+  private bearerToken: string
+
+  constructor() {
+    this.bearerToken = process.env.TWITTER_BEARER_TOKEN || ''
+    if (!this.bearerToken) {
+      throw new Error('TWITTER_BEARER_TOKEN is required')
+    }
+    this.client = new TwitterApi(this.bearerToken)
+  }
+
+  // Get user by username
+  async getUserByUsername(username: string): Promise<any> {
+    try {
+      const user = await this.client.v2.userByUsername(username, {
+        'user.fields': [
+          'public_metrics',
+          'created_at',
+          'description',
+          'location',
+          'verified',
+          'verified_type'
+        ]
+      })
+      return user.data
+    } catch (error) {
+      console.error('Error fetching user:', error)
+      throw new Error('Failed to fetch user data from X API')
+    }
+  }
+
+  // Get user's recent tweets with metrics
+  async getUserTweets(userId: string, maxResults: number = 10): Promise<XTweet[]> {
+    try {
+      const tweets = await this.client.v2.userTimeline(userId, {
+        max_results: maxResults,
+        'tweet.fields': [
+          'public_metrics',
+          'created_at',
+          'context_annotations',
+          'lang',
+          'possibly_sensitive'
+        ],
+        exclude: ['retweets', 'replies'] // Focus on original content
+      })
+
+      return tweets.data?.data || []
+    } catch (error) {
+      console.error('Error fetching tweets:', error)
+      throw new Error('Failed to fetch tweets from X API')
+    }
+  }
+
+  // Calculate engagement rate
+  calculateEngagementRate(tweets: XTweet[], followerCount: number): number {
+    if (!tweets.length || !followerCount) return 0
+
+    const totalEngagements = tweets.reduce((sum, tweet) => {
+      const metrics = tweet.public_metrics
+      return sum + (metrics.like_count + metrics.retweet_count + metrics.reply_count + metrics.quote_count)
+    }, 0)
+
+    const totalImpressions = tweets.length * followerCount * 0.1 // Estimate 10% reach
+    return totalImpressions > 0 ? (totalEngagements / totalImpressions) * 100 : 0
+  }
+
+  // Find top performing tweet
+  findTopPerformingTweet(tweets: XTweet[]): XTweet | null {
+    if (!tweets.length) return null
+
+    return tweets.reduce((top, current) => {
+      const currentScore = current.public_metrics.like_count + 
+                          current.public_metrics.retweet_count * 2 + 
+                          current.public_metrics.reply_count * 1.5
+      const topScore = top.public_metrics.like_count + 
+                      top.public_metrics.retweet_count * 2 + 
+                      top.public_metrics.reply_count * 1.5
+      
+      return currentScore > topScore ? current : top
+    })
+  }
+
+  // Analyze sentiment using context annotations and keywords
+  analyzeSentiment(tweets: XTweet[]): { positive: number; negative: number; neutral: number } {
+    if (!tweets.length) return { positive: 0, negative: 0, neutral: 0 }
+
+    const positiveKeywords = ['great', 'awesome', 'amazing', 'love', 'excellent', 'fantastic', 'wonderful', 'perfect', 'best', 'incredible']
+    const negativeKeywords = ['bad', 'terrible', 'awful', 'hate', 'worst', 'horrible', 'disappointing', 'failed', 'broken', 'useless']
+
+    let positive = 0
+    let negative = 0
+    let neutral = 0
+
+    tweets.forEach(tweet => {
+      const text = tweet.text.toLowerCase()
+      const hasPositive = positiveKeywords.some(word => text.includes(word))
+      const hasNegative = negativeKeywords.some(word => text.includes(word))
+
+      if (hasPositive && !hasNegative) {
+        positive++
+      } else if (hasNegative && !hasPositive) {
+        negative++
+      } else {
+        neutral++
+      }
+    })
+
+    const total = tweets.length
+    return {
+      positive: Math.round((positive / total) * 100),
+      negative: Math.round((negative / total) * 100),
+      neutral: Math.round((neutral / total) * 100)
+    }
+  }
+
+  // Get comprehensive analytics for a user
+  async getAnalytics(username: string): Promise<XAnalyticsData> {
+    try {
+      // Get user data
+      const user = await this.getUserByUsername(username)
+      if (!user) {
+        throw new Error('User not found')
+      }
+
+      // Get recent tweets
+      const tweets = await this.getUserTweets(user.id, 20)
+      
+      // Calculate metrics
+      const engagementRate = this.calculateEngagementRate(tweets, user.public_metrics.followers_count)
+      const topTweet = this.findTopPerformingTweet(tweets)
+      const sentiment = this.analyzeSentiment(tweets)
+
+      // Calculate totals
+      const totalEngagements = tweets.reduce((sum, tweet) => {
+        const metrics = tweet.public_metrics
+        return sum + (metrics.like_count + metrics.retweet_count + metrics.reply_count + metrics.quote_count)
+      }, 0)
+
+      const totalImpressions = tweets.reduce((sum, tweet) => {
+        return sum + (tweet.public_metrics.impression_count || user.public_metrics.followers_count * 0.1)
+      }, 0)
+
+      return {
+        user_metrics: user.public_metrics,
+        recent_tweets: tweets,
+        engagement_rate: Math.round(engagementRate * 100) / 100,
+        top_performing_tweet: topTweet,
+        total_impressions: Math.round(totalImpressions),
+        total_engagements: totalEngagements,
+        growth_metrics: {
+          followers_growth: 0, // Would need historical data
+          engagement_growth: 0 // Would need historical data
+        },
+        sentiment_analysis: sentiment
+      }
+    } catch (error) {
+      console.error('Error getting analytics:', error)
+      throw error
+    }
+  }
+
+  // Search for tweets by query (for competitor analysis)
+  async searchTweets(query: string, maxResults: number = 10): Promise<XTweet[]> {
+    try {
+      const tweets = await this.client.v2.search(query, {
+        max_results: maxResults,
+        'tweet.fields': [
+          'public_metrics',
+          'created_at',
+          'context_annotations',
+          'author_id'
+        ]
+      })
+
+      return tweets.data?.data || []
+    } catch (error) {
+      console.error('Error searching tweets:', error)
+      throw new Error('Failed to search tweets')
+    }
+  }
+
+  // Get trending topics
+  async getTrendingTopics(woeid: number = 1): Promise<any[]> {
+    try {
+      // Note: Trends endpoint requires different authentication
+      // This would need OAuth 1.0a or elevated access
+      console.log('Trending topics require elevated API access')
+      return []
+    } catch (error) {
+      console.error('Error fetching trends:', error)
+      return []
+    }
+  }
+}
+
+export default XAPIService
+export type { XAnalyticsData, XTweet, XUserMetrics }
