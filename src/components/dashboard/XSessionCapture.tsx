@@ -27,93 +27,69 @@ export default function XSessionCapture() {
         throw new Error('Popup blocked. Please allow popups for this site.')
       }
 
-      // Wait for user to login and navigate to their profile
+      // Simplified approach - just try to capture session after a short delay
+      let attempts = 0
+      const maxAttempts = 15 // 30 seconds total
+      
       const checkInterval = setInterval(async () => {
+        attempts++
+        
         try {
-          // Check if popup is still open and user is on X.com
+          // Check if popup is still open
           if (popup.closed) {
             clearInterval(checkInterval)
             setCapturing(false)
             return
           }
 
-          // Try to access popup content (will fail if different domain)
-          const popupUrl = popup.location.href
+          console.log(`🔍 Attempt ${attempts}/${maxAttempts} - trying to capture session...`)
           
-          if (popupUrl.includes('x.com') || popupUrl.includes('twitter.com')) {
-            console.log('🔍 User is on X.com, checking authentication status...')
+          // Try to capture session directly (skip login detection due to cross-origin issues)
+          const sessionData = await captureSessionFromPopup(popup)
+          
+          if (sessionData && sessionData.cookies && Object.keys(sessionData.cookies).length > 0) {
+            console.log('✅ Session data captured successfully!')
             
-            // Check if user is already logged in by looking for login indicators
-            const isLoggedIn = await checkIfUserIsLoggedIn(popup)
-            
-            if (isLoggedIn) {
-              console.log('✅ User is already logged in to X.com, capturing session...')
-              
-              // User is already logged in, capture session immediately
-              const sessionData = await captureSessionFromPopup(popup)
-              
-              if (sessionData) {
-                // Send session data to our API
-                const token = await user.getIdToken()
-                const response = await fetch('/api/auth/capture-x-session', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                  },
-                  body: JSON.stringify({ sessionData }),
-                })
+            // Send session data to our API
+            const token = await user.getIdToken()
+            const response = await fetch('/api/auth/capture-x-session', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify({ sessionData }),
+            })
 
-                const result = await response.json()
-                
-                if (result.success) {
-                  setSessionCaptured(true)
-                  popup.close()
-                  clearInterval(checkInterval)
-                  console.log('✅ Session captured and popup closed automatically')
-                } else {
-                  throw new Error(result.error || 'Failed to capture session')
-                }
-              }
+            const result = await response.json()
+            
+            if (result.success) {
+              setSessionCaptured(true)
+              popup.close()
+              clearInterval(checkInterval)
+              console.log('✅ Session captured and stored successfully!')
             } else {
-              console.log('⏳ User needs to log in, waiting...')
-              
-              // After 30 seconds, try to capture session anyway (user might be logged in but detection failed)
-              setTimeout(async () => {
-                if (!sessionCaptured && !error) {
-                  console.log('⏰ 30 seconds elapsed - attempting session capture anyway...')
-                  try {
-                    const sessionData = await captureSessionFromPopup(popup)
-                    if (sessionData) {
-                      const token = await user.getIdToken()
-                      const response = await fetch('/api/auth/capture-x-session', {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${token}`,
-                        },
-                        body: JSON.stringify({ sessionData }),
-                      })
-
-                      const result = await response.json()
-                      
-                      if (result.success) {
-                        setSessionCaptured(true)
-                        popup.close()
-                        clearInterval(checkInterval)
-                        console.log('✅ Session captured via fallback mechanism')
-                      }
-                    }
-                  } catch (fallbackError) {
-                    console.log('⚠️ Fallback session capture failed:', fallbackError)
-                  }
-                }
-              }, 30000)
+              throw new Error(result.error || 'Failed to store session')
+            }
+          } else {
+            console.log(`⏳ No session data yet (attempt ${attempts}/${maxAttempts})...`)
+            
+            if (attempts >= maxAttempts) {
+              clearInterval(checkInterval)
+              popup.close()
+              setCapturing(false)
+              setError('Could not capture session. Please make sure you are logged into X.com and try again.')
             }
           }
         } catch (err) {
-          // Ignore cross-origin errors, continue checking
-          console.log('Waiting for user to complete X login...')
+          console.log(`⚠️ Attempt ${attempts} failed:`, err)
+          
+          if (attempts >= maxAttempts) {
+            clearInterval(checkInterval)
+            popup.close()
+            setCapturing(false)
+            setError('Session capture failed. Please ensure you are logged into X.com and try again.')
+          }
         }
       }, 2000)
 
@@ -356,21 +332,20 @@ export default function XSessionCapture() {
       {capturing && (
         <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
           <p className="text-sm text-yellow-800">
-            <strong>Instructions:</strong>
+            <strong>📋 Simple Instructions:</strong>
           </p>
           <ol className="text-sm text-yellow-700 mt-1 list-decimal list-inside space-y-1">
-            <li>A popup window will open to X.com</li>
-            <li>If you're already logged in, the session will be captured automatically</li>
-            <li>If not logged in, sign in to your X account</li>
-            <li>The popup will close automatically when complete</li>
-            <li>Wait for the "✅ Session Captured Successfully!" message</li>
+            <li>X.com popup window opened</li>
+            <li>Make sure you're logged into X in the popup</li>
+            <li>Wait 30 seconds for automatic session capture</li>
+            <li>Popup will close automatically when complete</li>
           </ol>
-          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
-            <p className="text-xs text-blue-700">
-              💡 <strong>Already logged in to X?</strong> The popup should close automatically within a few seconds.
+          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+            <p className="text-xs text-green-700">
+              ✅ <strong>System will automatically capture your session</strong> - no manual steps needed!
             </p>
-            <p className="text-xs text-blue-600 mt-1">
-              ⏰ If stuck after 30+ seconds, the system will attempt capture automatically.
+            <p className="text-xs text-green-600 mt-1">
+              🔄 Trying every 2 seconds for 30 seconds total
             </p>
           </div>
         </div>
