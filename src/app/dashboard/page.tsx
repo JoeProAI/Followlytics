@@ -18,6 +18,7 @@ import SimpleXFollowerScanner from '@/components/dashboard/SimpleXFollowerScanne
 import BookmarkletXScanner from '@/components/dashboard/BookmarkletXScanner'
 import QuickSessionScanner from '@/components/dashboard/QuickSessionScanner'
 import ManualQuickScanner from '@/components/dashboard/ManualQuickScanner'
+import XAnalyticsDashboard from '@/components/dashboard/XAnalyticsDashboard'
 
 function DashboardContent() {
   const { user, logout, loading } = useAuth()
@@ -261,67 +262,44 @@ function DashboardContent() {
                 </div>
               </div>
               
-              {/* X Session Capture + Automated Scanning */}
+              {/* Main X Analytics Dashboard */}
               <div className="mb-6">
-                <XSessionCapture />
+                <XAnalyticsDashboard />
               </div>
               
-              {/* Optimized Scan Interface - Uses Captured Session */}
-              <div className="mb-6">
-                <OptimizedScanInterface />
-              </div>
-              
-              {/* Alternative Scanners */}
+              {/* Legacy Tools */}
               <details className="mb-6">
                 <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700 mb-4">
-                  🔧 Alternative Scanners (if quick scanner doesn't work)
+                  🔧 Legacy Follower Scanning Tools (Experimental)
                 </summary>
                 
                 <div className="space-y-4 mt-4">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-yellow-800">
+                      <strong>⚠️ Note:</strong> These are experimental follower scanning tools. 
+                      The main focus is now on X Analytics above.
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">X Session Capture + Optimized Scan</h4>
+                    <XSessionCapture />
+                    <div className="mt-4">
+                      <OptimizedScanInterface />
+                    </div>
+                  </div>
+                  
                   <div>
                     <h4 className="text-sm font-medium text-gray-700 mb-2">Manual Quick Scanner (Console Required)</h4>
                     <ManualQuickScanner />
                   </div>
                   
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Quick Session Scanner (Cross-Origin Issues)</h4>
-                    <QuickSessionScanner />
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Bookmarklet Scanner (Overlay)</h4>
-                    <BookmarkletXScanner />
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Simple X Scanner (Tool Closes)</h4>
-                    <SimpleXFollowerScanner />
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Direct X Scanner (Cross-Origin Issues)</h4>
-                    <DirectXFollowerScanner />
-                  </div>
-                  
-                  <div>
                     <h4 className="text-sm font-medium text-gray-700 mb-2">Automated Scanner (Sandbox)</h4>
                     <AutoFollowerScanner detectedUsername={twitterAuthStatus.xUsername} />
                   </div>
-                  
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Direct Browser Scanner</h4>
-                    <DirectFollowerScanner detectedUsername={twitterAuthStatus.xUsername} />
-                  </div>
                 </div>
               </details>
-              
-              {/* X Session Authentication */}
-              <div className="mb-6">
-                <XSessionCapture />
-              </div>
-              
-              {/* Optimized Scan Interface */}
-              <OptimizedScanInterface />
               
               {/* Legacy Components (Hidden by default) */}
               <details className="mt-8">

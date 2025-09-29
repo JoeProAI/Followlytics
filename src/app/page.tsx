@@ -28,7 +28,7 @@ export default function Home() {
               <div className="text-4xl mb-4">🔥</div>
               <h3 className="text-xl font-bold text-gray-900 mb-3">Viral Prediction Engine</h3>
               <p className="text-gray-600 mb-4">
-                AI analyzes your tweet patterns and predicts viral potential with 87% accuracy before you post.
+                AI analyzes your X post patterns and predicts viral potential with 87% accuracy before you post.
               </p>
               <div className="text-sm text-red-600 font-medium">
                 ✨ Get viral score predictions
@@ -105,7 +105,7 @@ export default function Home() {
             Ready to Transform Your X Strategy?
           </h2>
           <p className="text-xl mb-8 text-blue-100">
-            Join thousands of creators and businesses using TweetScope to optimize their social media presence
+            Join thousands of creators and businesses using XScope to optimize their social media presence
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link 

@@ -6,6 +6,8 @@ import {
   User,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
   signOut,
   onAuthStateChanged
 } from 'firebase/auth'
@@ -17,6 +19,7 @@ interface AuthContextType {
   loading: boolean
   signUp: (email: string, password: string) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
+  signInWithGoogle: () => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -54,6 +57,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     await signInWithEmailAndPassword(auth, email, password)
   }
 
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider()
+    const { user } = await signInWithPopup(auth, provider)
+    
+    // Create user document in Firestore if it doesn't exist
+    await setDoc(doc(db, 'users', user.uid), {
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+      createdAt: new Date(),
+      xConnected: false,
+      xUsername: null,
+    }, { merge: true })
+  }
+
   const logout = async () => {
     await signOut(auth)
   }
@@ -73,6 +91,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     loading,
     signUp,
     signIn,
+    signInWithGoogle,
     logout,
   }
 
