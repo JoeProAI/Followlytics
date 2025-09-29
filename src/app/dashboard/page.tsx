@@ -16,6 +16,7 @@ import AutoFollowerScanner from '@/components/dashboard/AutoFollowerScanner'
 import DirectXFollowerScanner from '@/components/dashboard/DirectXFollowerScanner'
 import SimpleXFollowerScanner from '@/components/dashboard/SimpleXFollowerScanner'
 import BookmarkletXScanner from '@/components/dashboard/BookmarkletXScanner'
+import QuickSessionScanner from '@/components/dashboard/QuickSessionScanner'
 
 function DashboardContent() {
   const { user, logout, loading } = useAuth()
@@ -259,18 +260,23 @@ function DashboardContent() {
                 </div>
               </div>
               
-              {/* Bookmarklet X Scanner - OVERLAY STAYS OPEN */}
+              {/* Quick Session Scanner - USES EXISTING LOGIN */}
               <div className="mb-6">
-                <BookmarkletXScanner />
+                <QuickSessionScanner />
               </div>
               
               {/* Alternative Scanners */}
               <details className="mb-6">
                 <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700 mb-4">
-                  🔧 Alternative Scanners (if bookmarklet doesn't work)
+                  🔧 Alternative Scanners (if quick scanner doesn't work)
                 </summary>
                 
                 <div className="space-y-4 mt-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Bookmarklet Scanner (Overlay)</h4>
+                    <BookmarkletXScanner />
+                  </div>
+                  
                   <div>
                     <h4 className="text-sm font-medium text-gray-700 mb-2">Simple X Scanner (Tool Closes)</h4>
                     <SimpleXFollowerScanner />
