@@ -1,128 +1,151 @@
 'use client'
 
 import Link from 'next/link'
-import AnalyticsPlatformHero from '@/components/landing/AnalyticsPlatformHero'
 
 export default function Home() {
-
   return (
-    <div className="min-h-screen">
-      {/* New Analytics Platform Hero */}
-      <AnalyticsPlatformHero />
-      
-      {/* Features Section */}
-      <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Powerful Analytics Features
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Transform your X data into actionable insights with our AI-powered analytics platform
+    <div className="min-h-screen bg-black text-white">
+      {/* Hero */}
+      <section className="relative overflow-hidden border-b border-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32">
+          <div className="max-w-3xl">
+            <h1 className="text-6xl font-light tracking-tight mb-6">
+              Professional X Analytics
+            </h1>
+            <p className="text-xl text-gray-400 mb-8 font-light">
+              Data-driven insights for serious marketers. No fluff. Just intelligence.
             </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Viral Prediction */}
-            <div className="bg-gradient-to-br from-red-50 to-pink-50 rounded-xl p-6 border border-red-100">
-              <div className="text-4xl mb-4">🔥</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Viral Prediction Engine</h3>
-              <p className="text-gray-600 mb-4">
-                AI analyzes your X post patterns and predicts viral potential with 87% accuracy before you post.
-              </p>
-              <div className="text-sm text-red-600 font-medium">
-                ✨ Get viral score predictions
-              </div>
-            </div>
-
-            {/* Real-time Analytics */}
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
-              <div className="text-4xl mb-4">📊</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Real-time Analytics</h3>
-              <p className="text-gray-600 mb-4">
-                Live engagement tracking with instant alerts when your content starts trending.
-              </p>
-              <div className="text-sm text-blue-600 font-medium">
-                ⚡ Live dashboard updates
-              </div>
-            </div>
-
-            {/* AI Insights */}
-            <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-6 border border-purple-100">
-              <div className="text-4xl mb-4">🧠</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">AI-Powered Insights</h3>
-              <p className="text-gray-600 mb-4">
-                Advanced sentiment analysis and personalized growth recommendations powered by Daytona.
-              </p>
-              <div className="text-sm text-purple-600 font-medium">
-                🎯 Personalized recommendations
-              </div>
-            </div>
-
-            {/* Competitor Analysis */}
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
-              <div className="text-4xl mb-4">🎯</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Competitor Intelligence</h3>
-              <p className="text-gray-600 mb-4">
-                Compare your metrics against competitors and discover industry benchmarks.
-              </p>
-              <div className="text-sm text-green-600 font-medium">
-                📈 Industry benchmarking
-              </div>
-            </div>
-
-            {/* Growth Optimization */}
-            <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-6 border border-yellow-100">
-              <div className="text-4xl mb-4">🚀</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Growth Optimization</h3>
-              <p className="text-gray-600 mb-4">
-                AI-generated content suggestions and optimal posting time recommendations.
-              </p>
-              <div className="text-sm text-orange-600 font-medium">
-                💡 AI content suggestions
-              </div>
-            </div>
-
-            {/* Professional Reports */}
-            <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-6 border border-gray-100">
-              <div className="text-4xl mb-4">📱</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Professional Reports</h3>
-              <p className="text-gray-600 mb-4">
-                Beautiful PDF reports and shareable infographics for clients and stakeholders.
-              </p>
-              <div className="text-sm text-gray-600 font-medium">
-                📄 One-click reports
-              </div>
+            <div className="flex gap-4">
+              <Link 
+                href="/signup" 
+                className="bg-white text-black px-8 py-3 rounded font-medium hover:bg-gray-200 transition-colors"
+              >
+                Start Analyzing
+              </Link>
+              <Link 
+                href="/dashboard" 
+                className="border border-gray-800 px-8 py-3 rounded font-medium hover:border-gray-700 transition-colors"
+              >
+                View Platform
+              </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+      {/* Features */}
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-3 gap-12">
+            
+            {/* Competitor Intelligence */}
+            <div>
+              <div className="text-sm text-gray-500 uppercase tracking-wider mb-3">Competitive Analysis</div>
+              <h3 className="text-2xl font-light mb-4">Benchmark Against Competitors</h3>
+              <p className="text-gray-400 font-light">
+                Side-by-side metrics comparison. Track competitor growth patterns. Identify market opportunities.
+              </p>
+            </div>
+
+            {/* Brand Monitoring */}
+            <div>
+              <div className="text-sm text-gray-500 uppercase tracking-wider mb-3">Brand Monitoring</div>
+              <h3 className="text-2xl font-light mb-4">Track Mentions & Sentiment</h3>
+              <p className="text-gray-400 font-light">
+                Real-time mention tracking. Sentiment analysis. Crisis detection. Brand health monitoring.
+              </p>
+            </div>
+
+            {/* Content Intelligence */}
+            <div>
+              <div className="text-sm text-gray-500 uppercase tracking-wider mb-3">Content Analysis</div>
+              <h3 className="text-2xl font-light mb-4">Deep Tweet Analysis</h3>
+              <p className="text-gray-400 font-light">
+                Engagement breakdown. Audience demographics. Performance patterns. Content optimization.
+              </p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* Capabilities */}
+      <section className="border-t border-gray-900 py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-2 gap-16">
+            
+            <div>
+              <h2 className="text-4xl font-light mb-6">Built for Professionals</h2>
+              <div className="space-y-4 text-gray-400">
+                <p>Real-time X API integration. Enterprise-grade analytics. Comprehensive reporting.</p>
+                <p>No marketing fluff. No AI hype. Just clean data and actionable insights.</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="flex gap-4">
+                <div className="text-sm text-gray-600 w-32">API Coverage</div>
+                <div className="flex-1">
+                  <div className="h-2 bg-gray-900 rounded-full overflow-hidden">
+                    <div className="h-full bg-white w-4/5"></div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="text-sm text-gray-600 w-32">Data Accuracy</div>
+                <div className="flex-1">
+                  <div className="h-2 bg-gray-900 rounded-full overflow-hidden">
+                    <div className="h-full bg-white w-full"></div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="text-sm text-gray-600 w-32">Real-time Updates</div>
+                <div className="flex-1">
+                  <div className="h-2 bg-gray-900 rounded-full overflow-hidden">
+                    <div className="h-full bg-white w-11/12"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="border-t border-gray-900 py-20">
         <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-          <h2 className="text-4xl font-bold mb-6">
-            Ready to Transform Your X Strategy?
+          <h2 className="text-4xl font-light mb-6">
+            Start Analyzing Today
           </h2>
-          <p className="text-xl mb-8 text-blue-100">
-            Join thousands of creators and businesses using XScope to optimize their social media presence
+          <p className="text-xl text-gray-400 mb-8 font-light">
+            Professional analytics for professional marketers
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link 
-              href="/signup" 
-              className="bg-white text-blue-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-lg text-lg transition-all duration-300 transform hover:scale-105"
-            >
-              🚀 Start Free Trial
-            </Link>
-            <Link 
-              href="/pricing" 
-              className="border-2 border-white text-white hover:bg-white hover:text-blue-600 font-bold py-4 px-8 rounded-lg text-lg transition-all duration-300"
-            >
-              💰 View Pricing
-            </Link>
-          </div>
+          <Link 
+            href="/signup" 
+            className="inline-block bg-white text-black px-8 py-4 rounded font-medium hover:bg-gray-200 transition-colors"
+          >
+            Get Started
+          </Link>
         </div>
       </section>
+
+      {/* Footer */}
+      <footer className="border-t border-gray-900 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center">
+            <div className="text-sm text-gray-600">
+              © 2025 XScope Analytics
+            </div>
+            <div className="flex gap-8 text-sm text-gray-600">
+              <Link href="/privacy" className="hover:text-gray-400">Privacy</Link>
+              <Link href="/terms" className="hover:text-gray-400">Terms</Link>
+              <Link href="/contact" className="hover:text-gray-400">Contact</Link>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
