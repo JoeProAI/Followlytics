@@ -137,23 +137,23 @@ export default function ProfessionalAnalytics() {
               </div>
             </div>
 
-            {data && (
+            {data?.user_metrics && (
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
                   <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Followers</div>
-                  <div className="text-2xl font-light">{data.user_metrics.followers_count.toLocaleString()}</div>
+                  <div className="text-2xl font-light">{data.user_metrics?.followers_count?.toLocaleString() || '0'}</div>
                 </div>
                 <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
                   <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Engagement Rate</div>
-                  <div className="text-2xl font-light">{data.engagement_rate.toFixed(2)}%</div>
+                  <div className="text-2xl font-light">{data.engagement_rate?.toFixed(2) || '0'}%</div>
                 </div>
                 <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
                   <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Posts</div>
-                  <div className="text-2xl font-light">{data.user_metrics.tweet_count.toLocaleString()}</div>
+                  <div className="text-2xl font-light">{data.user_metrics?.tweet_count?.toLocaleString() || '0'}</div>
                 </div>
                 <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
                   <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Sentiment</div>
-                  <div className="text-2xl font-light">{data.sentiment_analysis.positive}%</div>
+                  <div className="text-2xl font-light">{data.sentiment_analysis?.positive || '0'}%</div>
                 </div>
               </div>
             )}
