@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { useAuthState } from 'react-firebase-hooks/auth'
 import { auth } from '@/lib/firebase'
 
-type Tab = 'overview' | 'intelligence' | 'competitor' | 'hashtag' | 'viral' | 'mentions' | 'tweet'
+type Tab = 'overview' | 'intelligence' | 'search' | 'compare' | 'trending' | 'competitor' | 'hashtag' | 'viral' | 'mentions' | 'tweet'
 
 export default function ProfessionalAnalytics() {
   const [user] = useAuthState(auth)
@@ -50,10 +50,12 @@ export default function ProfessionalAnalytics() {
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
-    { id: 'intelligence', label: 'Content Intelligence' },
-    { id: 'competitor', label: 'Competitor Analysis' },
-    { id: 'hashtag', label: 'Hashtag Tracking' },
-    { id: 'viral', label: 'Viral Detection' },
+    { id: 'intelligence', label: 'Content Intel' },
+    { id: 'search', label: 'Search' },
+    { id: 'compare', label: 'Compare Users' },
+    { id: 'trending', label: 'Trending' },
+    { id: 'competitor', label: 'Competitors' },
+    { id: 'hashtag', label: 'Hashtags' },
     { id: 'mentions', label: 'Mentions' },
     { id: 'tweet', label: 'Tweet Analysis' }
   ]
