@@ -50,10 +50,10 @@ export default function ProfessionalAnalytics() {
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
+    { id: 'intelligence', label: 'Content Intelligence' },
     { id: 'competitor', label: 'Competitor Analysis' },
     { id: 'hashtag', label: 'Hashtag Tracking' },
     { id: 'viral', label: 'Viral Detection' },
-    { id: 'followers', label: 'Followers' },
     { id: 'mentions', label: 'Mentions' },
     { id: 'tweet', label: 'Tweet Analysis' }
   ]
@@ -163,6 +163,69 @@ export default function ProfessionalAnalytics() {
                   <span className="text-gray-400">{data.top_performing_tweet.public_metrics?.retweet_count?.toLocaleString()} retweets</span>
                   <span className="text-gray-400">{data.top_performing_tweet.public_metrics?.reply_count?.toLocaleString()} replies</span>
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Intelligence */}
+        {activeTab === 'intelligence' && (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">Username</label>
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="elonmusk"
+                  className="flex-1 bg-gray-900 border border-gray-800 rounded px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-gray-700"
+                />
+                <button
+                  onClick={() => fetchData('/api/intelligence/content', { username: username.replace('@', '') })}
+                  disabled={loading || !username}
+                  className="bg-white text-black px-8 py-2.5 rounded font-medium hover:bg-gray-200 disabled:opacity-50"
+                >
+                  {loading ? 'Analyzing...' : 'Analyze'}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">Deep analysis of up to 500 tweets</p>
+            </div>
+
+            {data?.analysis && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
+                    <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Analyzed</div>
+                    <div className="text-2xl font-light">{data.analysis.tweets_analyzed}</div>
+                  </div>
+                  <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
+                    <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Avg Likes</div>
+                    <div className="text-2xl font-light">{data.analysis.engagement_stats?.avg_likes_per_tweet}</div>
+                  </div>
+                  <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
+                    <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Avg Retweets</div>
+                    <div className="text-2xl font-light">{data.analysis.engagement_stats?.avg_retweets_per_tweet}</div>
+                  </div>
+                  <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
+                    <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Engagement</div>
+                    <div className="text-2xl font-light">{data.analysis.engagement_stats?.engagement_rate?.toFixed(2)}%</div>
+                  </div>
+                </div>
+
+                {data.analysis.recommendations?.length > 0 && (
+                  <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
+                    <div className="text-sm font-medium text-gray-400 mb-4">Recommendations</div>
+                    <div className="space-y-3">
+                      {data.analysis.recommendations.map((rec: any, idx: number) => (
+                        <div key={idx} className="border-l-2 border-white pl-4">
+                          <div className="text-sm mb-1">{rec.insight}</div>
+                          <div className="text-xs text-gray-400">{rec.action}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
