@@ -38,13 +38,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Username is required' }, { status: 400 })
     }
 
-    console.log(`[Content Intelligence] Analyzing @${username}...`)
+    // Clean username: remove @, trim whitespace
+    const cleanUsername = username.replace('@', '').trim()
+    
+    if (!cleanUsername) {
+      return NextResponse.json({ error: 'Invalid username' }, { status: 400 })
+    }
+
+    console.log(`[Content Intelligence] Analyzing @${cleanUsername}...`)
 
     // Initialize X API
     const client = new TwitterApi(process.env.X_BEARER_TOKEN!)
 
     // Get user
-    const userResponse = await client.v2.userByUsername(username.replace('@', ''), {
+    const userResponse = await client.v2.userByUsername(cleanUsername, {
       'user.fields': ['public_metrics', 'created_at']
     })
 
