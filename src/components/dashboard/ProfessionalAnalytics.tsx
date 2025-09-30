@@ -40,7 +40,7 @@ export default function ProfessionalAnalytics() {
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error)
-      setData(result.data)
+      setData(result)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -103,11 +103,13 @@ export default function ProfessionalAnalytics() {
         </div>
       </div>
 
-      {/* Content */}
+      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
+        
+        {/* Error Display */}
         {error && (
           <div className="mb-6 bg-red-900/20 border border-red-900/50 text-red-400 px-4 py-3 rounded">
-            {error}
+            <strong>Error:</strong> {error}
           </div>
         )}
 
