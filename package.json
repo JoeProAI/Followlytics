@@ -1,7 +1,7 @@
 {
-  "name": "followlytics",
-  "version": "1.0.2",
-  "description": "Twitter/X follower tracking system that identifies unfollowers and provides analytics",
+  "name": "xscope-analytics",
+  "version": "2.0.0",
+  "description": "Advanced X Analytics Platform - Comprehensive insights using X API v2",
   "private": true,
   "main": "index.js",
   "scripts": {
@@ -12,10 +12,12 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "twitter",
-    "follower",
-    "tracker",
-    "analytics"
+    "x-analytics",
+    "twitter-api",
+    "social-media",
+    "analytics",
+    "insights",
+    "engagement"
   ],
   "author": "",
   "license": "ISC",

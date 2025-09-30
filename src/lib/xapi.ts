@@ -1,4 +1,4 @@
-// Real X API v2 Integration - NO MOCK DATA
+// COMPREHENSIVE X API v2 Integration - Maximize $200/month API Value
 import { TwitterApi, TweetV2, UserV2 } from 'twitter-api-v2'
 
 interface XUserMetrics {
@@ -228,6 +228,227 @@ class XAPIService {
       return []
     } catch (error) {
       console.error('Error fetching trends:', error)
+      return []
+    }
+  }
+
+  // COMPREHENSIVE X API ENDPOINTS - Maximize $200/month Value
+
+  // Get user's followers (with pagination)
+  async getUserFollowers(userId: string, maxResults: number = 100): Promise<any[]> {
+    try {
+      const followers = await this.client.v2.followers(userId, {
+        max_results: maxResults,
+        'user.fields': ['public_metrics', 'verified', 'created_at', 'description']
+      })
+      return followers.data || []
+    } catch (error) {
+      console.error('Error fetching followers:', error)
+      throw new Error('Failed to fetch followers from X API')
+    }
+  }
+
+  // Get user's following (with pagination)
+  async getUserFollowing(userId: string, maxResults: number = 100): Promise<any[]> {
+    try {
+      const following = await this.client.v2.following(userId, {
+        max_results: maxResults,
+        'user.fields': ['public_metrics', 'verified', 'created_at', 'description']
+      })
+      return following.data || []
+    } catch (error) {
+      console.error('Error fetching following:', error)
+      throw new Error('Failed to fetch following from X API')
+    }
+  }
+
+  // Get tweet likes/liking users
+  async getTweetLikes(tweetId: string, maxResults: number = 100): Promise<any[]> {
+    try {
+      const likes = await this.client.v2.tweetLikedBy(tweetId, {
+        max_results: maxResults,
+        'user.fields': ['public_metrics', 'verified']
+      })
+      return likes.data || []
+    } catch (error) {
+      console.error('Error fetching tweet likes:', error)
+      return []
+    }
+  }
+
+  // Get tweet retweets/retweeting users
+  async getTweetRetweets(tweetId: string, maxResults: number = 100): Promise<any[]> {
+    try {
+      const retweets = await this.client.v2.tweetRetweetedBy(tweetId, {
+        max_results: maxResults,
+        'user.fields': ['public_metrics', 'verified']
+      })
+      return retweets.data || []
+    } catch (error) {
+      console.error('Error fetching tweet retweets:', error)
+      return []
+    }
+  }
+
+  // Get tweet quotes
+  async getTweetQuotes(tweetId: string, maxResults: number = 100): Promise<any[]> {
+    try {
+      const quotes = await this.client.v2.quotes(tweetId, {
+        max_results: maxResults,
+        'tweet.fields': ['public_metrics', 'created_at', 'author_id'],
+        'user.fields': ['public_metrics', 'verified']
+      })
+      return quotes.data?.data || []
+    } catch (error) {
+      console.error('Error fetching tweet quotes:', error)
+      return []
+    }
+  }
+
+  // Advanced search with filters
+  async advancedSearch(query: string, options: any = {}): Promise<any[]> {
+    try {
+      const searchOptions = {
+        max_results: options.maxResults || 100,
+        'tweet.fields': [
+          'public_metrics',
+          'created_at',
+          'context_annotations',
+          'author_id',
+          'lang',
+          'possibly_sensitive',
+          'referenced_tweets'
+        ],
+        'user.fields': ['public_metrics', 'verified'],
+        ...options
+      }
+
+      const tweets = await this.client.v2.search(query, searchOptions)
+      return tweets.data?.data || []
+    } catch (error) {
+      console.error('Error in advanced search:', error)
+      throw new Error('Failed to perform advanced search')
+    }
+  }
+
+  // Get user mentions
+  async getUserMentions(userId: string, maxResults: number = 100): Promise<any[]> {
+    try {
+      const mentions = await this.client.v2.userMentionTimeline(userId, {
+        max_results: maxResults,
+        'tweet.fields': ['public_metrics', 'created_at', 'author_id'],
+        'user.fields': ['public_metrics', 'verified']
+      })
+      return mentions.data?.data || []
+    } catch (error) {
+      console.error('Error fetching mentions:', error)
+      return []
+    }
+  }
+
+  // Get spaces by user
+  async getUserSpaces(userId: string): Promise<any[]> {
+    try {
+      const spaces = await this.client.v2.spacesByCreators([userId], {
+        'space.fields': ['participant_count', 'subscriber_count', 'created_at', 'state']
+      })
+      return spaces.data || []
+    } catch (error) {
+      console.error('Error fetching spaces:', error)
+      return []
+    }
+  }
+
+  // Comprehensive competitor analysis
+  async getCompetitorAnalysis(usernames: string[]): Promise<any> {
+    try {
+      const analyses = await Promise.all(
+        usernames.map(async (username) => {
+          try {
+            const analytics = await this.getAnalytics(username)
+            return { username, ...analytics }
+          } catch (error) {
+            return { username, error: (error as Error).message }
+          }
+        })
+      )
+
+      return {
+        competitors: analyses,
+        comparison: this.compareCompetitors(analyses.filter(a => !a.error))
+      }
+    } catch (error) {
+      console.error('Error in competitor analysis:', error)
+      throw new Error('Failed to perform competitor analysis')
+    }
+  }
+
+  // Compare competitors
+  private compareCompetitors(competitors: any[]): any {
+    if (!competitors.length) return {}
+
+    const metrics = {
+      avgFollowers: competitors.reduce((sum, c) => sum + c.user_metrics.followers_count, 0) / competitors.length,
+      avgEngagement: competitors.reduce((sum, c) => sum + c.engagement_rate, 0) / competitors.length,
+      topPerformer: competitors.reduce((top, current) => 
+        current.engagement_rate > top.engagement_rate ? current : top
+      ),
+      mostFollowed: competitors.reduce((top, current) => 
+        current.user_metrics.followers_count > top.user_metrics.followers_count ? current : top
+      )
+    }
+
+    return metrics
+  }
+
+  // Hashtag analysis
+  async analyzeHashtag(hashtag: string, maxResults: number = 100): Promise<any> {
+    try {
+      const query = `#${hashtag.replace('#', '')}`
+      const tweets = await this.advancedSearch(query, { maxResults })
+      
+      const totalEngagement = tweets.reduce((sum, tweet) => {
+        const metrics = tweet.public_metrics
+        if (!metrics) return sum
+        return sum + metrics.like_count + metrics.retweet_count + metrics.reply_count
+      }, 0)
+
+      const avgEngagement = tweets.length ? totalEngagement / tweets.length : 0
+      const topTweet = this.findTopPerformingTweet(tweets)
+
+      return {
+        hashtag: `#${hashtag.replace('#', '')}`,
+        totalTweets: tweets.length,
+        totalEngagement,
+        avgEngagement: Math.round(avgEngagement),
+        topTweet,
+        tweets: tweets.slice(0, 10) // Top 10 tweets
+      }
+    } catch (error) {
+      console.error('Error analyzing hashtag:', error)
+      throw new Error('Failed to analyze hashtag')
+    }
+  }
+
+  // Viral content detection
+  async findViralContent(query: string = '', minLikes: number = 10000): Promise<any[]> {
+    try {
+      const searchQuery = query || 'lang:en -is:retweet'
+      const tweets = await this.advancedSearch(searchQuery, {
+        maxResults: 100,
+        sort_order: 'relevancy'
+      })
+
+      return tweets.filter(tweet => {
+        const metrics = tweet.public_metrics
+        return metrics && metrics.like_count >= minLikes
+      }).sort((a, b) => {
+        const aScore = a.public_metrics.like_count + a.public_metrics.retweet_count * 2
+        const bScore = b.public_metrics.like_count + b.public_metrics.retweet_count * 2
+        return bScore - aScore
+      })
+    } catch (error) {
+      console.error('Error finding viral content:', error)
       return []
     }
   }

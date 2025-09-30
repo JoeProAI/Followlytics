@@ -91,9 +91,9 @@ export default function XAnalyticsDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6 text-white">
-        <h1 className="text-2xl font-bold mb-2">📊 Real X Analytics Dashboard</h1>
+        <h1 className="text-2xl font-bold mb-2">🚀 XScope Analytics Platform</h1>
         <p className="text-blue-100">
-          Get REAL insights from X API v2 - Enter any X username to analyze
+          Comprehensive X Analytics using every endpoint of our $200/month X API v2 access
         </p>
       </div>
 
@@ -107,10 +107,10 @@ export default function XAnalyticsDashboard() {
               </svg>
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Analyze Any X Account
+              Comprehensive X Analytics
             </h3>
             <p className="text-gray-600 mb-4">
-              Enter an X username to get real analytics powered by X API v2
+              Advanced analytics using every X API v2 endpoint - followers, engagement, viral content, competitor analysis & more
             </p>
             
             <div className="max-w-md mx-auto mb-4">
