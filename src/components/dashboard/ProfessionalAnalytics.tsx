@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { useAuthState } from 'react-firebase-hooks/auth'
 import { auth } from '@/lib/firebase'
 
-type Tab = 'overview' | 'competitor' | 'hashtag' | 'viral' | 'followers' | 'mentions' | 'tweet'
+type Tab = 'overview' | 'intelligence' | 'competitor' | 'hashtag' | 'viral' | 'mentions' | 'tweet'
 
 export default function ProfessionalAnalytics() {
   const [user] = useAuthState(auth)
