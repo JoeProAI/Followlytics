@@ -18,7 +18,7 @@ import SimpleXFollowerScanner from '@/components/dashboard/SimpleXFollowerScanne
 import BookmarkletXScanner from '@/components/dashboard/BookmarkletXScanner'
 import QuickSessionScanner from '@/components/dashboard/QuickSessionScanner'
 import ManualQuickScanner from '@/components/dashboard/ManualQuickScanner'
-import XAnalyticsDashboard from '@/components/dashboard/XAnalyticsDashboard'
+import ProfessionalAnalytics from '@/components/dashboard/ProfessionalAnalytics'
 
 function DashboardContent() {
   const { user, logout, loading } = useAuth()
@@ -262,47 +262,8 @@ function DashboardContent() {
                 </div>
               </div>
               
-              {/* Main X Analytics Dashboard */}
-              <div className="mb-6">
-                <XAnalyticsDashboard />
-              </div>
-              
-              {/* Advanced Analytics Features */}
-              <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-6 mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">🚀 Advanced X Analytics Features</h3>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="bg-white rounded-lg p-4 shadow-sm">
-                    <div className="text-2xl mb-2">👥</div>
-                    <h4 className="font-semibold text-gray-900">Follower Analysis</h4>
-                    <p className="text-sm text-gray-600">Deep dive into follower demographics and engagement patterns</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4 shadow-sm">
-                    <div className="text-2xl mb-2">🔥</div>
-                    <h4 className="font-semibold text-gray-900">Viral Content Detection</h4>
-                    <p className="text-sm text-gray-600">Identify trending content and viral patterns in real-time</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4 shadow-sm">
-                    <div className="text-2xl mb-2">🎯</div>
-                    <h4 className="font-semibold text-gray-900">Competitor Intelligence</h4>
-                    <p className="text-sm text-gray-600">Compare performance against competitors and industry leaders</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4 shadow-sm">
-                    <div className="text-2xl mb-2">#️⃣</div>
-                    <h4 className="font-semibold text-gray-900">Hashtag Analytics</h4>
-                    <p className="text-sm text-gray-600">Track hashtag performance and discover trending topics</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4 shadow-sm">
-                    <div className="text-2xl mb-2">🎤</div>
-                    <h4 className="font-semibold text-gray-900">Spaces Analytics</h4>
-                    <p className="text-sm text-gray-600">Monitor X Spaces participation and engagement metrics</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-4 shadow-sm">
-                    <div className="text-2xl mb-2">📈</div>
-                    <h4 className="font-semibold text-gray-900">Growth Insights</h4>
-                    <p className="text-sm text-gray-600">AI-powered recommendations for audience growth</p>
-                  </div>
-                </div>
-              </div>
+              {/* Professional X Analytics Platform */}
+              <ProfessionalAnalytics />
               
               {/* Legacy Components (Hidden by default) */}
               <details className="mt-8">
