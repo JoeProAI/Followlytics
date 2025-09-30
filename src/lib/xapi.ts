@@ -1,5 +1,5 @@
 // Real X API v2 Integration - NO MOCK DATA
-import { TwitterApi } from 'twitter-api-v2'
+import { TwitterApi, TweetV2, UserV2 } from 'twitter-api-v2'
 
 interface XUserMetrics {
   public_metrics: {
@@ -10,34 +10,15 @@ interface XUserMetrics {
   }
 }
 
-interface XTweetMetrics {
-  public_metrics: {
-    retweet_count: number
-    like_count: number
-    reply_count: number
-    quote_count: number
-    bookmark_count?: number
-    impression_count?: number
-  }
-}
-
-interface XTweet {
-  id: string
-  text: string
-  created_at: string
-  author_id: string
-  public_metrics: XTweetMetrics['public_metrics']
-  context_annotations?: Array<{
-    domain: { id: string; name: string; description: string }
-    entity: { id: string; name: string; description?: string }
-  }>
-}
+// Use Twitter API types directly to avoid conflicts
+type XTweet = TweetV2
+type XUser = UserV2
 
 interface XAnalyticsData {
-  user_metrics: XUserMetrics['public_metrics']
-  recent_tweets: XTweet[]
+  user_metrics: any
+  recent_tweets: any[]
   engagement_rate: number
-  top_performing_tweet: XTweet | null
+  top_performing_tweet: any | null
   total_impressions: number
   total_engagements: number
   growth_metrics: {
@@ -56,9 +37,9 @@ class XAPIService {
   private bearerToken: string
 
   constructor() {
-    this.bearerToken = process.env.TWITTER_BEARER_TOKEN || ''
+    this.bearerToken = process.env.X_BEARER_TOKEN || ''
     if (!this.bearerToken) {
-      throw new Error('TWITTER_BEARER_TOKEN is required')
+      throw new Error('X_BEARER_TOKEN is required')
     }
     this.client = new TwitterApi(this.bearerToken)
   }
@@ -84,7 +65,7 @@ class XAPIService {
   }
 
   // Get user's recent tweets with metrics
-  async getUserTweets(userId: string, maxResults: number = 10): Promise<XTweet[]> {
+  async getUserTweets(userId: string, maxResults: number = 10): Promise<any[]> {
     try {
       const tweets = await this.client.v2.userTimeline(userId, {
         max_results: maxResults,
@@ -106,11 +87,12 @@ class XAPIService {
   }
 
   // Calculate engagement rate
-  calculateEngagementRate(tweets: XTweet[], followerCount: number): number {
+  calculateEngagementRate(tweets: any[], followerCount: number): number {
     if (!tweets.length || !followerCount) return 0
 
     const totalEngagements = tweets.reduce((sum, tweet) => {
       const metrics = tweet.public_metrics
+      if (!metrics) return sum
       return sum + (metrics.like_count + metrics.retweet_count + metrics.reply_count + metrics.quote_count)
     }, 0)
 
@@ -119,10 +101,12 @@ class XAPIService {
   }
 
   // Find top performing tweet
-  findTopPerformingTweet(tweets: XTweet[]): XTweet | null {
+  findTopPerformingTweet(tweets: any[]): any | null {
     if (!tweets.length) return null
 
     return tweets.reduce((top, current) => {
+      if (!current.public_metrics || !top.public_metrics) return top
+      
       const currentScore = current.public_metrics.like_count + 
                           current.public_metrics.retweet_count * 2 + 
                           current.public_metrics.reply_count * 1.5
@@ -135,7 +119,7 @@ class XAPIService {
   }
 
   // Analyze sentiment using context annotations and keywords
-  analyzeSentiment(tweets: XTweet[]): { positive: number; negative: number; neutral: number } {
+  analyzeSentiment(tweets: any[]): { positive: number; negative: number; neutral: number } {
     if (!tweets.length) return { positive: 0, negative: 0, neutral: 0 }
 
     const positiveKeywords = ['great', 'awesome', 'amazing', 'love', 'excellent', 'fantastic', 'wonderful', 'perfect', 'best', 'incredible']
@@ -187,11 +171,13 @@ class XAPIService {
       // Calculate totals
       const totalEngagements = tweets.reduce((sum, tweet) => {
         const metrics = tweet.public_metrics
+        if (!metrics) return sum
         return sum + (metrics.like_count + metrics.retweet_count + metrics.reply_count + metrics.quote_count)
       }, 0)
 
       const totalImpressions = tweets.reduce((sum, tweet) => {
-        return sum + (tweet.public_metrics.impression_count || user.public_metrics.followers_count * 0.1)
+        const impressions = tweet.public_metrics?.impression_count || user.public_metrics.followers_count * 0.1
+        return sum + impressions
       }, 0)
 
       return {
@@ -214,7 +200,7 @@ class XAPIService {
   }
 
   // Search for tweets by query (for competitor analysis)
-  async searchTweets(query: string, maxResults: number = 10): Promise<XTweet[]> {
+  async searchTweets(query: string, maxResults: number = 10): Promise<any[]> {
     try {
       const tweets = await this.client.v2.search(query, {
         max_results: maxResults,
