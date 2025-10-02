@@ -42,40 +42,29 @@ export default function XAuthConnect() {
   const handleConnect = async () => {
     if (!user) return
     
+    // For now, just store the existing tokens from env
     setAuthorizing(true)
     
     try {
       const token = await user.getIdToken()
-      const response = await fetch('/api/x-auth/authorize', {
+      const response = await fetch('/api/x-auth/store-tokens', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       })
       
       if (response.ok) {
-        const data = await response.json()
-        // Open authorization URL in popup
-        const width = 600
-        const height = 700
-        const left = window.screen.width / 2 - width / 2
-        const top = window.screen.height / 2 - height / 2
-        
-        const popup = window.open(
-          data.authUrl,
-          'X Authorization',
-          `width=${width},height=${height},left=${left},top=${top}`
-        )
-        
-        // Poll for completion
-        const pollInterval = setInterval(() => {
-          if (popup?.closed) {
-            clearInterval(pollInterval)
-            checkAuthStatus()
-            setAuthorizing(false)
-          }
-        }, 1000)
+        await checkAuthStatus()
+        setAuthorizing(false)
+      } else {
+        const error = await response.json()
+        console.error('Failed to store tokens:', error)
+        setAuthorizing(false)
       }
     } catch (error) {
-      console.error('Failed to authorize X:', error)
+      console.error('Failed to connect X:', error)
       setAuthorizing(false)
     }
   }

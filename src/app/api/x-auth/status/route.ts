@@ -25,8 +25,9 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json({
       connected: true,
-      username: tokens?.screen_name || tokens?.username,
-      lastSync: tokens?.last_sync || tokens?.created_at
+      username: tokens?.screen_name || tokens?.username || 'Connected',
+      lastSync: tokens?.last_sync || tokens?.created_at,
+      method: tokens?.method || 'oauth_1.0a'
     })
 
   } catch (error: any) {

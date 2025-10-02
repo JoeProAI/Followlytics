@@ -29,9 +29,10 @@ export async function POST(request: NextRequest) {
     // Get real analytics data from X API
     const analyticsData = await xapi.getAnalytics(username)
     
+    // Return data directly (not wrapped) for component compatibility
     return NextResponse.json({
+      ...analyticsData,
       success: true,
-      data: analyticsData,
       timestamp: new Date().toISOString()
     })
 
