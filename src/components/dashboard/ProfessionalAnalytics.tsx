@@ -235,6 +235,210 @@ export default function ProfessionalAnalytics() {
           </div>
         )}
 
+        {/* Search */}
+        {activeTab === 'search' && (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">Search Query</label>
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="AI OR artificial intelligence"
+                  className="flex-1 bg-gray-900 border border-gray-800 rounded px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-gray-700"
+                />
+                <button
+                  onClick={() => fetchData('/api/intelligence/search', { query: username, maxResults: 100 })}
+                  disabled={loading || !username}
+                  className="bg-white text-black px-8 py-2.5 rounded font-medium hover:bg-gray-200 disabled:opacity-50"
+                >
+                  {loading ? 'Searching...' : 'Search'}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">Search X for tweets about any topic</p>
+            </div>
+
+            {data?.results && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
+                    <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Found</div>
+                    <div className="text-2xl font-light">{data.results.total_found}</div>
+                  </div>
+                  <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
+                    <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Total Engagement</div>
+                    <div className="text-2xl font-light">{data.results.total_engagement?.toLocaleString()}</div>
+                  </div>
+                  <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
+                    <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Avg Engagement</div>
+                    <div className="text-2xl font-light">{data.results.avg_engagement}</div>
+                  </div>
+                  <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
+                    <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Total Likes</div>
+                    <div className="text-2xl font-light">{data.results.total_likes?.toLocaleString()}</div>
+                  </div>
+                </div>
+
+                {data.top_tweets?.length > 0 && (
+                  <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
+                    <div className="text-sm font-medium text-gray-400 mb-4">Top Tweets</div>
+                    <div className="space-y-4">
+                      {data.top_tweets.slice(0, 10).map((tweet: any, idx: number) => (
+                        <div key={idx} className="border-b border-gray-800 last:border-0 pb-4 last:pb-0">
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="text-sm font-medium">@{tweet.author?.username}</span>
+                            <span className="text-xs text-gray-500">{tweet.engagement} engagement</span>
+                          </div>
+                          <p className="text-sm text-gray-300">{tweet.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Compare Users */}
+        {activeTab === 'compare' && (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">Usernames to Compare (2-5)</label>
+              <div className="space-y-3 mb-4">
+                {competitorUsernames.map((name, idx) => (
+                  <input
+                    key={idx}
+                    type="text"
+                    value={name}
+                    onChange={(e) => {
+                      const newNames = [...competitorUsernames]
+                      newNames[idx] = e.target.value
+                      setCompetitorUsernames(newNames)
+                    }}
+                    placeholder={`Username ${idx + 1}`}
+                    className="w-full bg-gray-900 border border-gray-800 rounded px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-gray-700"
+                  />
+                ))}
+              </div>
+              <button
+                onClick={() => fetchData('/api/intelligence/user-compare', { 
+                  usernames: competitorUsernames.filter(u => u.trim()).map(u => u.replace('@', '')) 
+                })}
+                disabled={loading || competitorUsernames.filter(u => u.trim()).length < 2}
+                className="bg-white text-black px-8 py-2 rounded font-medium hover:bg-gray-200 disabled:opacity-50"
+              >
+                {loading ? 'Comparing...' : 'Compare'}
+              </button>
+            </div>
+
+            {data?.users && (
+              <div className="space-y-6">
+                <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-black">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">User</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase">Followers</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase">Avg Engagement</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase">Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800">
+                      {data.users.map((user: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-gray-900/50">
+                          <td className="px-6 py-4 text-sm">@{user.username}</td>
+                          <td className="px-6 py-4 text-sm text-right">{user.followers?.toLocaleString()}</td>
+                          <td className="px-6 py-4 text-sm text-right">{user.engagement?.avg_per_tweet}</td>
+                          <td className="px-6 py-4 text-sm text-right">{user.engagement?.engagement_rate?.toFixed(3)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {data.insights?.length > 0 && (
+                  <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
+                    <div className="text-sm font-medium text-gray-400 mb-4">Insights</div>
+                    <div className="space-y-2">
+                      {data.insights.map((insight: string, idx: number) => (
+                        <div key={idx} className="text-sm text-gray-300">• {insight}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Trending */}
+        {activeTab === 'trending' && (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">Topic</label>
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="AI"
+                  className="flex-1 bg-gray-900 border border-gray-800 rounded px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-gray-700"
+                />
+                <button
+                  onClick={() => fetchData('/api/intelligence/trending', { topic: username, minEngagement: 100 })}
+                  disabled={loading || !username}
+                  className="bg-white text-black px-8 py-2.5 rounded font-medium hover:bg-gray-200 disabled:opacity-50"
+                >
+                  {loading ? 'Finding...' : 'Find Trending'}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">Discover trending content about any topic</p>
+            </div>
+
+            {data?.summary && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
+                    <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Trending Tweets</div>
+                    <div className="text-2xl font-light">{data.summary.total_tweets}</div>
+                  </div>
+                  <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
+                    <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Total Engagement</div>
+                    <div className="text-2xl font-light">{data.summary.total_engagement?.toLocaleString()}</div>
+                  </div>
+                  <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
+                    <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Avg Engagement</div>
+                    <div className="text-2xl font-light">{data.summary.avg_engagement}</div>
+                  </div>
+                </div>
+
+                {data.trending_tweets?.length > 0 && (
+                  <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
+                    <div className="text-sm font-medium text-gray-400 mb-4">Trending Content</div>
+                    <div className="space-y-4">
+                      {data.trending_tweets.slice(0, 10).map((tweet: any, idx: number) => (
+                        <div key={idx} className="border-b border-gray-800 last:border-0 pb-4 last:pb-0">
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="text-sm font-medium">@{tweet.author?.username}</span>
+                            <span className="text-xs text-gray-500">{tweet.engagement} engagement</span>
+                          </div>
+                          <p className="text-sm text-gray-300 mb-2">{tweet.text}</p>
+                          <div className="flex gap-4 text-xs text-gray-500">
+                            <span>{tweet.metrics?.likes} likes</span>
+                            <span>{tweet.metrics?.retweets} retweets</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Competitor Analysis */}
         {activeTab === 'competitor' && (
           <div className="space-y-6">
