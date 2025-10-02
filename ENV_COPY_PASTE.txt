@@ -1,0 +1,104 @@
+# ========================================
+# FOLLOWLYTICS - ENVIRONMENT VARIABLES
+# Copy ALL of these to Vercel
+# ========================================
+
+# ============ FIREBASE (CRITICAL) ============
+FIREBASE_PROJECT_ID=your-project-id-here
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour-Key-Here\n-----END PRIVATE KEY-----\n"
+
+# ============ X/TWITTER API (CRITICAL) ============
+X_BEARER_TOKEN=AAAAAAAAAAAAAAAAAAAAAM7f4AEAAAAAUgCCL1mqxpt6QJ6KavJUQWew8P8%3DU29VkcKOjSF0s7UgGYajQQG3V1P9EJzRY8x6ZWI1u5LCC5H5nu
+X_ACCESS_TOKEN=1767231492793434113-HmH8Cd8u4707mpwsHSNRTuJYrUJdhw
+X_ACCESS_TOKEN_SECRET=jDtJecqhS6P2nTKuuIoLIYONtliirK8cmM1PaGKsiSOl1
+X_API_KEY=your-api-key-here
+X_API_SECRET=your-api-secret-here
+X_CLIENT_ID=your-oauth2-client-id
+X_CLIENT_SECRET=your-oauth2-client-secret
+
+# ============ STRIPE (REQUIRED) ============
+STRIPE_SECRET_KEY=sk_live_xxxxx
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_xxxxx
+STRIPE_WEBHOOK_SECRET=whsec_xxxxx
+STRIPE_SETUP_SECRET=xscope_setup_2025_secure_key_do_not_share
+
+# ============ AI SERVICES (REQUIRED) ============
+OPENAI_API_KEY=sk-proj-xxxxx
+XAI_API_KEY=xai-xxxxx
+
+# ============ SECURITY ============
+CRON_SECRET=generate-with-crypto-randomBytes-32-hex
+
+# ============ APP CONFIGURATION ============
+NEXT_PUBLIC_APP_URL=https://followlytics-zeta.vercel.app
+NEXTAUTH_URL=https://followlytics-zeta.vercel.app
+NEXTAUTH_SECRET=generate-with-openssl-rand-base64-32
+
+# ============ DAYTONA (OPTIONAL) ============
+DAYTONA_API_KEY=your-daytona-key
+DAYTONA_API_URL=https://api.daytona.io
+
+# ========================================
+# WHAT YOU HAVE RIGHT NOW (from .env.local)
+# ========================================
+
+# These tokens are already confirmed:
+✅ X_ACCESS_TOKEN=1767231492793434113-HmH8Cd8u4707mpwsHSNRTuJYrUJdhw
+✅ X_ACCESS_TOKEN_SECRET=jDtJecqhS6P2nTKuuIoLIYONtliirK8cmM1PaGKsiSOl1
+
+# ========================================
+# INSTRUCTIONS
+# ========================================
+
+1. Open your .env.local file
+2. Copy all values you have
+3. Paste each one into Vercel environment variables:
+   https://vercel.com/joepro-ais-projects/followlytics/settings/environment-variables
+
+4. For each variable, set to: Production + Preview + Development
+
+5. After adding all, go to Deployments and click "Redeploy"
+
+6. Wait 2-3 minutes, then test your dashboard
+
+# ========================================
+# GENERATE SECRETS
+# ========================================
+
+# CRON_SECRET (run in terminal):
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+# NEXTAUTH_SECRET (run in terminal):
+openssl rand -base64 32
+
+# Or use this online: https://generate-secret.vercel.app/32
+
+# ========================================
+# PRIORITY ORDER
+# ========================================
+
+CRITICAL (Set these first):
+1. FIREBASE_PROJECT_ID
+2. FIREBASE_CLIENT_EMAIL  
+3. FIREBASE_PRIVATE_KEY
+4. X_BEARER_TOKEN
+5. X_ACCESS_TOKEN
+6. X_ACCESS_TOKEN_SECRET
+7. NEXT_PUBLIC_APP_URL
+
+HIGH (For monetization):
+8. STRIPE_SECRET_KEY
+9. NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+10. OPENAI_API_KEY
+
+MEDIUM (Enhanced features):
+11. CRON_SECRET
+12. XAI_API_KEY
+13. STRIPE_WEBHOOK_SECRET
+
+LOW (Optional):
+14. DAYTONA_API_KEY
+15. NEXTAUTH_SECRET
+16. X_CLIENT_ID
+17. X_CLIENT_SECRET
