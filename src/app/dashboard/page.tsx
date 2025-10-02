@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import ProfessionalAnalytics from '@/components/dashboard/ProfessionalAnalytics'
 import XAuthConnect from '@/components/dashboard/XAuthConnect'
+import DaytonaFeatures from '@/components/dashboard/DaytonaFeatures'
 import Link from 'next/link'
 
 function DashboardContent() {
@@ -123,6 +124,11 @@ function DashboardContent() {
         {/* X Auth Connection */}
         <div className="mb-6">
           <XAuthConnect />
+        </div>
+
+        {/* Daytona Browser Automation */}
+        <div className="mb-6">
+          <DaytonaFeatures />
         </div>
 
         {/* Free Tier Upgrade Prompt */}
