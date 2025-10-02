@@ -49,15 +49,15 @@ export default function ProfessionalAnalytics() {
   }
 
   const tabs = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'intelligence', label: 'Content Intel' },
-    { id: 'search', label: 'Search' },
-    { id: 'compare', label: 'Compare Users' },
-    { id: 'trending', label: 'Trending' },
-    { id: 'competitor', label: 'Competitors' },
-    { id: 'hashtag', label: 'Hashtags' },
-    { id: 'mentions', label: 'Mentions' },
-    { id: 'tweet', label: 'Tweet Analysis' }
+    { id: 'overview', label: 'Overview', description: 'Get complete profile metrics including followers, engagement rates, and top posts' },
+    { id: 'intelligence', label: 'Content Intel', description: 'AI-powered analysis of content patterns, optimal posting times, and recommendations' },
+    { id: 'search', label: 'Search', description: 'Search X for tweets about any topic and analyze engagement patterns' },
+    { id: 'compare', label: 'Compare Users', description: 'Side-by-side comparison of multiple X accounts with detailed metrics' },
+    { id: 'trending', label: 'Trending', description: 'Discover trending topics and viral content in your industry' },
+    { id: 'competitor', label: 'Competitors', description: 'Track competitor accounts and monitor their performance over time' },
+    { id: 'hashtag', label: 'Hashtags', description: 'Analyze hashtag performance and discover optimal tags for your content' },
+    { id: 'mentions', label: 'Mentions', description: 'Track mentions of any username or keyword across X' },
+    { id: 'tweet', label: 'Tweet Analysis', description: 'Deep dive into individual tweets with detailed engagement analytics' }
   ]
 
   if (!user) {
@@ -105,6 +105,13 @@ export default function ProfessionalAnalytics() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
+        
+        {/* Tab Description */}
+        <div className="mb-6 pb-4 border-b border-gray-800">
+          <p className="text-gray-400 text-sm">
+            {tabs.find(t => t.id === activeTab)?.description}
+          </p>
+        </div>
         
         {/* Error Display */}
         {error && (
@@ -621,50 +628,6 @@ export default function ProfessionalAnalytics() {
                       </div>
                     </div>
                   ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Followers */}
-        {activeTab === 'followers' && (
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">Username</label>
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="elonmusk"
-                  className="flex-1 bg-gray-900 border border-gray-800 rounded px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-gray-700"
-                />
-                <button
-                  onClick={() => fetchData('/api/x-analytics/followers', { username: username.replace('@', ''), maxResults: 100 })}
-                  disabled={loading || !username}
-                  className="bg-white text-black px-8 py-2.5 rounded font-medium hover:bg-gray-200 disabled:opacity-50"
-                >
-                  {loading ? 'Analyzing...' : 'Analyze'}
-                </button>
-              </div>
-            </div>
-
-            {data && (
-              <div>
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
-                    <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Total Followers</div>
-                    <div className="text-2xl font-light">{data.user?.total_followers?.toLocaleString()}</div>
-                  </div>
-                  <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
-                    <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Verified</div>
-                    <div className="text-2xl font-light">{data.analytics?.verified_percentage}%</div>
-                  </div>
-                  <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
-                    <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Avg Followers</div>
-                    <div className="text-2xl font-light">{data.analytics?.avg_follower_count?.toLocaleString()}</div>
-                  </div>
                 </div>
               </div>
             )}
