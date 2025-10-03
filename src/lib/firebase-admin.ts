@@ -1,11 +1,19 @@
-import { initializeApp, getApps, cert } from 'firebase-admin/app'
-import { getAuth } from 'firebase-admin/auth'
-import { getFirestore } from 'firebase-admin/firestore'
+import { initializeApp, getApps, cert, App } from 'firebase-admin/app'
+import { getAuth, Auth } from 'firebase-admin/auth'
+import { getFirestore, Firestore } from 'firebase-admin/firestore'
 
 // Initialize Firebase Admin with error handling
-let adminApp: any = null
+let adminApp: App | null = null
+let adminAuthInstance: Auth | null = null
+let adminDbInstance: Firestore | null = null
 
-function getFirebaseAdminApp() {
+// Safe for build time - only initializes when actually called at runtime
+function getFirebaseAdminApp(): App {
+  // Skip initialization during build (Next.js static analysis)
+  if (typeof window !== 'undefined') {
+    throw new Error('Firebase Admin should not be used on the client side')
+  }
+
   if (!adminApp) {
     try {
       let serviceAccount: any
@@ -18,6 +26,12 @@ function getFirebaseAdminApp() {
         const privateKey = process.env.FIREBASE_PRIVATE_KEY
         
         if (!privateKey || !process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL) {
+          // During build, env vars might not be available - return mock
+          if (process.env.NODE_ENV === 'production' && !privateKey) {
+            console.warn('Firebase credentials not available during build - this is expected')
+            throw new Error('Firebase not initialized - credentials missing')
+          }
+          
           throw new Error(
             'Missing Firebase credentials. Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY in Vercel environment variables.'
           )
@@ -34,7 +48,7 @@ function getFirebaseAdminApp() {
         credential: cert(serviceAccount),
       }
 
-      adminApp = getApps().find(app => app.name === 'admin') || 
+      adminApp = getApps().find(app => app.name === 'admin') as App || 
         initializeApp(firebaseAdminConfig, 'admin')
     } catch (error) {
       console.error('Failed to initialize Firebase Admin:', error)
@@ -44,7 +58,23 @@ function getFirebaseAdminApp() {
   return adminApp
 }
 
-export const adminAuth = getAuth(getFirebaseAdminApp())
-export const adminDb = getFirestore(getFirebaseAdminApp())
+// Lazy getters that only initialize when accessed at runtime
+export const adminAuth: Auth = new Proxy({} as Auth, {
+  get: (target, prop) => {
+    if (!adminAuthInstance) {
+      adminAuthInstance = getAuth(getFirebaseAdminApp())
+    }
+    return (adminAuthInstance as any)[prop]
+  }
+})
 
-export default getFirebaseAdminApp()
+export const adminDb: Firestore = new Proxy({} as Firestore, {
+  get: (target, prop) => {
+    if (!adminDbInstance) {
+      adminDbInstance = getFirestore(getFirebaseAdminApp())
+    }
+    return (adminDbInstance as any)[prop]
+  }
+})
+
+export default getFirebaseAdminApp

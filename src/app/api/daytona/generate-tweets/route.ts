@@ -19,13 +19,77 @@ export async function POST(request: NextRequest) {
     const decodedToken = await auth.verifyIdToken(token)
     const userId = decodedToken.uid
 
-    const { idea, variations = 10 } = await request.json()
+    const { idea, variations = 10, voice = 'viral' } = await request.json()
 
     if (!idea) {
       return NextResponse.json({ error: 'Idea is required' }, { status: 400 })
     }
 
-    console.log(`🤖 Generating ${variations} tweet variations for user: ${userId}`)
+    console.log(`🤖 Generating ${variations} ${voice} tweet variations for user: ${userId}`)
+
+    // Get viral tweet patterns from X API if available
+    let viralContext = ''
+    try {
+      const bearerToken = process.env.X_BEARER_TOKEN
+      if (bearerToken) {
+        const response = await fetch(
+          `https://api.twitter.com/2/tweets/search/recent?query=${encodeURIComponent(idea)}&max_results=10&tweet.fields=public_metrics,created_at&sort_order=relevancy`,
+          {
+            headers: { 'Authorization': `Bearer ${bearerToken}` }
+          }
+        )
+        if (response.ok) {
+          const data = await response.json()
+          const topTweets = data.data?.slice(0, 3) || []
+          if (topTweets.length > 0) {
+            viralContext = `\n\nHere are some high-performing tweets on this topic for reference (DON'T copy them, use them to understand what resonates):\n${topTweets.map((t: any) => `"${t.text}" (${t.public_metrics.like_count} likes)`).join('\n')}`
+          }
+        }
+      }
+    } catch (error) {
+      console.log('Could not fetch viral context, continuing without it')
+    }
+
+    // Voice-specific instructions
+    const voicePrompts: Record<string, string> = {
+      viral: `You're a master of viral content. Study what goes viral:
+- Controversial hot takes that make people react
+- Pattern interrupts that stop scrolling
+- Personal stories that feel authentic
+- Specific numbers and bold claims
+- Questions that spark debate
+- Call-outs to specific groups`,
+      
+      founder: `You're a successful founder sharing real insights:
+- No fluffy startup clichés
+- Raw, unfiltered truths about building
+- Specific tactics that worked/failed
+- Contrarian takes on common advice
+- Personal failures turned into lessons`,
+      
+      shitpost: `You're creating S-tier shitposts:
+- Absurd but relatable scenarios
+- Self-deprecating humor
+- Pop culture references
+- Ironic takes on serious topics
+- Meme-worthy one-liners`,
+      
+      thread: `You're writing thread starters that demand attention:
+- Strong controversial claim upfront
+- Promise specific value
+- Create curiosity gap
+- Use pattern: "Here's what they won't tell you about..."
+- Start with "I spent $X/Yrs learning..."`,
+      
+      data: `You're sharing data-driven insights:
+- Lead with the shocking stat
+- Compare unexpected things
+- "X is Y times more than you think"
+- Visualize data in words
+- Make numbers feel personal`
+    }
+
+    const voiceInstruction = voicePrompts[voice] || voicePrompts.viral
 
     // Use GPT-4 to generate multiple tweet variations
     const completion = await openai.chat.completions.create({
@@ -33,32 +97,57 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: "system",
-          content: `You are an expert social media strategist who creates viral tweets. Generate ${variations} different tweet variations about the given topic. Each tweet should:
-- Be 280 characters or less
-- Use different tones (professional, casual, humorous, provocative, inspiring)
-- Include relevant emojis where appropriate
-- Be designed for maximum engagement
-- Have clear hooks and calls to action
+          content: `You are a viral content creator analyzing what makes tweets blow up. Your tweets:
 
-Return ONLY a JSON array of objects with this structure:
+NEVER SOUND LIKE:
+❌ "Unlocking the power of..."
+❌ "In today's digital landscape..."
+❌ "Let's dive into..."
+❌ "Here's the thing about..."
+❌ Generic motivational quotes
+❌ Corporate LinkedIn speak
+
+ALWAYS SOUND LIKE:
+✅ Someone dropping brutal truth bombs
+✅ A friend texting you something insane
+✅ Pattern interrupts that make you double-take
+✅ Hot takes that make people argue in replies
+✅ Specific, not vague ("10x" not "improve")
+✅ Personal, not corporate
+
+${voiceInstruction}
+
+Generate ${variations} tweet variations about the given topic.${viralContext}
+
+CRITICAL RULES:
+- Max 280 characters
+- Start strong (first 5 words = hook)
+- ONE clear point per tweet
+- Use line breaks for emphasis
+- No hashtags unless naturally fits
+- No "As an AI" or generic phrases
+- Make it SHAREABLE
+
+Return ONLY a JSON array:
 [
   {
-    "text": "the tweet text",
-    "tone": "professional|casual|humorous|provocative|inspiring",
+    "text": "the tweet (280 chars max)",
+    "tone": "controversial|funny|inspiring|data-driven|personal",
     "viralScore": 1-100,
     "estimatedReach": "1K|10K|100K|1M",
     "sentiment": "positive|neutral|negative",
-    "hooks": ["hook1", "hook2"]
+    "hooks": ["pattern interrupt used", "emotional trigger"],
+    "why": "1-sentence reason this could go viral"
   }
 ]`
         },
         {
           role: "user",
-          content: `Generate ${variations} viral tweet variations about: ${idea}`
+          content: `Topic: ${idea}\n\nVoice: ${voice}\n\nGenerate ${variations} BANGER tweets that people will actually want to share. No generic AI slop.`
         }
       ],
-      temperature: 0.9,
-      max_tokens: 2000
+      temperature: 0.95,
+      max_tokens: 2500
     })
 
     const responseText = completion.choices[0]?.message?.content

@@ -10,6 +10,7 @@ export default function DaytonaFeatures() {
   const [error, setError] = useState('')
   const [tweetIdea, setTweetIdea] = useState('')
   const [generatedTweets, setGeneratedTweets] = useState<any[]>([])
+  const [selectedVoice, setSelectedVoice] = useState('viral')
 
   const generateTweets = async () => {
     if (!user || !tweetIdea.trim()) return
@@ -35,7 +36,8 @@ export default function DaytonaFeatures() {
         },
         body: JSON.stringify({ 
           idea: tweetIdea,
-          variations: 10 
+          variations: 10,
+          voice: selectedVoice
         })
       })
       
@@ -116,7 +118,7 @@ export default function DaytonaFeatures() {
       </div>
 
       {/* Input Section */}
-      <div className="mb-6">
+      <div className="mb-4">
         <label className="block text-sm font-medium text-gray-300 mb-2">
           What do you want to tweet about?
         </label>
@@ -128,6 +130,36 @@ export default function DaytonaFeatures() {
           rows={3}
           disabled={loading}
         />
+      </div>
+
+      {/* Voice Selection */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-300 mb-2">
+          Voice Style
+        </label>
+        <div className="grid grid-cols-5 gap-2">
+          {[
+            { id: 'viral', label: '🔥 Viral', desc: 'Hot takes & controversy' },
+            { id: 'founder', label: '🚀 Founder', desc: 'Raw startup truths' },
+            { id: 'shitpost', label: '😂 Shitpost', desc: 'Meme-worthy chaos' },
+            { id: 'thread', label: '🧵 Thread', desc: 'Hook + value promise' },
+            { id: 'data', label: '📊 Data', desc: 'Numbers that shock' }
+          ].map((voice) => (
+            <button
+              key={voice.id}
+              onClick={() => setSelectedVoice(voice.id)}
+              disabled={loading}
+              className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                selectedVoice === voice.id
+                  ? 'bg-purple-500 text-white border-2 border-purple-400'
+                  : 'bg-black/40 text-gray-400 border border-gray-700 hover:border-purple-500/50'
+              } disabled:opacity-50`}
+            >
+              <div className="font-semibold">{voice.label}</div>
+              <div className="text-[10px] mt-0.5 opacity-70">{voice.desc}</div>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Status Messages */}
@@ -165,25 +197,70 @@ export default function DaytonaFeatures() {
       {/* Generated Tweets Display */}
       {generatedTweets.length > 0 && (
         <div className="space-y-3">
-          <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
-            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-            Generated Tweets (Ranked by Viral Potential)
-          </h4>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+              {generatedTweets.length} Bangers Generated
+            </h4>
+            <span className="text-xs text-gray-500">
+              Fetched viral patterns from X API ✓
+            </span>
+          </div>
+          <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
             {generatedTweets.map((tweet, idx) => (
               <div key={idx} className="bg-black/60 border border-gray-700 hover:border-purple-500/50 rounded-lg p-4 transition-all group">
-                <div className="flex items-start justify-between mb-2">
-                  <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-300 rounded">
-                    Score: {tweet.viralScore}/100
-                  </span>
-                  <span className="text-xs text-gray-500">Est. reach: {tweet.estimatedReach}</span>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold text-purple-400">#{idx + 1}</span>
+                    <span className="text-xs px-2 py-1 bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-300 rounded border border-purple-500/30">
+                      🔥 {tweet.viralScore}/100
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-gray-500">Est. reach</div>
+                    <div className="text-sm font-semibold text-blue-400">{tweet.estimatedReach}</div>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-200 mb-3">{tweet.text}</p>
-                <div className="flex items-center gap-3 text-xs text-gray-500">
-                  <span>💭 {tweet.sentiment}</span>
-                  <span>📏 {tweet.length} chars</span>
-                  <button className="ml-auto text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                    Copy →
+                
+                <p className="text-base text-gray-100 mb-3 leading-relaxed whitespace-pre-wrap">{tweet.text}</p>
+                
+                {tweet.why && (
+                  <div className="mb-3 px-3 py-2 bg-purple-500/10 border border-purple-500/20 rounded text-xs text-purple-300">
+                    💡 <span className="font-semibold">Why it works:</span> {tweet.why}
+                  </div>
+                )}
+                
+                <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+                  <span className="px-2 py-1 bg-black/40 rounded">💭 {tweet.tone}</span>
+                  <span className="px-2 py-1 bg-black/40 rounded">📏 {tweet.text.length} chars</span>
+                  <span className="px-2 py-1 bg-black/40 rounded">{tweet.sentiment}</span>
+                </div>
+                
+                {tweet.hooks && tweet.hooks.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {tweet.hooks.map((hook: string, hidx: number) => (
+                      <span key={hidx} className="text-[10px] px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20">
+                        {hook}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(tweet.text)
+                      alert('Copied to clipboard!')
+                    }}
+                    className="flex-1 px-3 py-2 bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 rounded text-xs font-medium transition-all"
+                  >
+                    📋 Copy Tweet
+                  </button>
+                  <button 
+                    onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(tweet.text)}`, '_blank')}
+                    className="flex-1 px-3 py-2 bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30 rounded text-xs font-medium transition-all"
+                  >
+                    🐦 Post Now
                   </button>
                 </div>
               </div>
