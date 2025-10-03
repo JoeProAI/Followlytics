@@ -86,32 +86,60 @@ class XAPIService {
     }
   }
 
-  // Calculate engagement rate
-  calculateEngagementRate(tweets: any[], followerCount: number): number {
-    if (!tweets.length || !followerCount) return 0
-
-    const totalEngagements = tweets.reduce((sum, tweet) => {
-      const metrics = tweet.public_metrics
-      if (!metrics) return sum
-      return sum + (metrics.like_count + metrics.retweet_count + metrics.reply_count + metrics.quote_count)
-    }, 0)
-
-    const totalImpressions = tweets.length * followerCount * 0.1 // Estimate 10% reach
-    return totalImpressions > 0 ? (totalEngagements / totalImpressions) * 100 : 0
+  // Calculate post reach using 1% virality model
+  calculatePostReach(post: any, followerCount: number): number {
+    if (!followerCount) return 0
+    
+    const metrics = post.public_metrics
+    if (!metrics) return Math.round(followerCount * 0.01) // Base 1% reach
+    
+    // Calculate engagement score to determine virality
+    const totalEngagements = metrics.like_count + metrics.repost_count + metrics.reply_count + metrics.quote_count
+    const engagementRate = followerCount > 0 ? totalEngagements / followerCount : 0
+    
+    // Virality scale: starts at 1%, can scale up based on performance
+    let reachMultiplier = 0.01 // Base 1% of followers see it
+    
+    if (engagementRate > 0.001) reachMultiplier = 0.015 // 1.5% if showing traction
+    if (engagementRate > 0.005) reachMultiplier = 0.03  // 3% if good engagement
+    if (engagementRate > 0.01) reachMultiplier = 0.05   // 5% if strong performance
+    if (engagementRate > 0.02) reachMultiplier = 0.10   // 10% if viral momentum
+    if (engagementRate > 0.05) reachMultiplier = 0.20   // 20% if highly viral
+    if (engagementRate > 0.10) reachMultiplier = 0.50   // 50% if explosive viral
+    
+    return Math.round(followerCount * reachMultiplier)
   }
 
-  // Find top performing tweet
-  findTopPerformingTweet(tweets: any[]): any | null {
-    if (!tweets.length) return null
+  // Calculate engagement rate based on actual reach
+  calculateEngagementRate(posts: any[], followerCount: number): number {
+    if (!posts.length || !followerCount) return 0
 
-    return tweets.reduce((top, current) => {
+    const totalEngagements = posts.reduce((sum, post) => {
+      const metrics = post.public_metrics
+      if (!metrics) return sum
+      return sum + (metrics.like_count + metrics.repost_count + metrics.reply_count + metrics.quote_count)
+    }, 0)
+
+    // Calculate total reach across all posts using 1% virality model
+    const totalReach = posts.reduce((sum, post) => {
+      return sum + this.calculatePostReach(post, followerCount)
+    }, 0)
+    
+    return totalReach > 0 ? (totalEngagements / totalReach) * 100 : 0
+  }
+
+  // Find top performing post
+  findTopPerformingPost(posts: any[]): any | null {
+    if (!posts.length) return null
+
+    return posts.reduce((top, current) => {
       if (!current.public_metrics || !top.public_metrics) return top
       
       const currentScore = current.public_metrics.like_count + 
-                          current.public_metrics.retweet_count * 2 + 
+                          current.public_metrics.repost_count * 2 + 
                           current.public_metrics.reply_count * 1.5
       const topScore = top.public_metrics.like_count + 
-                      top.public_metrics.retweet_count * 2 + 
+                      top.public_metrics.repost_count * 2 + 
                       top.public_metrics.reply_count * 1.5
       
       return currentScore > topScore ? current : top
@@ -119,8 +147,8 @@ class XAPIService {
   }
 
   // Analyze sentiment using context annotations and keywords
-  analyzeSentiment(tweets: any[]): { positive: number; negative: number; neutral: number } {
-    if (!tweets.length) return { positive: 0, negative: 0, neutral: 0 }
+  analyzeSentiment(posts: any[]): { positive: number; negative: number; neutral: number } {
+    if (!posts.length) return { positive: 0, negative: 0, neutral: 0 }
 
     const positiveKeywords = ['great', 'awesome', 'amazing', 'love', 'excellent', 'fantastic', 'wonderful', 'perfect', 'best', 'incredible']
     const negativeKeywords = ['bad', 'terrible', 'awful', 'hate', 'worst', 'horrible', 'disappointing', 'failed', 'broken', 'useless']
@@ -129,8 +157,8 @@ class XAPIService {
     let negative = 0
     let neutral = 0
 
-    tweets.forEach(tweet => {
-      const text = tweet.text.toLowerCase()
+    posts.forEach(post => {
+      const text = post.text.toLowerCase()
       const hasPositive = positiveKeywords.some(word => text.includes(word))
       const hasNegative = negativeKeywords.some(word => text.includes(word))
 
@@ -143,7 +171,7 @@ class XAPIService {
       }
     })
 
-    const total = tweets.length
+    const total = posts.length
     return {
       positive: Math.round((positive / total) * 100),
       negative: Math.round((negative / total) * 100),
@@ -160,32 +188,32 @@ class XAPIService {
         throw new Error('User not found')
       }
 
-      // Get recent tweets
-      const tweets = await this.getUserTweets(user.id, 20)
+      // Get recent posts
+      const posts = await this.getUserTweets(user.id, 20)
       
-      // Calculate metrics
-      const engagementRate = this.calculateEngagementRate(tweets, user.public_metrics.followers_count)
-      const topTweet = this.findTopPerformingTweet(tweets)
-      const sentiment = this.analyzeSentiment(tweets)
+      // Calculate metrics using 1% virality model
+      const engagementRate = this.calculateEngagementRate(posts, user.public_metrics.followers_count)
+      const topPost = this.findTopPerformingPost(posts)
+      const sentiment = this.analyzeSentiment(posts)
 
       // Calculate totals
-      const totalEngagements = tweets.reduce((sum, tweet) => {
-        const metrics = tweet.public_metrics
+      const totalEngagements = posts.reduce((sum, post) => {
+        const metrics = post.public_metrics
         if (!metrics) return sum
-        return sum + (metrics.like_count + metrics.retweet_count + metrics.reply_count + metrics.quote_count)
+        return sum + (metrics.like_count + metrics.repost_count + metrics.reply_count + metrics.quote_count)
       }, 0)
 
-      const totalImpressions = tweets.reduce((sum, tweet) => {
-        const impressions = tweet.public_metrics?.impression_count || user.public_metrics.followers_count * 0.1
-        return sum + impressions
+      // Calculate total reach using 1% virality model
+      const totalReach = posts.reduce((sum, post) => {
+        return sum + this.calculatePostReach(post, user.public_metrics.followers_count)
       }, 0)
 
       return {
         user_metrics: user.public_metrics,
-        recent_tweets: tweets,
+        recent_tweets: posts,
         engagement_rate: Math.round(engagementRate * 100) / 100,
-        top_performing_tweet: topTweet,
-        total_impressions: Math.round(totalImpressions),
+        top_performing_tweet: topPost,
+        total_impressions: Math.round(totalReach),
         total_engagements: totalEngagements,
         growth_metrics: {
           followers_growth: 0, // Would need historical data
@@ -405,24 +433,24 @@ class XAPIService {
   async analyzeHashtag(hashtag: string, maxResults: number = 100): Promise<any> {
     try {
       const query = `#${hashtag.replace('#', '')}`
-      const tweets = await this.advancedSearch(query, { maxResults })
+      const posts = await this.advancedSearch(query, { maxResults })
       
-      const totalEngagement = tweets.reduce((sum, tweet) => {
-        const metrics = tweet.public_metrics
+      const totalEngagement = posts.reduce((sum, post) => {
+        const metrics = post.public_metrics
         if (!metrics) return sum
-        return sum + metrics.like_count + metrics.retweet_count + metrics.reply_count
+        return sum + metrics.like_count + metrics.repost_count + metrics.reply_count
       }, 0)
 
-      const avgEngagement = tweets.length ? totalEngagement / tweets.length : 0
-      const topTweet = this.findTopPerformingTweet(tweets)
+      const avgEngagement = posts.length ? totalEngagement / posts.length : 0
+      const topPost = this.findTopPerformingPost(posts)
 
       return {
         hashtag: `#${hashtag.replace('#', '')}`,
-        totalTweets: tweets.length,
+        totalTweets: posts.length,
         totalEngagement,
         avgEngagement: Math.round(avgEngagement),
-        topTweet,
-        tweets: tweets.slice(0, 10) // Top 10 tweets
+        topTweet: topPost,
+        tweets: posts.slice(0, 10) // Top 10 posts
       }
     } catch (error) {
       console.error('Error analyzing hashtag:', error)

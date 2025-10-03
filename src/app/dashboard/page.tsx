@@ -48,8 +48,8 @@ function DashboardContent() {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
-          <p className="mt-4 text-gray-400">Loading...</p>
+          <div className="animate-spin h-12 w-12 border-b-2 border-white mx-auto"></div>
+          <p className="mt-4 text-gray-400">LOADING...</p>
         </div>
       </div>
     )
@@ -75,12 +75,12 @@ function DashboardContent() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center gap-6">
-              <h1 className="text-xl font-light tracking-tight">XScope Analytics</h1>
+              <h1 className="text-xl font-light tracking-tight">X ANALYTICS</h1>
               
               {/* Subscription Badge */}
               {!loadingSub && subscription && (
                 <div className="flex items-center gap-3">
-                  <span className={`text-xs px-3 py-1 rounded-full ${
+                  <span className={`text-xs px-3 py-1 ${
                     subscription.tier === 'enterprise' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
                     subscription.tier === 'pro' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
                     subscription.tier === 'starter' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
@@ -92,9 +92,9 @@ function DashboardContent() {
                   {subscription.tier === 'free' && (
                     <Link 
                       href="/pricing"
-                      className="text-xs px-3 py-1 bg-white text-black rounded-full hover:bg-gray-200 transition-colors"
+                      className="text-xs px-3 py-1 bg-white text-black hover:bg-gray-200 transition-colors"
                     >
-                      Upgrade to PRO
+                      UPGRADE
                     </Link>
                   )}
                 </div>
@@ -105,14 +105,14 @@ function DashboardContent() {
                 href="/pricing"
                 className="text-sm text-gray-400 hover:text-white transition-colors"
               >
-                Pricing
+                PRICING
               </Link>
               <span className="text-sm text-gray-400">{user.email}</span>
               <button
                 onClick={handleLogout}
                 className="text-sm text-gray-400 hover:text-white transition-colors"
               >
-                Sign Out
+                SIGN OUT
               </button>
             </div>
           </div>
@@ -133,19 +133,19 @@ function DashboardContent() {
 
         {/* Free Tier Upgrade Prompt */}
         {!loadingSub && subscription?.tier === 'free' && (
-          <div className="mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-lg p-6">
+          <div className="mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-medium mb-1">Unlock AI-Powered Insights</h3>
+                <h3 className="text-lg font-medium mb-1">UNLOCK ADVANCED ANALYTICS</h3>
                 <p className="text-sm text-gray-400">
-                  Upgrade to PRO for GPT-4 content analysis, 10 competitor tracking, and daily automated reports.
+                  PRO: Content analysis, competitor tracking, automated reports
                 </p>
               </div>
               <Link
                 href="/pricing"
-                className="px-6 py-3 bg-white text-black rounded-lg hover:bg-gray-200 transition-colors font-medium whitespace-nowrap"
+                className="px-6 py-3 bg-white text-black hover:bg-gray-200 transition-colors font-medium whitespace-nowrap"
               >
-                View Plans →
+                VIEW PLANS
               </Link>
             </div>
           </div>
@@ -153,12 +153,12 @@ function DashboardContent() {
 
         {/* PRO/Enterprise Features */}
         {!loadingSub && (subscription?.tier === 'pro' || subscription?.tier === 'enterprise') && (
-          <div className="mb-6 bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/20 rounded-lg p-4">
+          <div className="mb-6 bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/20 p-4">
             <div className="flex items-center gap-3">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 bg-green-400 animate-pulse"></div>
               <p className="text-sm text-gray-300">
-                ✨ <span className="font-medium">AI Features Active</span> - GPT-4 analyzing your content
-                {subscription?.tier === 'enterprise' && ' + Grok competitive intelligence'}
+                <span className="font-medium">ACTIVE:</span> GPT-4 content analysis
+                {subscription?.tier === 'enterprise' && ' | Grok competitive intelligence'}
               </p>
             </div>
           </div>
@@ -175,8 +175,8 @@ export default function Dashboard() {
     <Suspense fallback={
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
-          <p className="mt-4 text-gray-400">Loading...</p>
+          <div className="animate-spin h-12 w-12 border-b-2 border-white mx-auto"></div>
+          <p className="mt-4 text-gray-400">LOADING...</p>
         </div>
       </div>
     }>

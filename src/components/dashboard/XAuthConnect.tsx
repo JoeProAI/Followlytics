@@ -100,11 +100,11 @@ export default function XAuthConnect() {
   }
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
+    <div className="bg-gray-900 border border-gray-800 p-6">
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-4">
           {/* X Logo */}
-          <div className="w-12 h-12 bg-black border border-gray-700 rounded-lg flex items-center justify-center">
+          <div className="w-12 h-12 bg-black border border-gray-700 flex items-center justify-center clip-corner-tl">
             <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
             </svg>
@@ -112,10 +112,10 @@ export default function XAuthConnect() {
 
           <div>
             <h3 className="text-lg font-medium mb-1 flex items-center gap-2">
-              X (Twitter) Account
+              X ACCOUNT
               {status.connected && (
-                <span className="text-xs px-2 py-0.5 bg-green-500/10 text-green-400 border border-green-500/20 rounded-full">
-                  Connected
+                <span className="text-xs px-2 py-0.5 bg-green-500/10 text-green-400 border border-green-500/20">
+                  CONNECTED
                 </span>
               )}
             </h3>
@@ -133,7 +133,7 @@ export default function XAuthConnect() {
               </div>
             ) : (
               <p className="text-sm text-gray-400">
-                Connect your X account to access follower data, competitor tracking, and AI insights
+                Connect X account for follower data, competitor tracking, content analysis
               </p>
             )}
           </div>
@@ -143,17 +143,17 @@ export default function XAuthConnect() {
           {status.connected ? (
             <button
               onClick={handleDisconnect}
-              className="text-sm px-4 py-2 border border-gray-700 text-gray-400 hover:text-white hover:border-gray-600 rounded-lg transition-colors"
+              className="text-sm px-4 py-2 border border-gray-700 text-gray-400 hover:text-white hover:border-gray-600 transition-colors"
             >
-              Disconnect
+              DISCONNECT
             </button>
           ) : (
             <button
               onClick={handleConnect}
               disabled={authorizing}
-              className="text-sm px-6 py-2 bg-white text-black hover:bg-gray-200 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg transition-colors font-medium"
+              className="text-sm px-6 py-2 bg-white text-black hover:bg-gray-200 disabled:bg-gray-700 disabled:text-gray-500 transition-colors font-medium"
             >
-              {authorizing ? 'Authorizing...' : 'Connect X Account'}
+              {authorizing ? 'AUTHORIZING...' : 'CONNECT X'}
             </button>
           )}
         </div>
@@ -162,30 +162,22 @@ export default function XAuthConnect() {
       {/* Features enabled by X connection */}
       {!status.connected && (
         <div className="mt-4 pt-4 border-t border-gray-800">
-          <p className="text-xs text-gray-500 mb-3">Features unlocked after connecting:</p>
+          <p className="text-xs text-gray-500 mb-3">FEATURES UNLOCKED:</p>
           <div className="grid grid-cols-2 gap-2">
             <div className="flex items-center gap-2 text-xs text-gray-400">
-              <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+              <div className="w-1 h-3 bg-green-400"></div>
               Follower analytics
             </div>
             <div className="flex items-center gap-2 text-xs text-gray-400">
-              <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+              <div className="w-1 h-3 bg-green-400"></div>
               Competitor tracking
             </div>
             <div className="flex items-center gap-2 text-xs text-gray-400">
-              <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              AI content analysis
+              <div className="w-1 h-3 bg-green-400"></div>
+              Content analysis
             </div>
             <div className="flex items-center gap-2 text-xs text-gray-400">
-              <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+              <div className="w-1 h-3 bg-green-400"></div>
               Automated reports
             </div>
           </div>
