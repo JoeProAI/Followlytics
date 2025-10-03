@@ -85,19 +85,21 @@ export async function POST(request: NextRequest) {
 - Lead with the shocking stat
 - Compare unexpected things
 - "X is Y times more than you think"
-- Visualize data in words
 - Make numbers feel personal`
-    }
 
     const voiceInstruction = voicePrompts[voice] || voicePrompts.viral
 
-    // Use GPT-4 to generate multiple tweet variations
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `You are a viral content creator analyzing what makes tweets blow up. Your tweets:
+    // Helper: fetch with timeout
+    const withTimeout = async <T>(p: Promise<T>, ms = 30000) => {
+      return Promise.race([
+        p,
+        new Promise<T>((_, reject) => setTimeout(() => reject(new Error('AI timeout')), ms))
+      ])
+    }
+
+    // Build messages once
+    const messages = [
+      { role: 'system' as const, content: `You are a viral content creator analyzing what makes tweets blow up. Your tweets:
 
 NEVER SOUND LIKE:
 ❌ "Unlocking the power of..."
@@ -105,7 +107,7 @@ NEVER SOUND LIKE:
 ❌ "Let's dive into..."
 ❌ "Here's the thing about..."
 ❌ Generic motivational quotes
-❌ Corporate LinkedIn speak
+❌ corporate LinkedIn speak
 
 ALWAYS SOUND LIKE:
 ✅ Someone dropping brutal truth bombs
@@ -139,28 +141,64 @@ Return ONLY a JSON array:
     "hooks": ["pattern interrupt used", "emotional trigger"],
     "why": "1-sentence reason this could go viral"
   }
-]`
-        },
-        {
-          role: "user",
-          content: `Topic: ${idea}\n\nVoice: ${voice}\n\nGenerate ${variations} BANGER tweets that people will actually want to share. No generic AI slop.`
-        }
-      ],
-      temperature: 0.95,
-      max_tokens: 2500
-    })
+]` },
+      { role: 'user' as const, content: `Topic: ${idea}\n\nVoice: ${voice}\n\nGenerate ${variations} BANGER tweets that people will actually want to share. No generic AI slop.` }
+    ]
 
-    const responseText = completion.choices[0]?.message?.content
-    if (!responseText) {
-      throw new Error('No response from AI')
+    // xAI first
+    let responseText: string | undefined
+    let usedProvider: 'xai' | 'openai' | undefined
+    const xaiApiKey = process.env.XAI_API_KEY
+    const xaiModel = process.env.XAI_MODEL || 'grok-2-latest'
+    if (xaiApiKey) {
+      const tryXai = async () => {
+        const res = await withTimeout(fetch('https://api.x.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${xaiApiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: xaiModel, messages, temperature: 0.95, max_tokens: 2500 })
+        })) as Response
+        if (!res.ok) throw new Error(`xAI error ${res.status}`)
+        const data = await res.json()
+        return data?.choices?.[0]?.message?.content as string | undefined
+      }
+      try {
+        responseText = await tryXai()
+        usedProvider = 'xai'
+      } catch {
+        await new Promise(r => setTimeout(r, 500 + Math.random() * 500))
+        try {
+          responseText = await tryXai()
+          usedProvider = 'xai'
+        } catch {
+          // fall back to OpenAI
+        }
+      }
     }
 
-    // Parse the JSON response
-    let tweets
+    // OpenAI fallback
+    if (!responseText) {
+      if (!process.env.OPENAI_API_KEY) {
+        return NextResponse.json({ error: 'All AI providers unavailable', hint: 'Set XAI_API_KEY or OPENAI_API_KEY' }, { status: 503 })
+      }
+      const completion = await withTimeout(openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages,
+        temperature: 0.95,
+        max_tokens: 2500
+      }))
+      responseText = completion.choices[0]?.message?.content
+      usedProvider = 'openai'
+    }
+
+    if (!responseText) {
+      return NextResponse.json({ error: 'No response from AI providers' }, { status: 502 })
+    }
+
+    // Parse and enhance
+    let tweets: any[]
     try {
       tweets = JSON.parse(responseText)
     } catch (parseError) {
-      // If parsing fails, try to extract JSON from markdown code blocks
       const jsonMatch = responseText.match(/```json\n([\s\S]+?)\n```/) || responseText.match(/```\n([\s\S]+?)\n```/)
       if (jsonMatch) {
         tweets = JSON.parse(jsonMatch[1])
@@ -169,18 +207,15 @@ Return ONLY a JSON array:
       }
     }
 
-    // Enhance each tweet with additional metrics
     const enhancedTweets = tweets.map((tweet: any, index: number) => ({
       ...tweet,
-      length: tweet.text.length,
+      length: tweet.text?.length || 0,
       rank: index + 1,
-      id: `tweet_${Date.now()}_${index}`
+      id: `tweet_${Date.now()}_${index}`,
+      provider: usedProvider || 'unknown'
     }))
 
-    // Sort by viral score
-    enhancedTweets.sort((a: any, b: any) => b.viralScore - a.viralScore)
-
-    console.log(`✅ Generated ${enhancedTweets.length} tweets successfully`)
+    enhancedTweets.sort((a: any, b: any) => (b.viralScore || 0) - (a.viralScore || 0))
 
     return NextResponse.json({
       success: true,
@@ -189,7 +224,7 @@ Return ONLY a JSON array:
         generated_at: new Date().toISOString(),
         user_id: userId,
         original_idea: idea,
-        model: 'gpt-4o-mini'
+        provider: usedProvider
       }
     })
 

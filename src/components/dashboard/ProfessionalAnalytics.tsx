@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { useAuthState } from 'react-firebase-hooks/auth'
 import { auth } from '@/lib/firebase'
 
-type Tab = 'overview' | 'intelligence' | 'search' | 'compare' | 'trending' | 'competitor' | 'hashtag' | 'viral' | 'mentions' | 'tweet'
+type Tab = 'overview' | 'intelligence' | 'search' | 'compare' | 'trending' | 'competitor' | 'hashtag' | 'viral' | 'mentions' | 'tweet' | 'safety'
 
 export default function ProfessionalAnalytics() {
   const [user] = useAuthState(auth)
@@ -15,6 +15,10 @@ export default function ProfessionalAnalytics() {
   // State
   const [username, setUsername] = useState('')
   const [data, setData] = useState<any>(null)
+  const [blocked, setBlocked] = useState<any[]>([])
+  const [muted, setMuted] = useState<any[]>([])
+  const [blockCheckInput, setBlockCheckInput] = useState('')
+  const [blockCheckResults, setBlockCheckResults] = useState<any[]>([])
   const [competitorUsernames, setCompetitorUsernames] = useState(['', '', ''])
   const [hashtag, setHashtag] = useState('')
   const [tweetId, setTweetId] = useState('')
@@ -58,6 +62,7 @@ export default function ProfessionalAnalytics() {
     { id: 'hashtag', label: 'Hashtags', description: 'Analyze hashtag performance and discover optimal tags for your content' },
     { id: 'mentions', label: 'Mentions', description: 'Track mentions of any username or keyword across X' },
     { id: 'tweet', label: 'Tweet Analysis', description: 'Deep dive into individual tweets with detailed engagement analytics' }
+  , { id: 'safety', label: 'Safety & Filters', description: 'Manage blocked/muted accounts and check who blocks you (bulk)' }
   ]
 
   if (!user) {
@@ -117,6 +122,118 @@ export default function ProfessionalAnalytics() {
         {error && (
           <div className="mb-6 bg-red-900/20 border border-red-900/50 text-red-400 px-4 py-3 rounded">
             <strong>Error:</strong> {error}
+          </div>
+        )}
+
+        {/* Safety & Filters */}
+        {activeTab === 'safety' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Blocked */}
+              <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <div className="text-gray-400 text-xs uppercase tracking-wide mb-1">Blocked Accounts</div>
+                    <div className="text-sm text-gray-500">You have blocked ({blocked.length})</div>
+                  </div>
+                  <button
+                    className="text-xs px-3 py-1 bg-white text-black hover:bg-gray-200 rounded"
+                    onClick={async () => {
+                      try {
+                        const token = await getToken()
+                        const res = await fetch('/api/daytona/blocked-list', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }})
+                        const json = await res.json()
+                        setBlocked(json.items || [])
+                      } catch (e) { setBlocked([]) }
+                    }}
+                  >Refresh</button>
+                </div>
+                <div className="max-h-64 overflow-auto divide-y divide-gray-800">
+                  {blocked.length === 0 ? (
+                    <div className="text-xs text-gray-500">No data yet</div>
+                  ) : blocked.map((u:any, i:number) => (
+                    <div key={i} className="py-2 text-sm flex justify-between">
+                      <span>@{u.username || 'unknown'}</span>
+                      <span className="text-gray-500">{u.followers?.toLocaleString?.() || ''}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Muted */}
+              <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <div className="text-gray-400 text-xs uppercase tracking-wide mb-1">Muted Accounts</div>
+                    <div className="text-sm text-gray-500">You have muted ({muted.length})</div>
+                  </div>
+                  <button
+                    className="text-xs px-3 py-1 bg-white text-black hover:bg-gray-200 rounded"
+                    onClick={async () => {
+                      try {
+                        const token = await getToken()
+                        const res = await fetch('/api/daytona/muted-list', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }})
+                        const json = await res.json()
+                        setMuted(json.items || [])
+                      } catch (e) { setMuted([]) }
+                    }}
+                  >Refresh</button>
+                </div>
+                <div className="max-h-64 overflow-auto divide-y divide-gray-800">
+                  {muted.length === 0 ? (
+                    <div className="text-xs text-gray-500">No data yet</div>
+                  ) : muted.map((u:any, i:number) => (
+                    <div key={i} className="py-2 text-sm flex justify-between">
+                      <span>@{u.username || 'unknown'}</span>
+                      <span className="text-gray-500">{u.followers?.toLocaleString?.() || ''}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Who Blocks You (Bulk) */}
+              <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
+                <div className="mb-3">
+                  <div className="text-gray-400 text-xs uppercase tracking-wide mb-1">Who Blocks You (Bulk)</div>
+                  <div className="text-sm text-gray-500">Paste @handles (one per line)</div>
+                </div>
+                <textarea
+                  value={blockCheckInput}
+                  onChange={(e) => setBlockCheckInput(e.target.value)}
+                  placeholder="elonmusk\nnaval\njack"
+                  className="w-full h-24 bg-black border border-gray-800 rounded p-2 text-sm mb-3"
+                />
+                <div className="flex items-center justify-between">
+                  <button
+                    className="text-xs px-3 py-1 bg-white text-black hover:bg-gray-200 rounded"
+                    onClick={async () => {
+                      try {
+                        const token = await getToken()
+                        const usernames = blockCheckInput.split(/\r?\n/).map(s=>s.trim()).filter(Boolean)
+                        const res = await fetch('/api/daytona/block-check', {
+                          method: 'POST',
+                          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ usernames })
+                        })
+                        const json = await res.json()
+                        setBlockCheckResults(json.results || [])
+                      } catch (e) { setBlockCheckResults([]) }
+                    }}
+                  >Check</button>
+                  <div className="text-xs text-gray-500">Checked: {blockCheckResults.length}</div>
+                </div>
+                <div className="max-h-40 overflow-auto divide-y divide-gray-800 mt-3">
+                  {blockCheckResults.length === 0 ? (
+                    <div className="text-xs text-gray-500">No results yet</div>
+                  ) : blockCheckResults.map((r:any, i:number) => (
+                    <div key={i} className="py-2 text-sm flex justify-between">
+                      <span>@{r.username}</span>
+                      <span className={r.blocksYou ? 'text-red-400' : 'text-gray-500'}>{r.blocksYou ? 'BLOCKS YOU' : '—'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
