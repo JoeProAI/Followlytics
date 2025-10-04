@@ -300,6 +300,7 @@ export default function DaytonaFeatures() {
           </div>
         </div>
       </div>
+      </div>
     </div>
   )
 }
