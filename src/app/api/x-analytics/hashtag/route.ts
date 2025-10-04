@@ -4,9 +4,9 @@ import { withPaymentGate, isPaymentGateError } from '@/lib/paymentGate'
 
 export async function POST(request: NextRequest) {
   try {
-    // Payment gate: requires Pro tier for hashtag analysis
+    // Payment gate: Starter tier can use hashtag tracking
     const gateResult = await withPaymentGate(request, {
-      requireTier: 'pro',
+      requireTier: 'starter',
       trackUsage: true,
       endpoint: '/api/x-analytics/hashtag'
     })

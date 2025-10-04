@@ -19,6 +19,7 @@ interface XAnalyticsData {
   recent_tweets: any[]
   engagement_rate: number
   top_performing_tweet: any | null
+  most_recent_tweet?: any | null  // NEW: Most recent post with analysis
   total_impressions: number
   total_engagements: number
   growth_metrics: {
@@ -158,7 +159,7 @@ class XAPIService {
     })
   }
 
-  // Analyze why a post performed well using AI
+  // Analyze why a post performed well using Grok AI
   async analyzeTopPost(post: any, followerCount: number): Promise<any> {
     if (!post) return null
 
@@ -168,73 +169,35 @@ class XAPIService {
       : '0.00'
 
     try {
-      const OpenAI = (await import('openai')).default
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+      const GrokAPI = (await import('./grokAPI')).default
+      const grok = new GrokAPI()
 
-      const analysis = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an expert social media analyst. Analyze why this X/Twitter post performed well and provide actionable improvement suggestions. Be specific and data-driven.`
-          },
-          {
-            role: 'user',
-            content: `Analyze this post:
-
-TEXT: "${post.text}"
-
-METRICS:
-- Likes: ${metrics.like_count}
-- Retweets: ${metrics.repost_count}
-- Replies: ${metrics.reply_count}
-- Engagement Rate: ${engagementRate}%
-- Impressions (estimated): ${this.calculatePostReach(post, followerCount)}
-
-Provide:
-1. Why it performed well (2-3 specific reasons)
-2. Key success factors (hook, content type, timing, etc.)
-3. How to improve (2-3 actionable suggestions)
-
-Return ONLY a JSON object:
-{
-  "performance_score": 1-100,
-  "why_it_worked": ["reason1", "reason2"],
-  "success_factors": ["factor1", "factor2"],
-  "improvements": ["suggestion1", "suggestion2"],
-  "content_type": "educational|entertaining|promotional|thread|viral"
-}`
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 500
-      })
-
-      const aiResponse = analysis.choices[0]?.message?.content
-      if (!aiResponse) throw new Error('No AI response')
-
-      let parsedAnalysis
-      try {
-        parsedAnalysis = JSON.parse(aiResponse)
-      } catch {
-        // Try to extract JSON from markdown
-        const jsonMatch = aiResponse.match(/```json\n([\s\S]+?)\n```/) || aiResponse.match(/```\n([\s\S]+?)\n```/)
-        if (jsonMatch) {
-          parsedAnalysis = JSON.parse(jsonMatch[1])
-        } else {
-          throw new Error('Failed to parse AI response')
+      const analysis = await grok.analyzeTweetPerformance(
+        post.text,
+        {
+          likes: metrics.like_count,
+          retweets: metrics.repost_count,
+          replies: metrics.reply_count,
+          engagement_rate: engagementRate,
+          impressions: this.calculatePostReach(post, followerCount)
         }
+      )
+
+      if (!analysis) {
+        // Return post without AI analysis if Grok fails
+        return post
       }
 
       return {
         ...post,
         ai_analysis: {
-          ...parsedAnalysis,
-          analyzed_at: new Date().toISOString()
+          ...analysis,
+          analyzed_at: new Date().toISOString(),
+          analyzer: 'grok-2-latest'
         }
       }
     } catch (error) {
-      console.error('Error analyzing top post:', error)
+      console.error('Error analyzing top post with Grok:', error)
       // Return post without AI analysis if it fails
       return post
     }
@@ -288,10 +251,17 @@ Return ONLY a JSON object:
       // Calculate metrics using 1% virality model
       const engagementRate = this.calculateEngagementRate(posts, user.public_metrics.followers_count)
       const topPost = this.findTopPerformingPost(posts)
+      const mostRecentPost = posts[0] || null // First post is most recent
       const sentiment = this.analyzeSentiment(posts)
 
-      // Add AI analysis to top performing post
+      // Add AI analysis to top performing post (with Grok)
       const topPostWithAnalysis = await this.analyzeTopPost(topPost, user.public_metrics.followers_count)
+      
+      // Add AI analysis to most recent post if different from top
+      let recentPostWithAnalysis = mostRecentPost
+      if (mostRecentPost && topPost && mostRecentPost.id !== topPost.id) {
+        recentPostWithAnalysis = await this.analyzeTopPost(mostRecentPost, user.public_metrics.followers_count)
+      }
 
       // Calculate totals
       const totalEngagements = posts.reduce((sum, post) => {
@@ -310,6 +280,7 @@ Return ONLY a JSON object:
         recent_tweets: posts,
         engagement_rate: Math.round(engagementRate * 100) / 100,
         top_performing_tweet: topPostWithAnalysis,
+        most_recent_tweet: recentPostWithAnalysis, // NEW: Separate recent post
         total_impressions: Math.round(totalReach),
         total_engagements: totalEngagements,
         growth_metrics: {
