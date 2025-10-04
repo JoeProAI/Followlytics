@@ -2,12 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth as auth } from '@/lib/firebase-admin'
 import Stripe from 'stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-11-20.acacia'
+// Validate Stripe key exists
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.error('❌ STRIPE_SECRET_KEY is not set in environment variables')
+}
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+  apiVersion: '2025-09-30.clover'
 })
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if Stripe is configured
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.error('❌ Stripe not configured: STRIPE_SECRET_KEY missing')
+      return NextResponse.json({ 
+        error: 'Stripe not configured',
+        details: 'STRIPE_SECRET_KEY environment variable is not set'
+      }, { status: 500 })
+    }
+
     // Verify authentication
     const authHeader = request.headers.get('authorization')
     if (!authHeader?.startsWith('Bearer ')) {
@@ -63,10 +77,28 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error: any) {
-    console.error('Checkout creation error:', error)
+    console.error('❌ Checkout creation error:', {
+      message: error.message,
+      type: error.type,
+      code: error.code,
+      stack: error.stack,
+      raw: error.raw
+    })
+    
+    // Better error messages for common issues
+    let userMessage = error.message
+    if (error.message?.includes('API key')) {
+      userMessage = 'Stripe API key is invalid or not set'
+    } else if (error.message?.includes('price')) {
+      userMessage = 'Invalid price ID. Please contact support.'
+    } else if (error.type === 'StripeAuthenticationError') {
+      userMessage = 'Stripe authentication failed. API keys may be incorrect.'
+    }
+    
     return NextResponse.json({
       error: 'Failed to create checkout session',
-      details: error.message
+      details: userMessage,
+      debug: process.env.NODE_ENV === 'development' ? error.message : undefined
     }, { status: 500 })
   }
 }
