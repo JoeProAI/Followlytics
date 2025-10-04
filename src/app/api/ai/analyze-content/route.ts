@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth as auth } from '@/lib/firebase-admin'
 import { getUserSubscription, trackAPICall, checkUsageLimits } from '@/lib/subscription'
-import OpenAI from 'openai'
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
 
 /**
- * AI-Powered Content Analysis (PRO Feature)
- * Uses GPT-4 to analyze tweets and provide actionable insights
- * This is the PREMIUM feature that justifies $79/month
+ * AI-Powered Content Analysis (STARTER+ Feature)
+ * Uses Grok AI to analyze tweets and provide actionable insights
+ * Available for Starter, Pro, and Enterprise tiers
  */
 export async function POST(request: NextRequest) {
   try {
@@ -75,23 +70,38 @@ export async function POST(request: NextRequest) {
     tweetData.sort((a, b) => b.engagement - a.engagement)
     const topTweets = tweetData.slice(0, 10)
 
-    // AI Analysis using GPT-4
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini', // Cost-effective, fast
-      messages: [
-        {
-          role: 'system',
-          content: `You are an expert X (Twitter) growth strategist. Analyze tweets and provide actionable insights to increase engagement and followers. Be specific, data-driven, and direct.`
-        },
-        {
-          role: 'user',
-          content: `Analyze these top 10 tweets from @${username} and provide insights:
+    // AI Analysis using Grok
+    const apiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY || ''
+    
+    if (!apiKey) {
+      return NextResponse.json({
+        error: 'AI analysis temporarily unavailable',
+        details: 'Grok API key not configured'
+      }, { status: 503 })
+    }
+
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'grok-2-latest',
+        messages: [
+          {
+            role: 'system',
+            content: `You are Grok, an expert X (Twitter) growth strategist. Analyze tweets and provide actionable insights to increase engagement and followers. Be specific, data-driven, witty, and direct.`
+          },
+          {
+            role: 'user',
+            content: `Analyze these top 10 tweets from @${username} and provide insights:
 
 ${topTweets.map(t => `Tweet ${t.num}: "${t.text}"
 Likes: ${t.likes}, Retweets: ${t.retweets}, Replies: ${t.replies}
 `).join('\n')}
 
-Provide analysis in this JSON format:
+Provide analysis in this JSON format (no markdown, just JSON):
 {
   "summary": "2-sentence overview of their content strategy",
   "top_patterns": ["pattern 1", "pattern 2", "pattern 3"],
@@ -107,13 +117,27 @@ Provide analysis in this JSON format:
   "avoid": ["what not to do 1", "what not to do 2"],
   "next_tweet_suggestion": "specific tweet idea based on what works"
 }`
-        }
-      ],
-      temperature: 0.7,
-      response_format: { type: 'json_object' }
+          }
+        ],
+        temperature: 0.7
+      })
     })
 
-    const analysis = JSON.parse(completion.choices[0].message.content || '{}')
+    if (!response.ok) {
+      throw new Error(`Grok API error: ${response.statusText}`)
+    }
+
+    const completion = await response.json()
+    const content = completion.choices[0]?.message?.content || '{}'
+    
+    // Parse JSON (handle potential markdown wrapping)
+    let analysis
+    try {
+      analysis = JSON.parse(content)
+    } catch {
+      const jsonMatch = content.match(/```json\n([\s\S]+?)\n```/) || content.match(/\{[\s\S]+\}/)
+      analysis = jsonMatch ? JSON.parse(jsonMatch[1] || jsonMatch[0]) : {}
+    }
 
     // Track API call
     await trackAPICall(userId, 'ai-analysis')
@@ -124,7 +148,7 @@ Provide analysis in this JSON format:
       success: true,
       analysis,
       tweets_analyzed: tweets.length,
-      ai_model: 'gpt-4o-mini',
+      ai_model: 'grok-2-latest',
       timestamp: new Date().toISOString()
     })
 
@@ -140,13 +164,13 @@ Provide analysis in this JSON format:
 export async function GET(request: NextRequest) {
   return NextResponse.json({
     message: 'AI Content Analysis API',
-    description: 'GPT-4 powered tweet analysis for PRO users',
+    description: 'Grok AI powered tweet analysis for Starter+ users',
     features: [
       'Pattern recognition',
       'Engagement optimization',
       'Content strategy insights',
       'Personalized recommendations'
     ],
-    pricing: 'Requires PRO subscription ($79/mo)'
+    pricing: 'Requires Starter subscription ($29/mo) or higher'
   })
 }
