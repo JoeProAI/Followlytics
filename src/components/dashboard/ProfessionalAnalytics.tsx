@@ -282,6 +282,57 @@ export default function ProfessionalAnalytics() {
               </div>
             )}
 
+            {/* Account Strategy Summary */}
+            {data?.account_strategy && (
+              <div className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-lg p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="text-sm font-medium text-blue-400">📊 Account Strategy</div>
+                  <div className="text-xs px-2 py-1 bg-green-500/10 text-green-400 border border-green-500/20">
+                    Grok AI
+                  </div>
+                </div>
+
+                {/* What's Working */}
+                {data.account_strategy.what_works && (
+                  <div className="mb-4">
+                    <div className="text-xs font-medium text-green-400 mb-2">✓ What's Working</div>
+                    <p className="text-sm text-gray-300">{data.account_strategy.what_works}</p>
+                  </div>
+                )}
+
+                {/* What to Improve */}
+                {data.account_strategy.what_to_improve && (
+                  <div className="mb-4">
+                    <div className="text-xs font-medium text-yellow-400 mb-2">⚡ What to Improve</div>
+                    <p className="text-sm text-gray-300">{data.account_strategy.what_to_improve}</p>
+                  </div>
+                )}
+
+                {/* Action Plan */}
+                {data.account_strategy.action_plan?.length > 0 && (
+                  <div className="mb-4">
+                    <div className="text-xs font-medium text-blue-400 mb-2">🎯 Action Plan</div>
+                    <div className="space-y-2">
+                      {data.account_strategy.action_plan.map((item: any, i: number) => (
+                        <div key={i} className="bg-gray-900/50 border border-gray-800 rounded p-3">
+                          <div className="text-sm text-white mb-1">{item.action}</div>
+                          <div className="text-xs text-gray-400">{item.why}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Next Post Idea */}
+                {data.account_strategy.next_post_idea && (
+                  <div className="bg-gray-900/50 border border-gray-800 rounded p-3">
+                    <div className="text-xs font-medium text-purple-400 mb-2">💡 Next Post Idea</div>
+                    <p className="text-sm text-gray-300 italic">{data.account_strategy.next_post_idea}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Most Recent Post */}
             {data?.most_recent_tweet && (
               <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">

@@ -19,7 +19,8 @@ interface XAnalyticsData {
   recent_tweets: any[]
   engagement_rate: number
   top_performing_tweet: any | null
-  most_recent_tweet?: any | null  // NEW: Most recent post with analysis
+  most_recent_tweet?: any | null
+  account_strategy?: any | null  // NEW: Overall strategic recommendations
   total_impressions: number
   total_engagements: number
   growth_metrics: {
@@ -163,6 +164,97 @@ class XAPIService {
     return topPost
   }
 
+  // Analyze overall account strategy using Grok AI
+  async analyzeAccountStrategy(posts: any[], username: string, followerCount: number): Promise<any> {
+    if (!posts.length) return null
+
+    try {
+      const GrokAPI = (await import('./grokAPI')).default
+      const grok = new GrokAPI()
+
+      // Get top 5 posts by engagement
+      const topPosts = [...posts]
+        .filter(p => p.public_metrics)
+        .sort((a, b) => {
+          const scoreA = a.public_metrics.like_count + a.public_metrics.repost_count * 2 + a.public_metrics.reply_count * 1.5
+          const scoreB = b.public_metrics.like_count + b.public_metrics.repost_count * 2 + b.public_metrics.reply_count * 1.5
+          return scoreB - scoreA
+        })
+        .slice(0, 5)
+
+      const postsText = topPosts.map((p, i) => 
+        `${i + 1}. "${p.text}" (${p.public_metrics.like_count} likes, ${p.public_metrics.repost_count} RTs)`
+      ).join('\n')
+
+      const apiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY || ''
+      if (!apiKey) return null
+
+      const response = await fetch('https://api.x.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'grok-2-latest',
+          messages: [
+            {
+              role: 'system',
+              content: `You are Grok, an expert X/Twitter strategist. Analyze @${username}'s content and provide actionable recommendations to improve engagement and grow followers.`
+            },
+            {
+              role: 'user',
+              content: `Analyze @${username}'s top performing posts:
+
+${postsText}
+
+Account stats:
+- Followers: ${followerCount.toLocaleString()}
+- Posts analyzed: ${posts.length}
+
+Provide strategic recommendations in JSON format (no markdown):
+{
+  "content_patterns": ["pattern 1", "pattern 2", "pattern 3"],
+  "what_works": "2-sentence summary of what's working",
+  "what_to_improve": "2-sentence summary of improvement areas",
+  "action_plan": [
+    {"action": "specific thing to do", "why": "why it will help"},
+    {"action": "specific thing to do", "why": "why it will help"},
+    {"action": "specific thing to do", "why": "why it will help"}
+  ],
+  "next_post_idea": "specific tweet suggestion based on what works"
+}`
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 600
+        })
+      })
+
+      if (!response.ok) {
+        console.error('Grok strategy analysis failed:', response.statusText)
+        return null
+      }
+
+      const data = await response.json()
+      const content = data.choices[0]?.message?.content
+
+      if (!content) return null
+
+      // Parse JSON
+      try {
+        return JSON.parse(content)
+      } catch {
+        const jsonMatch = content.match(/\{[\s\S]+\}/)
+        return jsonMatch ? JSON.parse(jsonMatch[0]) : null
+      }
+
+    } catch (error) {
+      console.error('Error analyzing account strategy:', error)
+      return null
+    }
+  }
+
   // Analyze why a post performed well using Grok AI
   async analyzeTopPost(post: any, followerCount: number): Promise<any> {
     if (!post) return null
@@ -273,6 +365,9 @@ class XAPIService {
         recentPostWithAnalysis = await this.analyzeTopPost(mostRecentPost, user.public_metrics.followers_count)
       }
 
+      // Generate overall account strategy recommendations
+      const accountStrategy = await this.analyzeAccountStrategy(posts, username, user.public_metrics.followers_count)
+
       // Calculate totals
       const totalEngagements = posts.reduce((sum, post) => {
         const metrics = post.public_metrics
@@ -290,7 +385,8 @@ class XAPIService {
         recent_tweets: posts,
         engagement_rate: Math.round(engagementRate * 100) / 100,
         top_performing_tweet: topPostWithAnalysis,
-        most_recent_tweet: recentPostWithAnalysis, // NEW: Separate recent post
+        most_recent_tweet: recentPostWithAnalysis,
+        account_strategy: accountStrategy, // NEW: Overall strategic recommendations
         total_impressions: Math.round(totalReach),
         total_engagements: totalEngagements,
         growth_metrics: {
