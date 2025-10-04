@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
@@ -11,9 +11,35 @@ export default function SignUp() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(true) // Default to dark mode
   
   const { signUp, signInWithGoogle } = useAuth()
   const router = useRouter()
+
+  // Load theme preference from localStorage on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme')
+    if (savedTheme === 'light') {
+      setIsDarkMode(false)
+      document.documentElement.classList.remove('dark')
+    } else {
+      setIsDarkMode(true)
+      document.documentElement.classList.add('dark')
+    }
+  }, [])
+
+  // Toggle theme and persist preference
+  const toggleTheme = () => {
+    const newTheme = !isDarkMode
+    setIsDarkMode(newTheme)
+    if (newTheme) {
+      document.documentElement.classList.add('dark')
+      localStorage.setItem('theme', 'dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+      localStorage.setItem('theme', 'light')
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,18 +78,54 @@ export default function SignUp() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className={`min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 transition-colors ${
+      isDarkMode ? 'bg-black' : 'bg-gray-50'
+    }`}>
+      {/* Theme Toggle Button */}
+      <button
+        onClick={toggleTheme}
+        className={`fixed top-6 right-6 p-3 rounded-lg transition-all ${
+          isDarkMode 
+            ? 'bg-gray-800 hover:bg-gray-700 text-yellow-400' 
+            : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+        }`}
+        aria-label="Toggle theme"
+      >
+        {isDarkMode ? (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        ) : (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        )}
+      </button>
+
       <div className="max-w-md w-full space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className={`mt-6 text-center text-3xl font-extrabold tracking-tight transition-colors ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>
             Join Followlytics
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className={`mt-2 text-center text-sm transition-colors ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>
             Competitive intelligence for X: track competitors, analyze engagement, discover viral content
           </p>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className={`mt-2 text-center text-sm transition-colors ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>
             Or{' '}
-            <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
+            <Link 
+              href="/login" 
+              className={`font-medium transition-colors ${
+                isDarkMode 
+                  ? 'text-blue-400 hover:text-blue-300' 
+                  : 'text-blue-600 hover:text-blue-500'
+              }`}
+            >
               sign in to your existing account
             </Link>
           </p>
@@ -75,7 +137,11 @@ export default function SignUp() {
             type="button"
             onClick={handleGoogleSignUp}
             disabled={loading}
-            className="group relative w-full flex justify-center py-3 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            className={`group relative w-full flex justify-center py-3 px-4 border text-sm font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 ${
+              isDarkMode
+                ? 'bg-gray-900 border-gray-700 text-white hover:bg-gray-800'
+                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
           >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -89,16 +155,24 @@ export default function SignUp() {
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300" />
+            <div className={`w-full border-t transition-colors ${
+              isDarkMode ? 'border-gray-700' : 'border-gray-300'
+            }`} />
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-gray-50 text-gray-500">Or continue with email</span>
+            <span className={`px-2 transition-colors ${
+              isDarkMode ? 'bg-black text-gray-500' : 'bg-gray-50 text-gray-500'
+            }`}>Or continue with email</span>
           </div>
         </div>
         
         <form className="space-y-6" onSubmit={handleSubmit}>
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            <div className={`px-4 py-3 rounded border transition-colors ${
+              isDarkMode
+                ? 'bg-red-900/20 border-red-500/50 text-red-300'
+                : 'bg-red-100 border-red-400 text-red-700'
+            }`}>
               {error}
             </div>
           )}
@@ -113,7 +187,11 @@ export default function SignUp() {
                 type="email"
                 autoComplete="email"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                className={`appearance-none rounded-none relative block w-full px-3 py-2 border rounded-t-md focus:outline-none focus:z-10 sm:text-sm transition-colors ${
+                  isDarkMode
+                    ? 'bg-gray-900 border-gray-700 placeholder-gray-500 text-white focus:ring-blue-500 focus:border-blue-500'
+                    : 'bg-white border-gray-300 placeholder-gray-500 text-gray-900 focus:ring-blue-500 focus:border-blue-500'
+                }`}
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -129,7 +207,11 @@ export default function SignUp() {
                 type="password"
                 autoComplete="new-password"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                className={`appearance-none rounded-none relative block w-full px-3 py-2 border focus:outline-none focus:z-10 sm:text-sm transition-colors ${
+                  isDarkMode
+                    ? 'bg-gray-900 border-gray-700 placeholder-gray-500 text-white focus:ring-blue-500 focus:border-blue-500'
+                    : 'bg-white border-gray-300 placeholder-gray-500 text-gray-900 focus:ring-blue-500 focus:border-blue-500'
+                }`}
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -145,7 +227,11 @@ export default function SignUp() {
                 type="password"
                 autoComplete="new-password"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                className={`appearance-none rounded-none relative block w-full px-3 py-2 border rounded-b-md focus:outline-none focus:z-10 sm:text-sm transition-colors ${
+                  isDarkMode
+                    ? 'bg-gray-900 border-gray-700 placeholder-gray-500 text-white focus:ring-blue-500 focus:border-blue-500'
+                    : 'bg-white border-gray-300 placeholder-gray-500 text-gray-900 focus:ring-blue-500 focus:border-blue-500'
+                }`}
                 placeholder="Confirm password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
