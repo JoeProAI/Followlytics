@@ -7,8 +7,8 @@ import SpeedBackdrop from '@/components/ui/SpeedBackdrop'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Followlytics - X Analytics',
-  description: 'Sharp analytics for X: followers, engagement, insights.',
+  title: 'Followlytics - Competitive Intelligence for X',
+  description: 'Track competitors, analyze engagement patterns, discover viral content, and monitor your X presence with sharp analytics.',
 }
 
 export default function RootLayout({
