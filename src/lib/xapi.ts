@@ -642,15 +642,14 @@ Provide strategic recommendations in JSON format (no markdown):
       }
 
       const cleanHashtag = hashtag.replace('#', '')
-      // Twitter API v2 search syntax - don't include # in the query
-      const query = cleanHashtag
+      // Twitter API v2 search syntax - MUST include # for hashtag search
+      const query = `#${cleanHashtag}`
       
       console.log(`[Hashtag Analysis] Searching for: "${query}"`)
       
       // Search for hashtag with proper error handling
       // Note: Recent search only goes back 7 days with Pro tier
       const searchOptions = {
-        query: query, // Search term without #
         max_results: Math.min(maxResults, 100),
         'tweet.fields': ['public_metrics', 'created_at', 'author_id', 'lang'],
         'user.fields': ['username', 'name', 'public_metrics', 'verified'],
