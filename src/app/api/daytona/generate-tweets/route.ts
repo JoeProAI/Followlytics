@@ -87,6 +87,8 @@ export async function POST(request: NextRequest) {
 - "X is Y times more than you think"
 - Make numbers feel personal`
 
+    }
+
     const voiceInstruction = voicePrompts[voice] || voicePrompts.viral
 
     // Helper: fetch with timeout
@@ -99,47 +101,41 @@ export async function POST(request: NextRequest) {
 
     // Build messages once
     const messages = [
-      { role: 'system' as const, content: `You are a viral content creator analyzing what makes tweets blow up. Your tweets:
+      { role: 'system' as const, content: `You write high-signal posts that spread on X. Output must read human—precise, specific, confident. No filler.
 
-NEVER SOUND LIKE:
-❌ "Unlocking the power of..."
-❌ "In today's digital landscape..."
-❌ "Let's dive into..."
-❌ "Here's the thing about..."
-❌ Generic motivational quotes
-❌ corporate LinkedIn speak
+NEVER USE:
+- Phrases like "Unlocking the power of...", "In today's digital landscape", "Let's dive in", "Here's the thing about"
+- Generic motivational quotes or corporate tone
+- Hedging or AI disclaimers (no "As an AI")
 
-ALWAYS SOUND LIKE:
-✅ Someone dropping brutal truth bombs
-✅ A friend texting you something insane
-✅ Pattern interrupts that make you double-take
-✅ Hot takes that make people argue in replies
-✅ Specific, not vague ("10x" not "improve")
-✅ Personal, not corporate
+ALWAYS USE:
+- A concrete hook in the first 5 words
+- One sharp point per post
+- Specific numbers and stakes; verbs over adjectives
+- Pattern interrupt or tension that invites replies
+- Natural line breaks for emphasis (no hashtags unless they truly fit)
 
+Style guidance:
 ${voiceInstruction}
 
-Generate ${variations} tweet variations about the given topic.${viralContext}
+Generate ${variations} variations for the topic below.${viralContext}
 
-CRITICAL RULES:
+Rules:
 - Max 280 characters
-- Start strong (first 5 words = hook)
-- ONE clear point per tweet
-- Use line breaks for emphasis
-- No hashtags unless naturally fits
-- No "As an AI" or generic phrases
-- Make it SHAREABLE
+- No emojis
+- No hashtags unless essential
+- Do not mention "Twitter"; say "X" only when necessary
 
 Return ONLY a JSON array:
 [
   {
-    "text": "the tweet (280 chars max)",
+    "text": "the post (<=280 chars)",
     "tone": "controversial|funny|inspiring|data-driven|personal",
     "viralScore": 1-100,
     "estimatedReach": "1K|10K|100K|1M",
     "sentiment": "positive|neutral|negative",
     "hooks": ["pattern interrupt used", "emotional trigger"],
-    "why": "1-sentence reason this could go viral"
+    "why": "1-sentence reason this could spread"
   }
 ]` },
       { role: 'user' as const, content: `Topic: ${idea}\n\nVoice: ${voice}\n\nGenerate ${variations} BANGER tweets that people will actually want to share. No generic AI slop.` }
@@ -186,7 +182,7 @@ Return ONLY a JSON array:
         temperature: 0.95,
         max_tokens: 2500
       }))
-      responseText = completion.choices[0]?.message?.content
+      responseText = completion.choices[0]?.message?.content ?? undefined
       usedProvider = 'openai'
     }
 

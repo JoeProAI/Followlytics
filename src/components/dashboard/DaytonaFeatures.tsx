@@ -95,27 +95,45 @@ export default function DaytonaFeatures() {
   }
 
   return (
-    <div className="bg-gradient-to-br from-purple-900/20 to-blue-900/20 border border-purple-500/30 rounded-lg p-6">
-      <div className="flex items-start gap-4 mb-6">
-        {/* AI Icon */}
-        <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
-          <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-          </svg>
+    <div className="relative bg-black border border-gray-800 overflow-hidden">
+      {/* Animated Background */}
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/20 to-transparent animate-shimmer" 
+             style={{ 
+               backgroundSize: '200% 100%',
+               animation: 'shimmer 8s linear infinite'
+             }} 
+        />
+      </div>
+
+      <div className="relative p-6">
+        <div className="flex items-start gap-4 mb-6">
+          {/* Sharp Icon */}
+          <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center flex-shrink-0">
+            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="square" strokeLinejoin="miter" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+
+          <div className="flex-1">
+            <h3 className="text-lg font-medium mb-1 flex items-center gap-2">
+              Content Generator
+              <span className="text-xs px-2 py-0.5 bg-purple-600 text-white border border-purple-500">
+                POWERED BY DAYTONA
+              </span>
+            </h3>
+            <p className="text-sm text-gray-400">
+              Generate high-performing posts using advanced language models in isolated cloud sandboxes
+            </p>
+          </div>
         </div>
 
-        <div className="flex-1">
-          <h3 className="text-lg font-medium mb-1 flex items-center gap-2">
-            AI Tweet Generator
-            <span className="text-xs px-2 py-0.5 bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-full">
-              POWERED BY DAYTONA
-            </span>
-          </h3>
-          <p className="text-sm text-gray-400">
-            Generate viral-optimized tweets using AI models running in isolated cloud sandboxes
-          </p>
-        </div>
-      </div>
+        <style jsx>{`
+          @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+          }
+        `}</style>
 
       {/* Input Section */}
       <div className="mb-4">
