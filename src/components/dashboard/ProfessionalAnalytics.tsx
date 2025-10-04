@@ -284,13 +284,62 @@ export default function ProfessionalAnalytics() {
 
             {data?.top_performing_tweet && (
               <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
-                <div className="text-sm font-medium text-gray-400 mb-3">Top Performing Post</div>
-                <p className="text-sm text-gray-300 mb-4">{data.top_performing_tweet.text}</p>
-                <div className="flex gap-6 text-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-sm font-medium text-gray-400">Top Performing Post</div>
+                  {data.top_performing_tweet.ai_analysis && (
+                    <div className="text-xs px-2 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                      Score: {data.top_performing_tweet.ai_analysis.performance_score}/100
+                    </div>
+                  )}
+                </div>
+                
+                <p className="text-sm text-gray-300 mb-4 border-l-2 border-gray-700 pl-3">{data.top_performing_tweet.text}</p>
+                
+                <div className="flex gap-6 text-sm mb-4">
                   <span className="text-gray-400">{data.top_performing_tweet.public_metrics?.like_count?.toLocaleString()} likes</span>
                   <span className="text-gray-400">{data.top_performing_tweet.public_metrics?.retweet_count?.toLocaleString()} retweets</span>
                   <span className="text-gray-400">{data.top_performing_tweet.public_metrics?.reply_count?.toLocaleString()} replies</span>
                 </div>
+
+                {data.top_performing_tweet.ai_analysis && (
+                  <div className="space-y-3 border-t border-gray-800 pt-4">
+                    {/* Why it worked */}
+                    <div>
+                      <div className="text-xs font-medium text-green-400 mb-1">Why It Performed Well</div>
+                      <ul className="space-y-1">
+                        {data.top_performing_tweet.ai_analysis.why_it_worked?.map((reason: string, i: number) => (
+                          <li key={i} className="text-xs text-gray-400 flex items-start">
+                            <span className="text-green-500 mr-2">✓</span>
+                            <span>{reason}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* How to improve */}
+                    <div>
+                      <div className="text-xs font-medium text-blue-400 mb-1">How to Improve</div>
+                      <ul className="space-y-1">
+                        {data.top_performing_tweet.ai_analysis.improvements?.map((tip: string, i: number) => (
+                          <li key={i} className="text-xs text-gray-400 flex items-start">
+                            <span className="text-blue-500 mr-2">→</span>
+                            <span>{tip}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Content type tag */}
+                    {data.top_performing_tweet.ai_analysis.content_type && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500">Type:</span>
+                        <span className="text-xs px-2 py-0.5 bg-gray-800 text-gray-400 border border-gray-700">
+                          {data.top_performing_tweet.ai_analysis.content_type}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -128,11 +128,23 @@ class XAPIService {
     return totalReach > 0 ? (totalEngagements / totalReach) * 100 : 0
   }
 
-  // Find top performing post
+  // Find top performing post (minimum engagement threshold to ensure quality)
   findTopPerformingPost(posts: any[]): any | null {
     if (!posts.length) return null
 
-    return posts.reduce((top, current) => {
+    // Filter posts with meaningful engagement (at least 3 total engagements)
+    const engagedPosts = posts.filter(post => {
+      if (!post.public_metrics) return false
+      const totalEng = post.public_metrics.like_count + 
+                      post.public_metrics.repost_count + 
+                      post.public_metrics.reply_count
+      return totalEng >= 3
+    })
+
+    // If no posts meet threshold, return the most engaged post anyway
+    const postsToAnalyze = engagedPosts.length > 0 ? engagedPosts : posts
+
+    return postsToAnalyze.reduce((top, current) => {
       if (!current.public_metrics || !top.public_metrics) return top
       
       const currentScore = current.public_metrics.like_count + 
@@ -144,6 +156,88 @@ class XAPIService {
       
       return currentScore > topScore ? current : top
     })
+  }
+
+  // Analyze why a post performed well using AI
+  async analyzeTopPost(post: any, followerCount: number): Promise<any> {
+    if (!post) return null
+
+    const metrics = post.public_metrics
+    const engagementRate = followerCount > 0 
+      ? ((metrics.like_count + metrics.repost_count + metrics.reply_count) / followerCount * 100).toFixed(2)
+      : '0.00'
+
+    try {
+      const OpenAI = (await import('openai')).default
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+
+      const analysis = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are an expert social media analyst. Analyze why this X/Twitter post performed well and provide actionable improvement suggestions. Be specific and data-driven.`
+          },
+          {
+            role: 'user',
+            content: `Analyze this post:
+
+TEXT: "${post.text}"
+
+METRICS:
+- Likes: ${metrics.like_count}
+- Retweets: ${metrics.repost_count}
+- Replies: ${metrics.reply_count}
+- Engagement Rate: ${engagementRate}%
+- Impressions (estimated): ${this.calculatePostReach(post, followerCount)}
+
+Provide:
+1. Why it performed well (2-3 specific reasons)
+2. Key success factors (hook, content type, timing, etc.)
+3. How to improve (2-3 actionable suggestions)
+
+Return ONLY a JSON object:
+{
+  "performance_score": 1-100,
+  "why_it_worked": ["reason1", "reason2"],
+  "success_factors": ["factor1", "factor2"],
+  "improvements": ["suggestion1", "suggestion2"],
+  "content_type": "educational|entertaining|promotional|thread|viral"
+}`
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 500
+      })
+
+      const aiResponse = analysis.choices[0]?.message?.content
+      if (!aiResponse) throw new Error('No AI response')
+
+      let parsedAnalysis
+      try {
+        parsedAnalysis = JSON.parse(aiResponse)
+      } catch {
+        // Try to extract JSON from markdown
+        const jsonMatch = aiResponse.match(/```json\n([\s\S]+?)\n```/) || aiResponse.match(/```\n([\s\S]+?)\n```/)
+        if (jsonMatch) {
+          parsedAnalysis = JSON.parse(jsonMatch[1])
+        } else {
+          throw new Error('Failed to parse AI response')
+        }
+      }
+
+      return {
+        ...post,
+        ai_analysis: {
+          ...parsedAnalysis,
+          analyzed_at: new Date().toISOString()
+        }
+      }
+    } catch (error) {
+      console.error('Error analyzing top post:', error)
+      // Return post without AI analysis if it fails
+      return post
+    }
   }
 
   // Analyze sentiment using context annotations and keywords
@@ -196,6 +290,9 @@ class XAPIService {
       const topPost = this.findTopPerformingPost(posts)
       const sentiment = this.analyzeSentiment(posts)
 
+      // Add AI analysis to top performing post
+      const topPostWithAnalysis = await this.analyzeTopPost(topPost, user.public_metrics.followers_count)
+
       // Calculate totals
       const totalEngagements = posts.reduce((sum, post) => {
         const metrics = post.public_metrics
@@ -212,7 +309,7 @@ class XAPIService {
         user_metrics: user.public_metrics,
         recent_tweets: posts,
         engagement_rate: Math.round(engagementRate * 100) / 100,
-        top_performing_tweet: topPost,
+        top_performing_tweet: topPostWithAnalysis,
         total_impressions: Math.round(totalReach),
         total_engagements: totalEngagements,
         growth_metrics: {
