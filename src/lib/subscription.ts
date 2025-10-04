@@ -27,37 +27,37 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     team_seats: 1
   },
   starter: {
-    daily_searches: 20,
-    monthly_api_calls: 600,
-    competitors: 3,
+    daily_searches: 50,           // Increased from 20
+    monthly_api_calls: 1500,      // Increased from 600
+    competitors: 5,               // Increased from 3
     history_days: 30,
-    ai_analysis: false,
+    ai_analysis: true,            // ✅ NOW ENABLED - basic AI features
     automated_reports: true,
-    real_time_alerts: false,
-    api_access: false,
+    real_time_alerts: true,       // ✅ NOW ENABLED - basic alerts
+    api_access: false,            // Still enterprise-only
     team_seats: 1
   },
   pro: {
-    daily_searches: 100,
-    monthly_api_calls: 3000,
-    competitors: 10,
+    daily_searches: 200,          // Increased from 100
+    monthly_api_calls: 6000,      // Increased from 3000
+    competitors: 15,              // Increased from 10
     history_days: 90,
     ai_analysis: true,
     automated_reports: true,
     real_time_alerts: true,
-    api_access: false,
-    team_seats: 1
+    api_access: false,            // Still enterprise-only
+    team_seats: 3                 // Increased from 1 - small team support
   },
   enterprise: {
-    daily_searches: -1, // unlimited
-    monthly_api_calls: 5000,
-    competitors: 50,
+    daily_searches: -1,           // unlimited
+    monthly_api_calls: -1,        // unlimited
+    competitors: -1,              // unlimited
     history_days: 365,
     ai_analysis: true,
     automated_reports: true,
     real_time_alerts: true,
     api_access: true,
-    team_seats: 5
+    team_seats: 10                // Increased from 5
   }
 }
 
@@ -144,7 +144,8 @@ export async function checkUsageLimits(userId: string, endpoint: string): Promis
   if (endpoint.includes('search') || endpoint.includes('intelligence')) {
     const dailyLimit = subscription.limits.daily_searches
     
-    if (dailyLimit > 0 && usage.searches >= dailyLimit) {
+    // -1 means unlimited
+    if (dailyLimit !== -1 && dailyLimit > 0 && usage.searches >= dailyLimit) {
       return {
         allowed: false,
         reason: `Daily search limit reached (${dailyLimit}). Upgrade to search more.`,
@@ -154,13 +155,18 @@ export async function checkUsageLimits(userId: string, endpoint: string): Promis
   }
 
   // Check monthly API call limit (approximate daily limit)
-  const dailyApiLimit = Math.floor(subscription.limits.monthly_api_calls / 30)
+  const monthlyLimit = subscription.limits.monthly_api_calls
   
-  if (usage.api_calls >= dailyApiLimit) {
-    return {
-      allowed: false,
-      reason: `Daily API limit reached. Upgrade for more calls.`,
-      usage
+  // -1 means unlimited, skip check
+  if (monthlyLimit !== -1) {
+    const dailyApiLimit = Math.floor(monthlyLimit / 30)
+    
+    if (usage.api_calls >= dailyApiLimit) {
+      return {
+        allowed: false,
+        reason: `Daily API limit reached. Upgrade for more calls.`,
+        usage
+      }
     }
   }
 
