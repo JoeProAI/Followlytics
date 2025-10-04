@@ -137,7 +137,7 @@ export default function PricingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <h1 className="text-xl font-light tracking-tight">XScope Analytics</h1>
+              <h1 className="text-xl font-light tracking-tight">FOLLOWLYTICS</h1>
             </div>
             <div className="flex items-center gap-4">
               <button
@@ -214,7 +214,7 @@ export default function PricingPage() {
               </ul>
 
               <button
-                onClick={() => handleSubscribe(tier.priceId, tier.tier)}
+                onClick={() => handleSubscribe(tier.priceId ?? null, tier.tier)}
                 disabled={loading === tier.tier || (!tier.priceId && tier.price > 0)}
                 className={`w-full py-3 rounded font-medium transition-colors ${
                   tier.featured
