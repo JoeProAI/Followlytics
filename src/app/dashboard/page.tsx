@@ -151,8 +151,8 @@ function DashboardContent() {
             <div className="flex items-center gap-3">
               <div className="w-2 h-2 bg-green-400 animate-pulse"></div>
               <p className="text-sm text-gray-300">
-                <span className="font-medium">ACTIVE:</span> GPT-4 content analysis
-                {subscription?.tier === 'enterprise' && ' | Grok competitive intelligence'}
+                <span className="font-medium">ACTIVE:</span> Grok AI content analysis
+                {subscription?.tier === 'enterprise' && ' | Advanced competitive intelligence'}
               </p>
             </div>
           </div>

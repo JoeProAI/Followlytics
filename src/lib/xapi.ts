@@ -129,34 +129,38 @@ class XAPIService {
     return totalReach > 0 ? (totalEngagements / totalReach) * 100 : 0
   }
 
-  // Find top performing post (minimum engagement threshold to ensure quality)
+  // Find top performing post (highest engagement score)
   findTopPerformingPost(posts: any[]): any | null {
     if (!posts.length) return null
 
-    // Filter posts with meaningful engagement (at least 3 total engagements)
-    const engagedPosts = posts.filter(post => {
-      if (!post.public_metrics) return false
-      const totalEng = post.public_metrics.like_count + 
-                      post.public_metrics.repost_count + 
-                      post.public_metrics.reply_count
-      return totalEng >= 3
-    })
+    let topPost = null
+    let topScore = -1
 
-    // If no posts meet threshold, return the most engaged post anyway
-    const postsToAnalyze = engagedPosts.length > 0 ? engagedPosts : posts
+    for (const post of posts) {
+      if (!post.public_metrics) continue
+      
+      // Calculate engagement score (weighted: retweets worth 2x, replies 1.5x)
+      const score = post.public_metrics.like_count + 
+                    post.public_metrics.repost_count * 2 + 
+                    post.public_metrics.reply_count * 1.5
+      
+      if (score > topScore) {
+        topScore = score
+        topPost = post
+      }
+    }
 
-    return postsToAnalyze.reduce((top, current) => {
-      if (!current.public_metrics || !top.public_metrics) return top
-      
-      const currentScore = current.public_metrics.like_count + 
-                          current.public_metrics.repost_count * 2 + 
-                          current.public_metrics.reply_count * 1.5
-      const topScore = top.public_metrics.like_count + 
-                      top.public_metrics.repost_count * 2 + 
-                      top.public_metrics.reply_count * 1.5
-      
-      return currentScore > topScore ? current : top
-    })
+    // Debug logging
+    if (topPost) {
+      console.log(`[Top Post] Selected post with score ${topScore}:`, {
+        likes: topPost.public_metrics.like_count,
+        retweets: topPost.public_metrics.repost_count,
+        replies: topPost.public_metrics.reply_count,
+        text_preview: topPost.text.substring(0, 50) + '...'
+      })
+    }
+
+    return topPost
   }
 
   // Analyze why a post performed well using Grok AI
@@ -248,11 +252,17 @@ class XAPIService {
       // Get recent posts
       const posts = await this.getUserTweets(user.id, 20)
       
+      console.log(`[Analytics] Fetched ${posts.length} posts for @${username}`)
+      
       // Calculate metrics using 1% virality model
       const engagementRate = this.calculateEngagementRate(posts, user.public_metrics.followers_count)
       const topPost = this.findTopPerformingPost(posts)
       const mostRecentPost = posts[0] || null // First post is most recent
       const sentiment = this.analyzeSentiment(posts)
+      
+      console.log(`[Analytics] Most recent post:`, mostRecentPost?.text?.substring(0, 50))
+      console.log(`[Analytics] Top performing post:`, topPost?.text?.substring(0, 50))
+      console.log(`[Analytics] Are they the same?`, mostRecentPost?.id === topPost?.id)
 
       // Add AI analysis to top performing post (with Grok)
       const topPostWithAnalysis = await this.analyzeTopPost(topPost, user.public_metrics.followers_count)
