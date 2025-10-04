@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import ProfessionalAnalytics from '@/components/dashboard/ProfessionalAnalytics'
 import XAuthConnect from '@/components/dashboard/XAuthConnect'
 import DaytonaFeatures from '@/components/dashboard/DaytonaFeatures'
+import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import Link from 'next/link'
 
 function DashboardContent() {
@@ -45,14 +46,7 @@ function DashboardContent() {
   }, [user])
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin h-12 w-12 border-b-2 border-white mx-auto"></div>
-          <p className="mt-4 text-gray-400">LOADING...</p>
-        </div>
-      </div>
-    )
+    return <LoadingSpinner fullScreen text="LOADING..." />
   }
 
   if (!user) {
@@ -172,14 +166,7 @@ function DashboardContent() {
 
 export default function Dashboard() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin h-12 w-12 border-b-2 border-white mx-auto"></div>
-          <p className="mt-4 text-gray-400">LOADING...</p>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<LoadingSpinner fullScreen text="LOADING..." />}>
       <DashboardContent />
     </Suspense>
   )

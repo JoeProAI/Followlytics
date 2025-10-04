@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { adminAuth as auth } from '@/lib/firebase-admin'
+import { withPaymentGate, isPaymentGateError } from '@/lib/paymentGate'
 import OpenAI from 'openai'
 
 export const maxDuration = 60
@@ -10,15 +10,18 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Payment gate: requires Starter tier minimum
+    const gateResult = await withPaymentGate(request, {
+      requireTier: 'starter',
+      trackUsage: true,
+      endpoint: '/api/daytona/generate-tweets'
+    })
+
+    if (isPaymentGateError(gateResult)) {
+      return gateResult
     }
 
-    const token = authHeader.split('Bearer ')[1]
-    const decodedToken = await auth.verifyIdToken(token)
-    const userId = decodedToken.uid
-
+    const { userId, subscription } = gateResult
     const { idea, variations = 10, voice = 'viral' } = await request.json()
 
     if (!idea) {
