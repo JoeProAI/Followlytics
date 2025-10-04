@@ -98,7 +98,7 @@ export default function PricingPage() {
     }
 
     if (!priceId) {
-      router.push('/dashboard')
+      alert('This plan is not yet configured. Please contact support or try the Free plan.')
       return
     }
 
@@ -118,14 +118,30 @@ export default function PricingPage() {
 
       const data = await response.json()
 
+      if (!response.ok) {
+        throw new Error(data.error || data.details || 'Failed to create checkout session')
+      }
+
       if (data.url) {
+        // Success - redirect to Stripe checkout
         window.location.href = data.url
       } else {
-        throw new Error('No checkout URL returned')
+        throw new Error('No checkout URL returned from Stripe')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Subscription error:', error)
-      alert('Failed to start subscription. Please try again.')
+      
+      // Better error messages for users
+      let errorMessage = 'Failed to start subscription. '
+      if (error.message.includes('not configured')) {
+        errorMessage += 'Stripe is not configured yet. Please contact support.'
+      } else if (error.message.includes('Unauthorized')) {
+        errorMessage += 'Please log in again and try once more.'
+      } else {
+        errorMessage += error.message || 'Please try again or contact support.'
+      }
+      
+      alert(errorMessage)
       setLoading(null)
     }
   }
