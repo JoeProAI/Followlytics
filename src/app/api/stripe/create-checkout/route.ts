@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { adminAuth as auth } from '@/lib/firebase-admin'
+import { adminAuth as auth, adminDb } from '@/lib/firebase-admin'
 import Stripe from 'stripe'
 
 // Validate Stripe key exists
@@ -43,8 +43,13 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Create checkout session
-    const session = await stripe.checkout.sessions.create({
+    // Check if user has beta access
+    const userDoc = await adminDb.collection('users').doc(decodedToken.uid).get()
+    const userData = userDoc.data()
+    const hasBetaAccess = userData?.betaAccess === true
+
+    // Prepare checkout session config
+    const checkoutConfig: any = {
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [
@@ -60,15 +65,27 @@ export async function POST(request: NextRequest) {
       metadata: {
         userId: decodedToken.uid,
         tier: tier,
-        email: decodedToken.email || ''
+        email: decodedToken.email || '',
+        betaUser: hasBetaAccess ? 'true' : 'false'
       },
       subscription_data: {
         metadata: {
           userId: decodedToken.uid,
-          tier: tier
+          tier: tier,
+          betaUser: hasBetaAccess ? 'true' : 'false'
         }
       }
-    })
+    }
+
+    // Apply 100% discount for beta users
+    if (hasBetaAccess) {
+      checkoutConfig.discounts = [{
+        coupon: process.env.STRIPE_BETA_COUPON_ID || 'BETA100'
+      }]
+    }
+
+    // Create checkout session
+    const session = await stripe.checkout.sessions.create(checkoutConfig)
 
     return NextResponse.json({
       success: true,
