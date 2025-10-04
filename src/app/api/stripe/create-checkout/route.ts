@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
-    const { priceId, tier } = await request.json()
+    const { priceId, tier, isLifetime } = await request.json()
     
     if (!priceId || !tier) {
       return NextResponse.json({ 
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     // Prepare checkout session config
     const checkoutConfig: any = {
-      mode: 'subscription',
+      mode: isLifetime ? 'payment' : 'subscription', // One-time payment for lifetime
       payment_method_types: ['card'],
       line_items: [
         {
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
           quantity: 1
         }
       ],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?upgraded=true`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?upgraded=true${isLifetime ? '&lifetime=true' : ''}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?canceled=true`,
       client_reference_id: decodedToken.uid,
       customer_email: decodedToken.email,
@@ -66,9 +66,14 @@ export async function POST(request: NextRequest) {
         userId: decodedToken.uid,
         tier: tier,
         email: decodedToken.email || '',
-        betaUser: hasBetaAccess ? 'true' : 'false'
-      },
-      subscription_data: {
+        betaUser: hasBetaAccess ? 'true' : 'false',
+        isLifetime: isLifetime ? 'true' : 'false'
+      }
+    }
+
+    // Add subscription_data only for subscription mode
+    if (!isLifetime) {
+      checkoutConfig.subscription_data = {
         metadata: {
           userId: decodedToken.uid,
           tier: tier,
@@ -77,8 +82,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Apply 100% discount for beta users
-    if (hasBetaAccess) {
+    // Apply 100% discount for beta users (works for both payment and subscription)
+    if (hasBetaAccess && !isLifetime) { // Don't apply to lifetime (already heavily discounted)
       checkoutConfig.discounts = [{
         coupon: process.env.STRIPE_BETA_COUPON_ID || 'BETA100'
       }]

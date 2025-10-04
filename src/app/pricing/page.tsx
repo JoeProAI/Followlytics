@@ -27,17 +27,18 @@ const tiers = [
     featured: false
   },
   {
-    name: 'Starter',
-    price: 29,
-    priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER,
-    tier: 'starter',
+    name: 'Standard',
+    price: 19,
+    priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_STANDARD,
+    tier: 'starter', // Keep tier key as 'starter' for backend compatibility
     description: 'Perfect for solo creators',
     features: [
-      '20 searches per day',
-      'Track 3 competitors',
+      '50 searches per day',
+      'Track 5 competitors',
+      'AI analysis enabled',
       '30-day data history',
-      'Weekly email reports',
-      'Basic alerts',
+      'Hashtag tracking',
+      'Real-time alerts',
       'Email support'
     ],
     cta: 'Start Free Trial',
@@ -45,17 +46,17 @@ const tiers = [
   },
   {
     name: 'Pro',
-    price: 79,
+    price: 39,
     priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO,
     tier: 'pro',
     description: 'AI-powered insights for growth',
     features: [
-      '100 searches per day',
-      'Track 10 competitors',
+      '200 searches per day',
+      'Track 15 competitors',
+      'Advanced Grok AI insights',
       '90-day data history',
-      'AI-powered insights',
       'Daily automated reports',
-      'Real-time alerts',
+      'Content strategy recommendations',
       'Trend predictions',
       'Priority support'
     ],
@@ -64,25 +65,45 @@ const tiers = [
     badge: 'MOST POPULAR'
   },
   {
-    name: 'Enterprise',
-    price: 199,
-    priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE,
-    tier: 'enterprise',
-    description: 'Full intelligence suite',
+    name: 'Agency',
+    price: 99,
+    priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_AGENCY,
+    tier: 'enterprise', // Keep tier key as 'enterprise' for backend compatibility
+    description: 'Full intelligence suite for teams',
     features: [
       'Unlimited searches',
-      'Track 50 competitors',
+      'Unlimited competitors',
       '365-day data history',
       'Custom AI models',
       'Hourly reports',
       'API access',
-      'Team collaboration (5 seats)',
+      'Team collaboration (10 seats)',
       'White-label reports',
       'Dedicated support'
     ],
     cta: 'Start Free Trial',
+    featured: false
+  },
+  {
+    name: 'Founder Lifetime',
+    price: 119,
+    priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_FOUNDER,
+    tier: 'founder',
+    description: 'One-time payment, lifetime access',
+    features: [
+      'Everything in Agency plan',
+      'Lifetime access (no monthly fees)',
+      'All future updates included',
+      'Founder badge',
+      'Early access to new features',
+      'Exclusive founder community',
+      'Limited to 150 buyers only',
+      'Lock in this price forever'
+    ],
+    cta: 'Claim Your Spot',
     featured: false,
-    badge: 'BEST VALUE'
+    badge: 'LIMITED OFFER',
+    isLifetime: true
   }
 ]
 
@@ -91,7 +112,7 @@ export default function PricingPage() {
   const { user } = useAuth()
   const [loading, setLoading] = useState<string | null>(null)
 
-  const handleSubscribe = async (priceId: string | null, tier: string) => {
+  const handleSubscribe = async (priceId: string | null, tier: string, isLifetime: boolean = false) => {
     if (!user) {
       router.push('/login?redirect=/pricing')
       return
@@ -113,7 +134,7 @@ export default function PricingPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ priceId, tier })
+        body: JSON.stringify({ priceId, tier, isLifetime })
       })
 
       const data = await response.json()
@@ -206,7 +227,11 @@ export default function PricingPage() {
                 <p className="text-gray-400 text-sm mb-4">{tier.description}</p>
                 <div className="flex items-baseline">
                   <span className="text-5xl font-light">${tier.price}</span>
-                  {tier.price > 0 && <span className="text-gray-400 ml-2">/month</span>}
+                  {tier.price > 0 && (
+                    <span className="text-gray-400 ml-2">
+                      {tier.isLifetime ? 'one-time' : '/month'}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -230,11 +255,13 @@ export default function PricingPage() {
               </ul>
 
               <button
-                onClick={() => handleSubscribe(tier.priceId ?? null, tier.tier)}
+                onClick={() => handleSubscribe(tier.priceId ?? null, tier.tier, tier.isLifetime)}
                 disabled={loading === tier.tier || (!tier.priceId && tier.price > 0)}
                 className={`w-full py-3 rounded font-medium transition-colors ${
                   tier.featured
                     ? 'bg-white text-black hover:bg-gray-200'
+                    : tier.isLifetime
+                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700'
                     : 'bg-gray-800 text-white hover:bg-gray-700'
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
