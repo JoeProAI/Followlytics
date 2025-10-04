@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { adminAuth as auth } from '@/lib/firebase-admin'
+import { withPaymentGate, isPaymentGateError } from '@/lib/paymentGate'
 
 export const maxDuration = 60
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Payment gate: requires Enterprise tier for blocked list scraping
+    const gateResult = await withPaymentGate(request, {
+      requireTier: 'enterprise',
+      trackUsage: true,
+      endpoint: '/api/daytona/blocked-list'
+    })
+
+    if (isPaymentGateError(gateResult)) {
+      return gateResult
     }
-    const token = authHeader.split('Bearer ')[1]
-    const decoded = await auth.verifyIdToken(token)
-    if (!decoded?.uid) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { userId } = gateResult
 
     // Placeholder: Daytona-powered scraping to be wired next
     return NextResponse.json({ success: true, items: [], provider: 'daytona', note: 'placeholder' })

@@ -1,22 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import XAPIService from '@/lib/xapi'
-import { adminAuth as auth } from '@/lib/firebase-admin'
+import { withPaymentGate, isPaymentGateError } from '@/lib/paymentGate'
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Payment gate: requires Pro tier for hashtag analysis
+    const gateResult = await withPaymentGate(request, {
+      requireTier: 'pro',
+      trackUsage: true,
+      endpoint: '/api/x-analytics/hashtag'
+    })
+
+    if (isPaymentGateError(gateResult)) {
+      return gateResult
     }
 
-    const token = authHeader.split('Bearer ')[1]
-    const decodedToken = await auth.verifyIdToken(token)
-    
-    if (!decodedToken) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
-    }
-
+    const { userId } = gateResult
     const { hashtag, maxResults = 100 } = await request.json()
     
     if (!hashtag) {

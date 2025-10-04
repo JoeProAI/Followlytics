@@ -1,22 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { TwitterApi } from 'twitter-api-v2'
-import { adminAuth as auth } from '@/lib/firebase-admin'
+import { withPaymentGate, isPaymentGateError } from '@/lib/paymentGate'
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Payment gate: requires Pro tier for trending analysis
+    const gateResult = await withPaymentGate(request, {
+      requireTier: 'pro',
+      trackUsage: true,
+      endpoint: '/api/intelligence/trending'
+    })
+
+    if (isPaymentGateError(gateResult)) {
+      return gateResult
     }
 
-    const token = authHeader.split('Bearer ')[1]
-    const decodedToken = await auth.verifyIdToken(token)
-    
-    if (!decodedToken) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
-    }
-
+    const { userId } = gateResult
     const { topic, minEngagement = 100 } = await request.json()
     
     if (!topic) {
