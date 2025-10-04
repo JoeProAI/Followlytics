@@ -529,29 +529,87 @@ Return ONLY a JSON object:
   // Hashtag analysis
   async analyzeHashtag(hashtag: string, maxResults: number = 100): Promise<any> {
     try {
+      // Validate X API token
+      if (!process.env.X_BEARER_TOKEN) {
+        throw new Error('X API credentials not configured')
+      }
+
       const query = `#${hashtag.replace('#', '')}`
-      const posts = await this.advancedSearch(query, { maxResults })
       
-      const totalEngagement = posts.reduce((sum, post) => {
-        const metrics = post.public_metrics
+      // Search for hashtag with proper error handling
+      const searchOptions = {
+        max_results: Math.min(maxResults, 100),
+        'tweet.fields': ['public_metrics', 'created_at', 'author_id'],
+        'user.fields': ['username', 'name', 'public_metrics', 'verified'],
+        expansions: 'author_id'
+      }
+
+      const searchResults = await this.client.v2.search(query, searchOptions as any)
+      const posts = searchResults.data?.data || []
+      const users = searchResults.data?.includes?.users || []
+
+      if (posts.length === 0) {
+        return {
+          hashtag: `#${hashtag.replace('#', '')}`,
+          totalTweets: 0,
+          totalEngagement: 0,
+          avgEngagement: 0,
+          topTweet: null,
+          tweets: [],
+          message: 'No tweets found for this hashtag in the last 7 days'
+        }
+      }
+
+      // Create user lookup map
+      const userMap = new Map(users.map(u => [u.id, u]))
+      
+      // Add author info to posts
+      const enrichedPosts = posts.map(post => ({
+        ...post,
+        author: userMap.get(post.author_id!)
+      }))
+
+      const totalEngagement = enrichedPosts.reduce((sum, post) => {
+        const metrics = post.public_metrics as any
         if (!metrics) return sum
-        return sum + metrics.like_count + metrics.repost_count + metrics.reply_count
+        return sum + (metrics.like_count || 0) + (metrics.retweet_count || 0) + (metrics.reply_count || 0)
       }, 0)
 
       const avgEngagement = posts.length ? totalEngagement / posts.length : 0
-      const topPost = this.findTopPerformingPost(posts)
+      const topPost = this.findTopPerformingPost(enrichedPosts)
+
+      // Calculate hashtag velocity (tweets per hour in last 7 days)
+      const now = new Date()
+      const recentPosts = enrichedPosts.filter(p => {
+        if (!p.created_at) return false
+        const postTime = new Date(p.created_at)
+        const hoursDiff = (now.getTime() - postTime.getTime()) / (1000 * 60 * 60)
+        return hoursDiff <= 168 // 7 days
+      })
+      const velocity = recentPosts.length / 168 // tweets per hour
 
       return {
         hashtag: `#${hashtag.replace('#', '')}`,
         totalTweets: posts.length,
         totalEngagement,
         avgEngagement: Math.round(avgEngagement),
+        velocity: Math.round(velocity * 10) / 10, // tweets/hour
         topTweet: topPost,
-        tweets: posts.slice(0, 10) // Top 10 posts
+        recent_tweets: enrichedPosts.slice(0, 10), // Top 10 posts by relevance
+        analyzed_at: new Date().toISOString()
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error analyzing hashtag:', error)
-      throw new Error('Failed to analyze hashtag')
+      
+      // Better error messages
+      if (error.code === 429) {
+        throw new Error('X API rate limit exceeded. Please try again in 15 minutes.')
+      }
+      if (error.code === 401) {
+        throw new Error('X API authentication failed. Please check API credentials.')
+      }
+      
+      throw new Error(`Failed to analyze hashtag: ${error.message}`)
     }
   }
 
