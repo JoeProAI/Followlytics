@@ -66,6 +66,36 @@ class XAPIService {
     }
   }
 
+  // Get single tweet by ID
+  async getTweetById(tweetId: string): Promise<any> {
+    try {
+      const tweet = await this.client.v2.singleTweet(tweetId, {
+        'tweet.fields': [
+          'public_metrics',
+          'created_at',
+          'author_id',
+          'lang',
+          'context_annotations',
+          'possibly_sensitive'
+        ],
+        'user.fields': ['public_metrics'],
+        expansions: 'author_id'
+      })
+      
+      // Enrich with author follower count if available
+      const authorUser = tweet.includes?.users?.[0]
+      const tweetData = tweet.data
+      
+      return {
+        ...tweetData,
+        author_followers: authorUser?.public_metrics?.followers_count || null
+      }
+    } catch (error) {
+      console.error('Error fetching tweet:', error)
+      throw new Error('Failed to fetch tweet from X API')
+    }
+  }
+
   // Get user's recent tweets with metrics
   async getUserTweets(userId: string, maxResults: number = 10): Promise<any[]> {
     try {
@@ -611,31 +641,45 @@ Provide strategic recommendations in JSON format (no markdown):
         throw new Error('X API credentials not configured')
       }
 
-      const query = `#${hashtag.replace('#', '')}`
+      const cleanHashtag = hashtag.replace('#', '')
+      // Twitter API v2 search syntax - don't include # in the query
+      const query = cleanHashtag
+      
+      console.log(`[Hashtag Analysis] Searching for: "${query}"`)
       
       // Search for hashtag with proper error handling
+      // Note: Recent search only goes back 7 days with Pro tier
       const searchOptions = {
+        query: query, // Search term without #
         max_results: Math.min(maxResults, 100),
-        'tweet.fields': ['public_metrics', 'created_at', 'author_id'],
+        'tweet.fields': ['public_metrics', 'created_at', 'author_id', 'lang'],
         'user.fields': ['username', 'name', 'public_metrics', 'verified'],
-        expansions: 'author_id'
+        expansions: ['author_id']
       }
 
       const searchResults = await this.client.v2.search(query, searchOptions as any)
+      
+      console.log(`[Hashtag Analysis] Raw results:`, {
+        data_length: searchResults.data?.data?.length || 0,
+        meta: searchResults.data?.meta
+      })
+      
       const posts = searchResults.data?.data || []
       const users = searchResults.data?.includes?.users || []
 
       if (posts.length === 0) {
         return {
-          hashtag: `#${hashtag.replace('#', '')}`,
+          hashtag: `#${cleanHashtag}`,
           totalTweets: 0,
           totalEngagement: 0,
           avgEngagement: 0,
           topTweet: null,
           tweets: [],
-          message: 'No tweets found for this hashtag in the last 7 days'
+          message: `No recent tweets found for #${cleanHashtag}. Twitter API recent search only shows last 7 days. Try a more popular hashtag or check spelling.`
         }
       }
+      
+      console.log(`[Hashtag Analysis] Found ${posts.length} tweets for #${cleanHashtag}`)
 
       // Create user lookup map
       const userMap = new Map(users.map(u => [u.id, u]))

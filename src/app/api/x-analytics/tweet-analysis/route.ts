@@ -4,9 +4,9 @@ import { withPaymentGate, isPaymentGateError } from '@/lib/paymentGate'
 
 export async function POST(request: NextRequest) {
   try {
-    // Payment gate: requires Pro tier for deep tweet analysis
+    // Payment gate: requires Starter tier for tweet analysis
     const gateResult = await withPaymentGate(request, {
-      requireTier: 'pro',
+      requireTier: 'starter',
       trackUsage: true,
       endpoint: '/api/x-analytics/tweet-analysis'
     })
@@ -25,45 +25,44 @@ export async function POST(request: NextRequest) {
     // Initialize X API service
     const xapi = new XAPIService()
     
-    // Get tweet details, likes, retweets, and quotes in parallel
-    const [likes, retweets, quotes] = await Promise.all([
-      xapi.getTweetLikes(tweetId, 100),
-      xapi.getTweetRetweets(tweetId, 100),
-      xapi.getTweetQuotes(tweetId, 100)
-    ])
+    // Get single tweet with all available metrics
+    // Note: likedBy, retweetedBy require OAuth 2.0 user context (not available with bearer token)
+    // We'll use the tweet's public metrics instead
+    const tweet = await xapi.getTweetById(tweetId)
     
-    // Calculate engagement demographics
-    const likeVerifiedCount = likes.filter(u => u.verified).length
-    const retweetVerifiedCount = retweets.filter(u => u.verified).length
-    
-    const avgLikerFollowers = likes.length ? 
-      Math.round(likes.reduce((sum, u) => sum + (u.public_metrics?.followers_count || 0), 0) / likes.length) : 0
+    if (!tweet) {
+      return NextResponse.json({
+        error: 'Tweet not found',
+        details: 'The tweet may have been deleted or is private'
+      }, { status: 404 })
+    }
+
+    const metrics = tweet.public_metrics || {}
     
     return NextResponse.json({
       success: true,
       data: {
         tweetId,
-        engagement: {
-          likes: {
-            total: likes.length,
-            verified: likeVerifiedCount,
-            verified_percentage: likes.length ? (likeVerifiedCount / likes.length * 100).toFixed(1) : 0,
-            avg_follower_count: avgLikerFollowers
-          },
-          retweets: {
-            total: retweets.length,
-            verified: retweetVerifiedCount,
-            verified_percentage: retweets.length ? (retweetVerifiedCount / retweets.length * 100).toFixed(1) : 0
-          },
-          quotes: {
-            total: quotes.length,
-            top_quotes: quotes.slice(0, 5)
-          }
+        tweet: {
+          text: tweet.text,
+          created_at: tweet.created_at,
+          author_id: tweet.author_id,
+          lang: tweet.lang
         },
-        top_engagers: {
-          likers: likes.slice(0, 10),
-          retweeters: retweets.slice(0, 10)
-        }
+        engagement: {
+          likes: metrics.like_count || 0,
+          retweets: metrics.retweet_count || 0,
+          replies: metrics.reply_count || 0,
+          quotes: metrics.quote_count || 0,
+          impressions: metrics.impression_count || null,
+          total: (metrics.like_count || 0) + 
+                 (metrics.retweet_count || 0) + 
+                 (metrics.reply_count || 0) + 
+                 (metrics.quote_count || 0)
+        },
+        engagement_rate: tweet.author_followers ? 
+          ((metrics.like_count + metrics.retweet_count + metrics.reply_count) / tweet.author_followers * 100).toFixed(2) : null,
+        note: 'Detailed user lists (who liked/retweeted) require OAuth 2.0 user authentication'
       },
       timestamp: new Date().toISOString()
     })
