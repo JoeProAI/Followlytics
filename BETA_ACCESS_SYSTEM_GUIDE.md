@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
 
 Go to **Stripe Dashboard → Coupons → + New**:
 - Name: `Beta Access 100% Off`
-- ID: `YOUR_BETA_COUPON_ID` (e.g., BETA100, BETAACCESS, etc.)
+- ID: `YOUR_BETA_COUPON_ID` (choose any unique ID)
 - Type: Percentage
 - Percentage off: `100`
 - Duration: `Forever`
@@ -372,7 +372,7 @@ STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
 **How It Works:**
 1. Admin sets `betaAccess: true` in Firestore
 2. API routes check: `betaAccess === true` OR `paid subscriber`
-3. Checkout applies `BETA100` coupon (100% off)
+3. Checkout applies your Stripe coupon (100% off)
 4. Frontend shows beta badge
 
 **No credentials needed!** This is a reusable pattern for any app.
