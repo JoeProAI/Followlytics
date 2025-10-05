@@ -183,14 +183,14 @@ export async function POST(request: NextRequest) {
 
 Go to **Stripe Dashboard → Coupons → + New**:
 - Name: `Beta Access 100% Off`
-- ID: `BETA100`
+- ID: `YOUR_BETA_COUPON_ID` (e.g., BETA100, BETAACCESS, etc.)
 - Type: Percentage
 - Percentage off: `100`
 - Duration: `Forever`
 
 Add to environment variables:
 ```
-STRIPE_BETA_COUPON_ID=BETA100
+STRIPE_BETA_COUPON_ID=YOUR_BETA_COUPON_ID
 ```
 
 ### 2. Apply Coupon at Checkout
@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
   // Apply 100% discount for beta users
   if (hasBetaAccess) {
     checkoutConfig.discounts = [{
-      coupon: process.env.STRIPE_BETA_COUPON_ID || 'BETA100'
+      coupon: process.env.STRIPE_BETA_COUPON_ID
     }]
   }
 
@@ -332,18 +332,19 @@ service cloud.firestore {
 
 ```bash
 # Admin emails (comma-separated)
-ADMIN_EMAILS=admin@yourcompany.com,admin2@yourcompany.com
+ADMIN_EMAILS=your-admin-email@example.com,another-admin@example.com
 
-# Stripe beta coupon
-STRIPE_BETA_COUPON_ID=BETA100
+# Stripe beta coupon (use the ID you created in Stripe)
+STRIPE_BETA_COUPON_ID=YOUR_COUPON_ID_HERE
 
 # Firebase Admin (for server-side)
-FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_PROJECT_ID=your-firebase-project-id
 FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY\n-----END PRIVATE KEY-----\n"
 
 # Stripe
-STRIPE_SECRET_KEY=sk_live_xxxxx
+STRIPE_SECRET_KEY=sk_live_your_stripe_secret_key
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
 ```
 
 ---
