@@ -843,30 +843,39 @@ export default function ProfessionalAnalytics() {
               </div>
             </div>
 
-            {data && (
+            {data && data.data && (
               <div>
+                {/* Show message if no results */}
+                {data.data.totalTweets === 0 && (
+                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-6 mb-6">
+                    <div className="text-yellow-400 text-sm">
+                      {data.data.message || `No tweets found for #${hashtag}. Twitter API only shows tweets from the last 7 days. Try a more popular hashtag like "AI" or "crypto".`}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-3 gap-4 mb-6">
                   <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
                     <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Total Posts</div>
-                    <div className="text-2xl font-light">{data.totalTweets?.toLocaleString()}</div>
+                    <div className="text-2xl font-light">{data.data.totalTweets?.toLocaleString() || '0'}</div>
                   </div>
                   <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
                     <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Total Engagement</div>
-                    <div className="text-2xl font-light">{data.totalEngagement?.toLocaleString()}</div>
+                    <div className="text-2xl font-light">{data.data.totalEngagement?.toLocaleString() || '0'}</div>
                   </div>
                   <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
                     <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Avg Engagement</div>
-                    <div className="text-2xl font-light">{data.avgEngagement?.toLocaleString()}</div>
+                    <div className="text-2xl font-light">{data.data.avgEngagement?.toLocaleString() || '0'}</div>
                   </div>
                 </div>
 
-                {data.topTweet && (
+                {data.data.topTweet && (
                   <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
                     <div className="text-sm font-medium text-gray-400 mb-3">Top Post</div>
-                    <p className="text-sm text-gray-300 mb-4">{data.topTweet.text}</p>
+                    <p className="text-sm text-gray-300 mb-4">{data.data.topTweet.text}</p>
                     <div className="flex gap-6 text-sm text-gray-400">
-                      <span>{data.topTweet.public_metrics?.like_count?.toLocaleString()} likes</span>
-                      <span>{data.topTweet.public_metrics?.retweet_count?.toLocaleString()} retweets</span>
+                      <span>{data.data.topTweet.public_metrics?.like_count?.toLocaleString() || '0'} likes</span>
+                      <span>{data.data.topTweet.public_metrics?.retweet_count?.toLocaleString() || '0'} retweets</span>
                     </div>
                   </div>
                 )}
