@@ -3,8 +3,9 @@
 import React, { useState } from 'react'
 import { useAuthState } from 'react-firebase-hooks/auth'
 import { auth } from '@/lib/firebase'
+import ApolloAudienceInsights from './ApolloAudienceInsights'
 
-type Tab = 'overview' | 'intelligence' | 'search' | 'compare' | 'trending' | 'competitor' | 'hashtag' | 'viral' | 'mentions' | 'tweet' | 'safety'
+type Tab = 'overview' | 'audience' | 'intelligence' | 'search' | 'compare' | 'trending' | 'competitor' | 'hashtag' | 'viral' | 'mentions' | 'tweet' | 'safety'
 
 export default function ProfessionalAnalytics() {
   const [user] = useAuthState(auth)
@@ -54,6 +55,7 @@ export default function ProfessionalAnalytics() {
 
   const tabs = [
     { id: 'overview', label: 'Overview', description: 'Get complete profile metrics including followers, engagement rates, and top posts' },
+    { id: 'audience', label: 'Audience Intelligence', description: 'Apollo.io-powered analysis of your follower demographics, companies, and job titles' },
     { id: 'intelligence', label: 'Content Intel', description: 'AI-powered analysis of content patterns, optimal posting times, and recommendations' },
     { id: 'search', label: 'Search', description: 'Search X for tweets about any topic and analyze engagement patterns' },
     { id: 'compare', label: 'Compare Users', description: 'Side-by-side comparison of multiple X accounts with detailed metrics' },
@@ -521,6 +523,52 @@ export default function ProfessionalAnalytics() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Audience Intelligence */}
+        {activeTab === 'audience' && (
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-lg p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <svg className="w-8 h-8 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-medium mb-2">Powered by Apollo.io</h3>
+                  <p className="text-sm text-gray-400 mb-3">
+                    Get deep insights into your Twitter followers' professional demographics including company sizes, job titles, industries, and locations - all without revealing personal contact information.
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
+                    <div>✓ Company size distribution</div>
+                    <div>✓ Seniority levels</div>
+                    <div>✓ Industry breakdown</div>
+                    <div>✓ Geographic analysis</div>
+                    <div>✓ Top companies following you</div>
+                    <div>✓ Most common job titles</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {data?.followers && data.followers.length > 0 ? (
+              <ApolloAudienceInsights followers={data.followers} />
+            ) : (
+              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-6 text-center">
+                <div className="text-yellow-400 mb-2">No follower data available</div>
+                <div className="text-sm text-gray-400 mb-4">
+                  Please scan your followers first using the Overview tab
+                </div>
+                <button
+                  onClick={() => setActiveTab('overview')}
+                  className="bg-white text-black px-6 py-2 rounded font-medium hover:bg-gray-200"
+                >
+                  Go to Overview
+                </button>
               </div>
             )}
           </div>
