@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 export default function ApifyFollowerExtractor() {
   const { user } = useAuth()
   const [username, setUsername] = useState('')
-  const [maxFollowers, setMaxFollowers] = useState(1000)
+  const [maxFollowers, setMaxFollowers] = useState(200)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<any>(null)
@@ -82,7 +82,7 @@ export default function ApifyFollowerExtractor() {
             className="w-full bg-black/40 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500"
             disabled={loading}
           >
-            <option value={100}>100 followers (~$0.02)</option>
+            <option value={200}>200 followers (~$0.03)</option>
             <option value={500}>500 followers (~$0.08)</option>
             <option value={1000}>1,000 followers (~$0.15)</option>
             <option value={5000}>5,000 followers (~$0.75)</option>
@@ -91,7 +91,7 @@ export default function ApifyFollowerExtractor() {
             <option value={100000}>100,000 followers (~$15.00)</option>
           </select>
           <p className="text-xs text-gray-500 mt-1">
-            Cost: $0.15 per 1,000 followers extracted
+            Cost: $0.15 per 1,000 followers extracted (200 minimum)
           </p>
         </div>
       </div>

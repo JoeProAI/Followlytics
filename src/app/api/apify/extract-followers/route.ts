@@ -33,10 +33,10 @@ export async function POST(request: NextRequest) {
     const runInput = {
       user_names: [username],
       user_ids: [],
-      maxFollowers: maxFollowers,
-      maxFollowings: 0, // We only want followers, not following
+      maxFollowers: Math.max(maxFollowers, 200), // Minimum 200 required by API
+      maxFollowings: 200, // Minimum 200 required by API (we won't use this data)
       getFollowers: true,
-      getFollowing: false,
+      getFollowing: false, // We won't use following data even though we have to set min 200
     }
 
     console.log('[Apify] Starting Actor run...')
