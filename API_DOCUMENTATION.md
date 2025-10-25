@@ -67,13 +67,13 @@ X-API-Key: your_api_key_here
 ```
 
 ### Pricing
-- **$0.20 per 1,000 followers extracted**
+- **$2.00 per 1,000 followers extracted**
 - Minimum 200 followers per request
 - Examples:
-  - 200 followers = $0.04
-  - 1,000 followers = $0.20
-  - 10,000 followers = $2.00
-  - 100,000 followers = $20.00
+  - 200 followers = $0.40
+  - 1,000 followers = $2.00
+  - 10,000 followers = $20.00
+  - 100,000 followers = $200.00
 
 ### Rate Limits
 - **100 requests per day** per API key
@@ -331,14 +331,14 @@ Estimate your monthly costs:
 
 | Followers Extracted | Cost per Extraction | 30 Extractions/Month | Total Monthly Cost |
 |---------------------|---------------------|----------------------|--------------------|
-| 1,000 | $0.20 | 30 | $6.00 |
-| 10,000 | $2.00 | 30 | $60.00 |
-| 50,000 | $10.00 | 30 | $300.00 |
-| 100,000 | $20.00 | 30 | $600.00 |
+| 1,000 | $2.00 | 30 | $60.00 |
+| 10,000 | $20.00 | 30 | $600.00 |
+| 50,000 | $100.00 | 30 | $3,000.00 |
+| 100,000 | $200.00 | 30 | $6,000.00 |
 
 **Plus Enterprise plan:** $199/month
 
-**Total example:** 30 × 10K extractions = $259/month (vs Twitter's $42,000/month API)
+**Total example:** 30 × 10K extractions = $799/month (vs Twitter's $42,000/month API - 98% savings!)
 
 ---
 
@@ -348,15 +348,32 @@ Estimate your monthly costs:
 
 **Your costs:**
 - Enterprise plan: $199/month
-- Extract 100K followers: $20
-- Total: $219/month
+- Extract 100K followers: $200 (from Followlytics API)
+- Total: $399/month
 
 **Your revenue:**
-- Charge customers $99/month
-- 10 customers = $990/month
-- **Profit: $771/month**
+- Charge customers $299/month for your SaaS
+- 10 customers = $2,990/month
+- **Profit: $2,591/month**
 
-**ROI: 352%**
+**ROI: 649%**
+
+### Alternative: Resell our API directly
+**Your costs:**
+- Enterprise plan: $199/month
+- API calls: Pass-through to customers
+
+**Your markup strategy:**
+- Buy from us: $2/1K followers
+- Sell to customers: $5/1K followers
+- Keep $3/1K profit (150% markup)
+
+**Example:**
+- Customer extracts 10K followers monthly
+- They pay you: $50
+- You pay us: $20
+- **Your profit: $30 per customer**
+- 10 customers = **$300/month passive profit**
 
 ---
 

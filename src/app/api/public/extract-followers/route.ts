@@ -141,7 +141,8 @@ export async function POST(request: NextRequest) {
 
     // Calculate costs
     const apifyCost = (processedFollowers.length / 1000) * 0.15 // Apify charges $0.15 per 1K
-    const customerCost = (processedFollowers.length / 1000) * 0.20 // We charge $0.20 per 1K
+    const costPer1K = 2.00
+    const customerCost = (processedFollowers.length / 1000) * costPer1K // We charge $2.00 per 1K
     const profit = customerCost - apifyCost
 
     // Track usage

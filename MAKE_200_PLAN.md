@@ -79,9 +79,9 @@
 **Just created:** `/api/public/extract-followers`
 
 **Pricing Strategy:**
-- Charge $0.20 per 1,000 followers
+- Charge $2.00 per 1,000 followers
 - Apify costs $0.15 per 1,000
-- **You keep $0.05 per 1,000 = 33% profit margin**
+- **You keep $1.85 per 1,000 = 92.5% profit margin** 🔥
 
 **How customers use it:**
 ```bash
@@ -92,9 +92,45 @@ curl -X POST https://followlytics-zeta.vercel.app/api/public/extract-followers \
 ```
 
 **Revenue potential:**
-- Customer extracts 100K followers = $20 charge
-- Your cost = $15, profit = $5
-- 20 customers doing this monthly = $100 extra revenue
+- Customer extracts 100K followers = $200 charge
+- Your cost = $15, profit = $185
+- 5 customers doing this monthly = $925 extra revenue
+- **10 customers = $1,850/month passive income!**
+
+---
+
+## 💎 THE $2/1K PRICING ADVANTAGE
+
+### Why $2.00 per 1,000 followers is PERFECT:
+
+**Competitive Analysis:**
+- **Twitter Enterprise API:** $42,000/month (100K followers daily)
+- **Followlytics API:** $200 per 100K extraction
+- **Your savings vs Twitter:** 99.5%
+
+**Market Positioning:**
+- Still 99%+ cheaper than Twitter
+- 10x markup on our costs (92.5% margin)
+- Priced for value, not commodity
+
+**Customer Psychology:**
+- $2 per 1K sounds premium (quality signal)
+- Still insanely cheap compared to alternatives
+- Easy math: 10K followers = $20 (memorable)
+
+**Profit Examples:**
+| Extraction Size | Revenue | Cost | Profit | Margin |
+|----------------|---------|------|--------|--------|
+| 1,000 followers | $2.00 | $0.15 | $1.85 | 92.5% |
+| 10,000 followers | $20.00 | $1.50 | $18.50 | 92.5% |
+| 100,000 followers | $200.00 | $15.00 | $185.00 | 92.5% |
+
+**Scale Scenario:**
+- 10 Enterprise customers @ $199/mo = $1,990
+- Each extracts 50K followers/month = $100 revenue
+- Total API revenue from 10 customers: $1,000/mo
+- Total cost: $75 (Apify) + $25 (Vercel) = $100
+- **Net profit: $2,890/month!**
 
 ---
 
@@ -122,37 +158,65 @@ curl -X POST https://followlytics-zeta.vercel.app/api/public/extract-followers \
 
 ## 🎯 FASTEST PATH TO $200
 
-### Week 1: Get First Customer ($19)
-**Action items:**
+### OPTION A: Traditional SaaS (11 customers needed)
+
+**Week 1: Get First Customer ($19)**
 1. Post on Twitter/X:
    - "Just got my follower data for $0.12. Twitter charges $42k/month for this. Try it: [link]"
 2. DM 20 people with 5K-50K followers
 3. Offer: "First month free, then $19/mo"
 
-### Week 2: Get 5 More Customers ($95 total)
-**Action items:**
+**Week 2: Get 5 More Customers ($95 total)**
 1. Case study from Week 1 customer
 2. Post in r/marketing, r/socialmedia, r/entrepreneur
 3. Share screenshot of analytics dashboard
 4. Offer: "Limited: $19/mo (normally $49)"
 
-### Week 3: Get Enterprise Customer ($199)
-**Action items:**
+**Week 3: Get Enterprise Customer ($199)**
 1. Reach out to SaaS companies building Twitter tools
 2. Pitch: "White-label our API, resell at 10x markup"
-3. They pay $199/mo, can charge their customers $1,000/mo
+3. They pay $199/mo, can charge customers $2,000-5,000/mo
 
-### Total Revenue Potential:
-- 1 Starter customer: $19
-- 5 Starter customers: $95  
-- 1 Enterprise customer: $199
-- **TOTAL: $313/month**
+**Total: $313/month ✅**
 
-**Profit after costs:**
-- Assuming 50K followers extracted total = $7.50 Apify cost
-- Revenue: $313
-- Cost: $7.50 (Apify) + $25 (Vercel) = $32.50
-- **NET PROFIT: $280.50**
+---
+
+### OPTION B: API-First (FASTER! 2 customers needed)
+
+**Week 1: Get First API Customer**
+**Target:** Marketing agencies, data brokers, SaaS companies
+
+**Pitch:**
+> "Twitter follower data API: $2 per 1K followers. You markup to $5-10/1K. 
+> Resell to your customers. 92.5% margins on my end, 150%+ on yours."
+
+**Who to target:**
+- Lead gen companies (need follower data)
+- Social media agencies (competitor analysis)
+- Sales intelligence platforms (decision-maker finding)
+- Marketing SaaS (add-on feature)
+
+**If they extract 100K followers/month:**
+- They pay you: $200
+- Your cost: $15
+- **Your profit: $185 per customer**
+
+**2 API customers = $370/month revenue = $340 net profit** ✅ **GOAL EXCEEDED!**
+
+---
+
+### FASTEST ROUTE: API + Subscription Hybrid
+
+**Get 1 Enterprise customer ($199/mo) who uses API:**
+- Subscription: $199
+- API usage: 50K followers = $100
+- Total revenue: $299
+- **NET PROFIT: $274** ✅ **GOAL ACHIEVED FROM ONE CUSTOMER!**
+
+**Reality check:**
+- You need ONE good customer to hit $200 profit
+- Every additional customer is pure gravy
+- 92.5% margins mean explosive scale potential
 
 ---
 
