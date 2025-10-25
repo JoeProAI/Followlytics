@@ -1,6 +1,18 @@
-import { adminDb as db } from '@/lib/firebase-admin'
+// COMPREHENSIVE SUBSCRIPTION MANAGEMENT SYSTEM
+// Integrates with new tier configs and credit system
 
-export type Tier = 'free' | 'starter' | 'pro' | 'enterprise'
+import { adminDb as db, adminDb } from '@/lib/firebase-admin'
+import { getTierConfig, type TierName } from '@/config/tiers'
+import { initializeCredits, refillCredits } from '@/lib/credits'
+import Stripe from 'stripe'
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2025-09-30.clover',
+})
+
+// Legacy support - map old tier names to new
+export type Tier = TierName | 'free'
+export type { TierName }
 
 export interface TierLimits {
   daily_searches: number // -1 = unlimited
@@ -14,6 +26,7 @@ export interface TierLimits {
   team_seats: number
 }
 
+// Legacy tier limits (kept for backward compatibility)
 export const TIER_LIMITS: Record<Tier, TierLimits> = {
   free: {
     daily_searches: 5,
@@ -26,38 +39,60 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     api_access: false,
     team_seats: 1
   },
+  beta: {
+    daily_searches: 5,
+    monthly_api_calls: 150,
+    competitors: 0,
+    history_days: 7,
+    ai_analysis: false,
+    automated_reports: false,
+    real_time_alerts: false,
+    api_access: false,
+    team_seats: 1
+  },
   starter: {
-    daily_searches: 50,           // Increased from 20
-    monthly_api_calls: 1500,      // Increased from 600
-    competitors: 5,               // Increased from 3
+    daily_searches: 50,
+    monthly_api_calls: 1500,
+    competitors: 5,
     history_days: 30,
-    ai_analysis: true,            // ✅ NOW ENABLED - basic AI features
+    ai_analysis: true,
     automated_reports: true,
-    real_time_alerts: true,       // ✅ NOW ENABLED - basic alerts
-    api_access: false,            // Still enterprise-only
+    real_time_alerts: true,
+    api_access: false,
     team_seats: 1
   },
   pro: {
-    daily_searches: 200,          // Increased from 100
-    monthly_api_calls: 6000,      // Increased from 3000
-    competitors: 15,              // Increased from 10
+    daily_searches: 200,
+    monthly_api_calls: 6000,
+    competitors: 15,
     history_days: 90,
     ai_analysis: true,
     automated_reports: true,
     real_time_alerts: true,
-    api_access: false,            // Still enterprise-only
-    team_seats: 3                 // Increased from 1 - small team support
+    api_access: false,
+    team_seats: 3
+  },
+  scale: {
+    daily_searches: 500,
+    monthly_api_calls: 15000,
+    competitors: 50,
+    history_days: 180,
+    ai_analysis: true,
+    automated_reports: true,
+    real_time_alerts: true,
+    api_access: true,
+    team_seats: 10
   },
   enterprise: {
-    daily_searches: -1,           // unlimited
-    monthly_api_calls: -1,        // unlimited
-    competitors: -1,              // unlimited
+    daily_searches: -1,
+    monthly_api_calls: -1,
+    competitors: -1,
     history_days: 365,
     ai_analysis: true,
     automated_reports: true,
     real_time_alerts: true,
     api_access: true,
-    team_seats: 10                // Increased from 5
+    team_seats: 50
   }
 }
 
