@@ -41,12 +41,11 @@ export async function POST(request: NextRequest) {
 
     console.log('[Apify] Starting Actor run...')
     const startResponse = await fetch(
-      'https://api.apify.com/v2/acts/kaitoeasyapi~premium-x-follower-scraper-following-data/runs',
+      `https://api.apify.com/v2/acts/kaitoeasyapi~premium-x-follower-scraper-following-data/runs?token=${APIFY_API_TOKEN}`,
       {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${APIFY_API_TOKEN}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(runInput)
       }
@@ -71,12 +70,7 @@ export async function POST(request: NextRequest) {
       await new Promise(resolve => setTimeout(resolve, 5000)) // Wait 5 seconds
       
       const statusResponse = await fetch(
-        `https://api.apify.com/v2/acts/kaitoeasyapi~premium-x-follower-scraper-following-data/runs/${runId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${APIFY_API_TOKEN}`
-          }
-        }
+        `https://api.apify.com/v2/acts/kaitoeasyapi~premium-x-follower-scraper-following-data/runs/${runId}?token=${APIFY_API_TOKEN}`
       )
 
       const statusData = await statusResponse.json()
@@ -96,12 +90,7 @@ export async function POST(request: NextRequest) {
     // Fetch results from dataset
     console.log(`[Apify] Fetching results from dataset: ${defaultDatasetId}`)
     const datasetResponse = await fetch(
-      `https://api.apify.com/v2/datasets/${defaultDatasetId}/items`,
-      {
-        headers: {
-          'Authorization': `Bearer ${APIFY_API_TOKEN}`
-        }
-      }
+      `https://api.apify.com/v2/datasets/${defaultDatasetId}/items?token=${APIFY_API_TOKEN}`
     )
 
     const followers = await datasetResponse.json()
