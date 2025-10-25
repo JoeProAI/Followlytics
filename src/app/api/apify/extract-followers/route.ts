@@ -162,9 +162,12 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('[Apify] Error:', error)
+    console.error('[Apify] Error stack:', error.stack)
     return NextResponse.json({
       error: 'Failed to extract followers',
-      details: error.message
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      timestamp: new Date().toISOString()
     }, { status: 500 })
   }
 }
