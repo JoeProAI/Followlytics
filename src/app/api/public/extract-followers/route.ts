@@ -55,7 +55,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Username required' }, { status: 400 })
     }
 
-    console.log(`[Public API] Extracting followers for @${username}, max: ${maxFollowers}`)
+    // Check user's credit balance
+    const userDoc = await adminDb.collection('users').doc(userId).get()
+    const userData = userDoc.data()
+    const currentCredits = userData?.api_credits || 0
+
+    // Estimate cost before extraction (minimum $0.40 for 200 followers)
+    const estimatedCost = Math.max(maxFollowers / 1000 * 2.00, 0.40)
+    
+    if (currentCredits < estimatedCost) {
+      return NextResponse.json({ 
+        error: 'Insufficient credits',
+        current_balance: currentCredits.toFixed(2),
+        estimated_cost: estimatedCost.toFixed(2),
+        required: (estimatedCost - currentCredits).toFixed(2),
+      }, { status: 402 }) // 402 Payment Required
+    }
+
+    console.log(`[Public API] Extracting followers for @${username}, max: ${maxFollowers}, credits: $${currentCredits.toFixed(2)}`)
 
     // Initialize Apify client
     const APIFY_API_TOKEN = process.env.APIFY_API_TOKEN
@@ -144,6 +161,27 @@ export async function POST(request: NextRequest) {
     const costPer1K = 2.00
     const customerCost = (processedFollowers.length / 1000) * costPer1K // We charge $2.00 per 1K
     const profit = customerCost - apifyCost
+
+    // DEDUCT CREDITS FROM USER BALANCE
+    const newBalance = currentCredits - customerCost
+    await adminDb.collection('users').doc(userId).update({
+      api_credits: newBalance,
+      last_api_usage: new Date().toISOString(),
+    })
+
+    // Log credit transaction
+    await adminDb.collection('credit_transactions').add({
+      userId,
+      type: 'usage',
+      amount: -customerCost,
+      balance_before: currentCredits,
+      balance_after: newBalance,
+      followers_extracted: processedFollowers.length,
+      username: username,
+      timestamp: new Date().toISOString(),
+    })
+
+    console.log(`[Public API] ✅ Charged $${customerCost.toFixed(4)} | New balance: $${newBalance.toFixed(2)}`)
 
     // Track usage
     await usageRef.set({
