@@ -121,7 +121,14 @@ export async function POST(request: NextRequest) {
       .collection('followers')
 
     processedFollowers.forEach((follower: any) => {
-      const docRef = followerCollectionRef.doc(follower.username)
+      // Sanitize username for Firestore (no leading/trailing __, no /, etc)
+      const sanitizedUsername = follower.username
+        .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+        .replace(/\//g, '_') // Replace slashes with underscores
+        .replace(/\./g, '_') // Replace dots with underscores
+        || 'unknown_user' // Fallback if username becomes empty
+      
+      const docRef = followerCollectionRef.doc(sanitizedUsername)
       batch.set(docRef, follower, { merge: true })
     })
 
