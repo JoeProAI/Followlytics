@@ -52,7 +52,7 @@ export default function ApifyFollowerExtractor() {
       <div className="mb-6">
         <h2 className="text-xl font-medium mb-2">Extract Twitter Followers</h2>
         <p className="text-sm text-gray-400">
-          Get comprehensive follower data including bios, metrics, and verified status
+          Get detailed follower profiles from any public account in seconds. No setup required.
         </p>
       </div>
 
@@ -144,10 +144,10 @@ export default function ApifyFollowerExtractor() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div className="text-xs text-gray-400 space-y-1">
-            <p><strong className="text-gray-300">How it works:</strong> We use Apify's premium Twitter scraper to extract follower data directly from Twitter's website.</p>
+            <p><strong className="text-gray-300">How it works:</strong> Enter any Twitter username and get complete follower profiles instantly.</p>
             <p><strong className="text-gray-300">What you get:</strong> Username, name, bio, follower count, verification status, profile image, location, and more.</p>
             <p><strong className="text-gray-300">Processing time:</strong> ~30 seconds per 1,000 followers.</p>
-            <p><strong className="text-gray-300">Rate limits:</strong> No Twitter API limits - scrapes directly from web.</p>
+            <p><strong className="text-gray-300">Privacy:</strong> Only public data from public accounts. GDPR compliant.</p>
           </div>
         </div>
       </div>
