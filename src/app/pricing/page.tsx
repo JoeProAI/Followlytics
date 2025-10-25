@@ -1,8 +1,41 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+
+// Countdown timer for founder offer
+function CountdownTimer({ endDate }: { endDate: Date }) {
+  const [timeLeft, setTimeLeft] = useState('')
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date().getTime()
+      const distance = endDate.getTime() - now
+
+      if (distance < 0) {
+        setTimeLeft('ENDED')
+        clearInterval(timer)
+        return
+      }
+
+      const days = Math.floor(distance / (1000 * 60 * 60 * 24))
+      const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60))
+      const seconds = Math.floor((distance % (1000 * 60)) / 1000)
+
+      setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`)
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [endDate])
+
+  return (
+    <div className="text-2xl font-bold text-white">
+      {timeLeft}
+    </div>
+  )
+}
 
 const tiers = [
   {
@@ -111,6 +144,11 @@ export default function PricingPage() {
   const router = useRouter()
   const { user } = useAuth()
   const [loading, setLoading] = useState<string | null>(null)
+  const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly')
+  
+  // Set founder offer end date (72 hours from now - adjust as needed)
+  const founderEndDate = new Date()
+  founderEndDate.setHours(founderEndDate.getHours() + 72)
 
   const handleSubscribe = async (priceId: string | null, tier: string, isLifetime: boolean = false) => {
     if (!user) {
@@ -188,6 +226,27 @@ export default function PricingPage() {
         </div>
       </nav>
 
+      {/* Founder Offer Countdown Banner */}
+      <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border-y border-purple-500/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 rounded-full px-4 py-1 text-xs font-medium text-yellow-400 mb-4">
+              🔥 LIMITED TIME OFFER
+            </div>
+            <h2 className="text-3xl font-bold mb-2">Founder Lifetime Access</h2>
+            <p className="text-gray-300 mb-4">
+              Pay once, own forever. Limited to first 150 buyers.
+            </p>
+            <div className="mb-2">
+              <CountdownTimer endDate={founderEndDate} />
+            </div>
+            <p className="text-sm text-gray-400">
+              After this timer ends, monthly plans only.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Hero */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
         <h1 className="text-5xl font-light tracking-tight mb-4">
@@ -196,9 +255,40 @@ export default function PricingPage() {
         <p className="text-xl text-gray-400 mb-8">
           Start free, upgrade when you need more power
         </p>
-        <div className="inline-flex items-center gap-2 bg-gray-900 border border-gray-800 rounded-full px-4 py-2 text-sm">
-          <span className="text-green-400">●</span>
-          7-day free trial on all paid plans
+        <div className="flex items-center justify-center gap-4 mb-8">
+          <div className="inline-flex items-center gap-2 bg-gray-900 border border-gray-800 rounded-full px-4 py-2 text-sm">
+            <span className="text-green-400">●</span>
+            7-day free trial on all paid plans
+          </div>
+          <div className="inline-flex items-center gap-2 bg-gray-900 border border-gray-800 rounded-full px-4 py-2 text-sm">
+            <span className="text-blue-400">●</span>
+            7-day money-back guarantee
+          </div>
+        </div>
+
+        {/* Billing Toggle */}
+        <div className="inline-flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-lg p-1">
+          <button
+            onClick={() => setBillingInterval('monthly')}
+            className={`px-6 py-2 rounded text-sm font-medium transition-colors ${
+              billingInterval === 'monthly'
+                ? 'bg-white text-black'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setBillingInterval('annual')}
+            className={`px-6 py-2 rounded text-sm font-medium transition-colors ${
+              billingInterval === 'annual'
+                ? 'bg-white text-black'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            Annual
+            <span className="ml-2 text-xs text-green-400">Save 17%</span>
+          </button>
         </div>
       </div>
 

@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import ProfessionalAnalytics from '@/components/dashboard/ProfessionalAnalytics'
 import XAuthConnect from '@/components/dashboard/XAuthConnect'
 import DaytonaFeatures from '@/components/dashboard/DaytonaFeatures'
+import ApifyFollowerExtractor from '@/components/dashboard/ApifyFollowerExtractor'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import Link from 'next/link'
 
@@ -123,6 +124,11 @@ function DashboardContent() {
         {/* Daytona Browser Automation */}
         <div className="mb-6">
           <DaytonaFeatures />
+        </div>
+
+        {/* Apify Follower Extraction */}
+        <div className="mb-6">
+          <ApifyFollowerExtractor />
         </div>
 
         {/* Free Tier Upgrade Prompt */}
