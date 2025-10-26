@@ -5,7 +5,7 @@ import { useAuthState } from 'react-firebase-hooks/auth'
 import { auth } from '@/lib/firebase'
 import ApolloAudienceInsights from './ApolloAudienceInsights'
 
-type Tab = 'overview' | 'audience' | 'intelligence' | 'search' | 'compare' | 'trending' | 'competitor' | 'hashtag' | 'viral' | 'mentions' | 'tweet' | 'safety'
+type Tab = 'overview' | 'audience' | 'intelligence' | 'search' | 'compare' | 'trending' | 'competitor' | 'hashtag' | 'viral' | 'mentions' | 'post' | 'safety'
 
 export default function ProfessionalAnalytics() {
   const [user] = useAuthState(auth)
@@ -57,13 +57,13 @@ export default function ProfessionalAnalytics() {
     { id: 'overview', label: 'Overview', description: 'Get complete profile metrics including followers, engagement rates, and top posts' },
     { id: 'audience', label: 'Audience Intelligence', description: 'Apollo.io-powered analysis of your follower demographics, companies, and job titles' },
     { id: 'intelligence', label: 'Content Intel', description: 'AI-powered analysis of content patterns, optimal posting times, and recommendations' },
-    { id: 'search', label: 'Search', description: 'Search X for tweets about any topic and analyze engagement patterns' },
+    { id: 'search', label: 'Search', description: 'Search X for posts about any topic and analyze engagement patterns' },
     { id: 'compare', label: 'Compare Users', description: 'Side-by-side comparison of multiple X accounts with detailed metrics' },
     { id: 'trending', label: 'Trending', description: 'Discover trending topics and viral content in your industry' },
     { id: 'competitor', label: 'Competitors', description: 'Track competitor accounts and monitor their performance over time' },
     { id: 'hashtag', label: 'Hashtags', description: 'Analyze hashtag performance and discover optimal tags for your content' },
     { id: 'mentions', label: 'Mentions', description: 'Track mentions of any username or keyword across X' },
-    { id: 'tweet', label: 'Tweet Analysis', description: 'Deep dive into individual tweets with detailed engagement analytics' }
+    { id: 'post', label: 'post Analysis', description: 'Deep dive into individual posts with detailed engagement analytics' }
   , { id: 'safety', label: 'Safety & Filters', description: 'Manage blocked/muted accounts and check who blocks you (bulk)' }
   ]
 
@@ -486,7 +486,7 @@ export default function ProfessionalAnalytics() {
                   {loading ? 'Analyzing...' : 'Analyze'}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-2">Deep analysis of up to 500 tweets</p>
+              <p className="text-xs text-gray-500 mt-2">Deep analysis of up to 500 posts</p>
             </div>
 
             {data?.analysis && (
@@ -595,7 +595,7 @@ export default function ProfessionalAnalytics() {
                   {loading ? 'Searching...' : 'Search'}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-2">Search X for tweets about any topic</p>
+              <p className="text-xs text-gray-500 mt-2">Search X for posts about any topic</p>
             </div>
 
             {data?.results && (
@@ -621,15 +621,15 @@ export default function ProfessionalAnalytics() {
 
                 {data.top_tweets?.length > 0 && (
                   <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
-                    <div className="text-sm font-medium text-gray-400 mb-4">Top Tweets</div>
+                    <div className="text-sm font-medium text-gray-400 mb-4">Top posts</div>
                     <div className="space-y-4">
-                      {data.top_tweets.slice(0, 10).map((tweet: any, idx: number) => (
+                      {data.top_tweets.slice(0, 10).map((post: any, idx: number) => (
                         <div key={idx} className="border-b border-gray-800 last:border-0 pb-4 last:pb-0">
                           <div className="flex justify-between items-start mb-2">
-                            <span className="text-sm font-medium">@{tweet.author?.username}</span>
-                            <span className="text-xs text-gray-500">{tweet.engagement} engagement</span>
+                            <span className="text-sm font-medium">@{post.author?.username}</span>
+                            <span className="text-xs text-gray-500">{post.engagement} engagement</span>
                           </div>
-                          <p className="text-sm text-gray-300">{tweet.text}</p>
+                          <p className="text-sm text-gray-300">{post.text}</p>
                         </div>
                       ))}
                     </div>
@@ -740,7 +740,7 @@ export default function ProfessionalAnalytics() {
               <div className="space-y-6">
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
-                    <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Trending Tweets</div>
+                    <div className="text-gray-400 text-xs uppercase tracking-wide mb-2">Trending posts</div>
                     <div className="text-2xl font-light">{data.summary.total_tweets}</div>
                   </div>
                   <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
@@ -757,16 +757,16 @@ export default function ProfessionalAnalytics() {
                   <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
                     <div className="text-sm font-medium text-gray-400 mb-4">Trending Content</div>
                     <div className="space-y-4">
-                      {data.trending_tweets.slice(0, 10).map((tweet: any, idx: number) => (
+                      {data.trending_tweets.slice(0, 10).map((post: any, idx: number) => (
                         <div key={idx} className="border-b border-gray-800 last:border-0 pb-4 last:pb-0">
                           <div className="flex justify-between items-start mb-2">
-                            <span className="text-sm font-medium">@{tweet.author?.username}</span>
-                            <span className="text-xs text-gray-500">{tweet.engagement} engagement</span>
+                            <span className="text-sm font-medium">@{post.author?.username}</span>
+                            <span className="text-xs text-gray-500">{post.engagement} engagement</span>
                           </div>
-                          <p className="text-sm text-gray-300 mb-2">{tweet.text}</p>
+                          <p className="text-sm text-gray-300 mb-2">{post.text}</p>
                           <div className="flex gap-4 text-xs text-gray-500">
-                            <span>{tweet.metrics?.likes} likes</span>
-                            <span>{tweet.metrics?.retweets} retweets</span>
+                            <span>{post.metrics?.likes} likes</span>
+                            <span>{post.metrics?.retweets} retweets</span>
                           </div>
                         </div>
                       ))}
@@ -897,7 +897,7 @@ export default function ProfessionalAnalytics() {
                 {data.data.totalTweets === 0 && (
                   <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-6 mb-6">
                     <div className="text-yellow-400 text-sm">
-                      {data.data.message || `No tweets found for #${hashtag}. X API only shows tweets from the last 7 days. Try a more popular hashtag like "AI" or "crypto".`}
+                      {data.data.message || `No posts found for #${hashtag}. X API only shows posts from the last 7 days. Try a more popular hashtag like "AI" or "crypto".`}
                     </div>
                   </div>
                 )}
@@ -955,17 +955,17 @@ export default function ProfessionalAnalytics() {
               </div>
             </div>
 
-            {data?.tweets && (
+            {data?.posts && (
               <div>
                 <div className="text-sm text-gray-400 mb-4">{data.total} viral posts found (10k+ likes)</div>
                 <div className="space-y-3">
-                  {data.tweets.slice(0, 10).map((tweet: any, idx: number) => (
+                  {data.posts.slice(0, 10).map((post: any, idx: number) => (
                     <div key={idx} className="bg-gray-900 border border-gray-800 rounded-lg p-5 hover:border-gray-700 transition-colors">
-                      <p className="text-sm text-gray-300 mb-3">{tweet.text}</p>
+                      <p className="text-sm text-gray-300 mb-3">{post.text}</p>
                       <div className="flex gap-6 text-xs text-gray-500">
-                        <span>{tweet.public_metrics?.like_count?.toLocaleString()} likes</span>
-                        <span>{tweet.public_metrics?.retweet_count?.toLocaleString()} retweets</span>
-                        <span>{tweet.public_metrics?.reply_count?.toLocaleString()} replies</span>
+                        <span>{post.public_metrics?.like_count?.toLocaleString()} likes</span>
+                        <span>{post.public_metrics?.retweet_count?.toLocaleString()} retweets</span>
+                        <span>{post.public_metrics?.reply_count?.toLocaleString()} replies</span>
                       </div>
                     </div>
                   ))}
@@ -1027,11 +1027,11 @@ export default function ProfessionalAnalytics() {
           </div>
         )}
 
-        {/* Tweet Analysis */}
-        {activeTab === 'tweet' && (
+        {/* post Analysis */}
+        {activeTab === 'post' && (
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">Tweet ID</label>
+              <label className="block text-sm font-medium text-gray-400 mb-2">post ID</label>
               <div className="flex gap-3">
                 <input
                   type="text"
@@ -1041,7 +1041,7 @@ export default function ProfessionalAnalytics() {
                   className="flex-1 bg-gray-900 border border-gray-800 rounded px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-gray-700"
                 />
                 <button
-                  onClick={() => fetchData('/api/x-analytics/tweet-analysis', { tweetId })}
+                  onClick={() => fetchData('/api/x-analytics/post-analysis', { tweetId })}
                   disabled={loading || !tweetId}
                   className="bg-white text-black px-8 py-2.5 rounded font-medium hover:bg-gray-200 disabled:opacity-50"
                 >
@@ -1074,4 +1074,5 @@ export default function ProfessionalAnalytics() {
     </div>
   )
 }
+
 

@@ -25,7 +25,7 @@ export default function DaytonaFeatures() {
       
       // Simulate progressive status updates
       setTimeout(() => setStatus('🤖 Warming up AI models...'), 1000)
-      setTimeout(() => setStatus('✍️ Generating tweet variations...'), 2000)
+      setTimeout(() => setStatus('✍️ Generating post variations...'), 2000)
       setTimeout(() => setStatus('📊 Analyzing viral potential...'), 4000)
       
       const response = await fetch('/api/daytona/generate-tweets', {
@@ -45,9 +45,9 @@ export default function DaytonaFeatures() {
       
       if (response.ok && data.tweets) {
         setGeneratedTweets(data.tweets)
-        setStatus(`✅ Generated ${data.tweets.length} optimized tweets!`)
+        setStatus(`✅ Generated ${data.tweets.length} optimized posts!`)
       } else {
-        setError(data.error || 'Failed to generate tweets')
+        setError(data.error || 'Failed to generate posts')
         setStatus('')
       }
     } catch (err: any) {
@@ -117,13 +117,13 @@ export default function DaytonaFeatures() {
 
           <div className="flex-1">
             <h3 className="text-lg font-medium mb-1 flex items-center gap-2">
-              AI Tweet Generator
+              AI post Generator
               <span className="text-xs px-2 py-0.5 bg-purple-600 text-white border border-purple-500">
                 BETA
               </span>
             </h3>
             <p className="text-sm text-gray-400">
-              Generate viral-optimized tweets in seconds. Choose your voice, get 10 variations, pick the best one.
+              Generate viral-optimized posts in seconds. Choose your voice, get 10 variations, pick the best one.
             </p>
           </div>
         </div>
@@ -138,7 +138,7 @@ export default function DaytonaFeatures() {
       {/* Input Section */}
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-300 mb-2">
-          What do you want to tweet about?
+          What do you want to post about?
         </label>
         <textarea
           value={tweetIdea}
@@ -200,7 +200,7 @@ export default function DaytonaFeatures() {
           disabled={loading || !tweetIdea.trim()}
           className="px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:from-gray-700 disabled:to-gray-700 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? 'Generating...' : '✨ Generate 10 Tweet Variations'}
+          {loading ? 'Generating...' : '✨ Generate 10 post Variations'}
         </button>
         
         <button
@@ -212,7 +212,7 @@ export default function DaytonaFeatures() {
         </button>
       </div>
 
-      {/* Generated Tweets Display */}
+      {/* Generated posts Display */}
       {generatedTweets.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -225,38 +225,38 @@ export default function DaytonaFeatures() {
             </span>
           </div>
           <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
-            {generatedTweets.map((tweet, idx) => (
+            {generatedTweets.map((post, idx) => (
               <div key={idx} className="bg-black/60 border border-gray-700 hover:border-purple-500/50 rounded-lg p-4 transition-all group">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-lg font-bold text-purple-400">#{idx + 1}</span>
                     <span className="text-xs px-2 py-1 bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-300 rounded border border-purple-500/30">
-                      🔥 {tweet.viralScore}/100
+                      🔥 {post.viralScore}/100
                     </span>
                   </div>
                   <div className="text-right">
                     <div className="text-xs text-gray-500">Est. reach</div>
-                    <div className="text-sm font-semibold text-blue-400">{tweet.estimatedReach}</div>
+                    <div className="text-sm font-semibold text-blue-400">{post.estimatedReach}</div>
                   </div>
                 </div>
                 
-                <p className="text-base text-gray-100 mb-3 leading-relaxed whitespace-pre-wrap">{tweet.text}</p>
+                <p className="text-base text-gray-100 mb-3 leading-relaxed whitespace-pre-wrap">{post.text}</p>
                 
-                {tweet.why && (
+                {post.why && (
                   <div className="mb-3 px-3 py-2 bg-purple-500/10 border border-purple-500/20 rounded text-xs text-purple-300">
-                    💡 <span className="font-semibold">Why it works:</span> {tweet.why}
+                    💡 <span className="font-semibold">Why it works:</span> {post.why}
                   </div>
                 )}
                 
                 <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
-                  <span className="px-2 py-1 bg-black/40 rounded">💭 {tweet.tone}</span>
-                  <span className="px-2 py-1 bg-black/40 rounded">📏 {tweet.text.length} chars</span>
-                  <span className="px-2 py-1 bg-black/40 rounded">{tweet.sentiment}</span>
+                  <span className="px-2 py-1 bg-black/40 rounded">💭 {post.tone}</span>
+                  <span className="px-2 py-1 bg-black/40 rounded">📏 {post.text.length} chars</span>
+                  <span className="px-2 py-1 bg-black/40 rounded">{post.sentiment}</span>
                 </div>
                 
-                {tweet.hooks && tweet.hooks.length > 0 && (
+                {post.hooks && post.hooks.length > 0 && (
                   <div className="flex flex-wrap gap-1 mb-3">
-                    {tweet.hooks.map((hook: string, hidx: number) => (
+                    {post.hooks.map((hook: string, hidx: number) => (
                       <span key={hidx} className="text-[10px] px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20">
                         {hook}
                       </span>
@@ -267,15 +267,15 @@ export default function DaytonaFeatures() {
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => {
-                      navigator.clipboard.writeText(tweet.text)
+                      navigator.clipboard.writeText(post.text)
                       alert('Copied to clipboard!')
                     }}
                     className="flex-1 px-3 py-2 bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 rounded text-xs font-medium transition-all"
                   >
-                    📋 Copy Tweet
+                    📋 Copy post
                   </button>
                   <button 
-                    onClick={() => window.open(`https://X.com/intent/tweet?text=${encodeURIComponent(tweet.text)}`, '_blank')}
+                    onClick={() => window.open(`https://X.com/intent/post?text=${encodeURIComponent(post.text)}`, '_blank')}
                     className="flex-1 px-3 py-2 bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30 rounded text-xs font-medium transition-all"
                   >
                     🐦 Post Now
@@ -294,7 +294,7 @@ export default function DaytonaFeatures() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div className="text-xs text-gray-400 space-y-1">
-            <p><strong className="text-gray-300">How it works:</strong> Enter your topic or idea, get multiple AI-generated tweet variations optimized for engagement.</p>
+            <p><strong className="text-gray-300">How it works:</strong> Enter your topic or idea, get multiple AI-generated post variations optimized for engagement.</p>
             <p><strong className="text-gray-300">Why it works:</strong> Choose from viral-tested options before you post. Save hours of writing and rewriting.</p>
             <p><strong className="text-gray-300">Processing time:</strong> 5-10 seconds per batch.</p>
           </div>
@@ -304,4 +304,5 @@ export default function DaytonaFeatures() {
     </div>
   )
 }
+
 

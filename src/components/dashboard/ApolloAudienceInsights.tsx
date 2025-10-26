@@ -298,3 +298,4 @@ function CompanySizeBar({
   )
 }
 
+
