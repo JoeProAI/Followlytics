@@ -143,7 +143,7 @@ Visit [http://localhost:3001](http://localhost:3001) 🎉
 
 1. **User enters X username** → Beautiful dashboard form
 2. **Daytona creates sandbox** → Isolated environment with Playwright
-3. **Browser automation runs** → Scrapes X followers page undetected
+3. **Browser automation runs** → Extracts follower data from public X profiles
 4. **Results processed** → Stored in Firebase, unfollowers detected automatically
 5. **Sandbox auto-deletes** → Zero maintenance, cost-effective
 

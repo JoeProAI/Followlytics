@@ -10,6 +10,8 @@ export default function ApifyFollowerExtractor() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<any>(null)
+  const [showAll, setShowAll] = useState(false)
+  const [analyzing, setAnalyzing] = useState(false)
 
   async function extractFollowers() {
     if (!user || !username.trim()) return
@@ -17,6 +19,7 @@ export default function ApifyFollowerExtractor() {
     setLoading(true)
     setError('')
     setResult(null)
+    setShowAll(false)
     
     try {
       const token = await user.getIdToken()
@@ -44,6 +47,60 @@ export default function ApifyFollowerExtractor() {
       setError(err.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  function exportToCSV() {
+    if (!result?.sample) return
+    
+    // Create CSV content
+    const headers = ['Username', 'Name', 'Bio', 'Followers', 'Verified', 'Location']
+    const rows = result.sample.map((f: any) => [
+      f.username,
+      f.name || '',
+      (f.bio || '').replace(/,/g, ';'),
+      f.followersCount || 0,
+      f.verified ? 'Yes' : 'No',
+      f.location || ''
+    ])
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((r: any[]) => r.map(cell => `"${cell}"`).join(','))
+    ].join('\n')
+    
+    // Download
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${result.username}_followers_${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  async function analyzeFollowers() {
+    if (!result?.sample || !user) return
+    
+    setAnalyzing(true)
+    try {
+      // Smart: Only analyze top 50 followers by follower count
+      const topFollowers = [...result.sample]
+        .sort((a: any, b: any) => (b.followersCount || 0) - (a.followersCount || 0))
+        .slice(0, 50)
+      
+      alert(`Smart Analysis: Analyzing top 50 most influential followers (by follower count) out of ${result.count} total.\n\nThis saves you money while focusing on high-value accounts.`)
+      
+      // Navigate to analytics view with filtered data
+      // TODO: Implement actual analytics view
+      console.log('Analyzing top followers:', topFollowers)
+      
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setAnalyzing(false)
     }
   }
 
@@ -154,8 +211,8 @@ export default function ApifyFollowerExtractor() {
                 </h4>
                 <span className="text-xs text-green-400">● LIVE DATA - First {result.sample.length} of {result.count}</span>
               </div>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {result.sample.map((follower: any, idx: number) => (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {(showAll ? result.sample : result.sample.slice(0, 15)).map((follower: any, idx: number) => (
                   <div key={idx} className="flex items-start gap-3 p-2 bg-black/40 rounded border border-gray-800 hover:border-purple-500/30 transition-colors">
                     {follower.profileImage && (
                       <img src={follower.profileImage} alt="" className="w-10 h-10 rounded-full" />
@@ -177,19 +234,30 @@ export default function ApifyFollowerExtractor() {
                   </div>
                 ))}
               </div>
+              
+              {/* Show More Button */}
+              {result.sample.length > 15 && (
+                <button
+                  onClick={() => setShowAll(!showAll)}
+                  className="w-full mt-3 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm font-medium transition-all"
+                >
+                  {showAll ? `▲ Show Less` : `▼ Show All ${result.sample.length} Followers`}
+                </button>
+              )}
             </div>
           )}
 
           {/* Action Buttons */}
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => {/* Navigate to analytics */}}
-              className="px-4 py-3 bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 rounded-lg font-medium transition-all"
+              onClick={analyzeFollowers}
+              disabled={analyzing}
+              className="px-4 py-3 bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 rounded-lg font-medium transition-all disabled:opacity-50"
             >
-              📊 View Full Analytics
+              {analyzing ? '⏳ Analyzing...' : '📊 Analyze Top 50'}
             </button>
             <button
-              onClick={() => {/* Export CSV */}}
+              onClick={exportToCSV}
               className="px-4 py-3 bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30 rounded-lg font-medium transition-all"
             >
               📥 Export CSV

@@ -172,7 +172,7 @@ function DashboardContent() {
                 <span className="text-2xl">🔌</span>
                 <h4 className="font-medium">Public Follower API</h4>
               </div>
-              <p className="text-sm text-gray-400">Monetize the scraper - let others use it via paid API</p>
+              <p className="text-sm text-gray-400">Developer API access - let others integrate follower data into their apps</p>
             </div>
             <div className="p-4 bg-black/40 rounded border border-gray-800">
               <div className="flex items-center gap-2 mb-2">

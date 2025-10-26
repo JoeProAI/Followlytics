@@ -30,7 +30,7 @@ You agree to:
 - Use the Service for lawful business purposes only
 - Not use data for harassment, stalking, spam, or illegal activities
 - Comply with applicable data protection laws (GDPR, CCPA, etc.)
-- Not attempt to reverse engineer, scrape, or copy the Service
+- Not attempt to reverse engineer, interfere with, or copy the Service
 - Not resell or redistribute data without proper authorization
 
 ---
@@ -75,7 +75,7 @@ Contact: privacy@followlytics.com
 
 **Permitted:** Business intelligence, market research, competitor analysis, audience demographics, lead generation, and other lawful business purposes.
 
-**Prohibited:** Harassment, stalking, spam, illegal activities, identity theft, fraud, violating privacy rights, scraping our Service, or reselling data without authorization.
+**Prohibited:** Harassment, stalking, spam, illegal activities, identity theft, fraud, violating privacy rights, unauthorized automated access to our Service, or reselling data without authorization.
 
 Violation of this policy may result in immediate account termination without refund.
 
