@@ -262,3 +262,4 @@
 - `key` (unique, hashed)
 - `userId`
 - `active`
+

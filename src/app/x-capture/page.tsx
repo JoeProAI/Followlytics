@@ -18,7 +18,7 @@ function XCaptureContent() {
     
     // Check if we're already on X.com
     const currentHost = window.location.hostname
-    const isXSite = currentHost.includes('x.com') || currentHost.includes('twitter.com')
+    const isXSite = currentHost.includes('x.com') || currentHost.includes('X.com')
     
     if (isXSite) {
       console.log('✅ On X.com, ready to capture')
@@ -42,7 +42,7 @@ function XCaptureContent() {
 
     // Check if we're on X.com first
     const currentHost = window.location.hostname
-    const isXSite = currentHost.includes('x.com') || currentHost.includes('twitter.com')
+    const isXSite = currentHost.includes('x.com') || currentHost.includes('X.com')
     
     if (!isXSite) {
       // Show instructions instead of auto-redirecting
@@ -216,7 +216,7 @@ function XCaptureContent() {
 
       case 'ready':
         const currentHost = window.location.hostname
-        const isXSite = currentHost.includes('x.com') || currentHost.includes('twitter.com')
+        const isXSite = currentHost.includes('x.com') || currentHost.includes('X.com')
         
         return (
           <div className="text-center">
@@ -383,3 +383,4 @@ export default function XCapturePage() {
     </Suspense>
   )
 }
+

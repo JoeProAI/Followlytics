@@ -541,7 +541,7 @@ export default function ProfessionalAnalytics() {
                 <div className="flex-1">
                   <h3 className="text-lg font-medium mb-2">Powered by Apollo.io</h3>
                   <p className="text-sm text-gray-400 mb-3">
-                    Get deep insights into your Twitter followers' professional demographics including company sizes, job titles, industries, and locations - all without revealing personal contact information.
+                    Get deep insights into your X followers' professional demographics including company sizes, job titles, industries, and locations - all without revealing personal contact information.
                   </p>
                   <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
                     <div>✓ Company size distribution</div>
@@ -897,7 +897,7 @@ export default function ProfessionalAnalytics() {
                 {data.data.totalTweets === 0 && (
                   <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-6 mb-6">
                     <div className="text-yellow-400 text-sm">
-                      {data.data.message || `No tweets found for #${hashtag}. Twitter API only shows tweets from the last 7 days. Try a more popular hashtag like "AI" or "crypto".`}
+                      {data.data.message || `No tweets found for #${hashtag}. X API only shows tweets from the last 7 days. Try a more popular hashtag like "AI" or "crypto".`}
                     </div>
                   </div>
                 )}
@@ -1074,3 +1074,4 @@ export default function ProfessionalAnalytics() {
     </div>
   )
 }
+

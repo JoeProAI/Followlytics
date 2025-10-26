@@ -106,3 +106,4 @@ export default function ScanStatusBanner({ onAuthenticationRequired }: ScanStatu
     </div>
   )
 }
+

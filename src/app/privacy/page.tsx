@@ -17,7 +17,7 @@ export default function PrivacyPage() {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm text-green-800">
-                      <strong>We do NOT store your Twitter session data, cookies, or login credentials.</strong>
+                      <strong>We do NOT store your X session data, cookies, or login credentials.</strong>
                     </p>
                   </div>
                 </div>
@@ -43,7 +43,7 @@ export default function PrivacyPage() {
                 <div className="border-l-4 border-red-500 pl-4">
                   <h3 className="font-semibold text-gray-800">❌ What We DO NOT Store:</h3>
                   <ul className="mt-2 text-gray-600 space-y-1">
-                    <li>• Your Twitter password</li>
+                    <li>• Your X password</li>
                     <li>• Session cookies or authentication tokens</li>
                     <li>• Personal messages or private data</li>
                     <li>• Any data beyond public follower information</li>
@@ -56,7 +56,7 @@ export default function PrivacyPage() {
               <h2 className="text-2xl font-semibold text-gray-800 mb-4">How Live Extraction Works</h2>
               <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
                 <ol className="text-gray-700 space-y-2">
-                  <li><strong>1.</strong> You sign into Twitter in your own browser</li>
+                  <li><strong>1.</strong> You sign into X in your own browser</li>
                   <li><strong>2.</strong> We create a temporary, isolated sandbox environment</li>
                   <li><strong>3.</strong> You authorize the extraction to begin</li>
                   <li><strong>4.</strong> We extract public follower data in real-time</li>
@@ -103,3 +103,4 @@ export default function PrivacyPage() {
     </div>
   )
 }
+

@@ -56,7 +56,7 @@ export default function XSessionCaptureSimple() {
       // Show the console script for the user to run on X.com
       const script = `
 // STEP 1: Make sure you're on x.com and logged in
-if (!window.location.hostname.includes('x.com') && !window.location.hostname.includes('twitter.com')) {
+if (!window.location.hostname.includes('x.com') && !window.location.hostname.includes('X.com')) {
   alert('❌ Please run this on x.com');
 } else {
   // STEP 2: Capture session data
@@ -361,3 +361,4 @@ Would you like to see the script to copy?
     </div>
   )
 }
+

@@ -1,6 +1,6 @@
 # 🔥 Followlytics - X Follower Tracker
 
-> **Powered by Daytona** - The ultimate X (formerly Twitter) follower tracking system that identifies unfollowers and provides detailed analytics using secure sandbox environments.
+> **Powered by Daytona** - The ultimate X (formerly X) follower tracking system that identifies unfollowers and provides detailed analytics using secure sandbox environments.
 
 ![Followlytics Dashboard](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
 ![Daytona Powered](https://img.shields.io/badge/Powered%20by-Daytona-blue)
@@ -106,7 +106,7 @@ cp .env.example .env.local
 
 # Configure your variables
 FIREBASE_PROJECT_ID=your-project-id
-TWITTER_CLIENT_ID=your-client-id
+X_CLIENT_ID=your-client-id
 DAYTONA_API_KEY=your-api-key
 ```env
 # Daytona Configuration (Already included!)
@@ -246,3 +246,4 @@ Made with ❤️ using [Daytona](https://daytona.io) sandbox technology
 [🚀 Get Started](#-quick-start) • [📖 Documentation](https://github.com/JoeProAI/Followlytics/wiki) • [🐛 Report Bug](https://github.com/JoeProAI/Followlytics/issues)
 
 </div>
+

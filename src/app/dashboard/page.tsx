@@ -119,8 +119,8 @@ function DashboardContent() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Message */}
         <div className="mb-8">
-          <h2 className="text-3xl font-light mb-2">Twitter Follower Intelligence</h2>
-          <p className="text-gray-400">Extract and analyze follower data from any public Twitter account.</p>
+          <h2 className="text-3xl font-light mb-2">X Follower Intelligence</h2>
+          <p className="text-gray-400">Extract and analyze follower data from any public X account.</p>
         </div>
 
         {/* ✅ WORKING: Apify Follower Extraction */}
@@ -237,3 +237,4 @@ export default function Dashboard() {
     </Suspense>
   )
 }
+

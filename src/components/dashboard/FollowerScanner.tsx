@@ -69,7 +69,7 @@ export default function FollowerScanner() {
   const checkXAuthorization = async () => {
     try {
       const token = await user?.getIdToken()
-      const response = await fetch('/api/auth/twitter/status', {
+      const response = await fetch('/api/auth/X/status', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -88,7 +88,7 @@ export default function FollowerScanner() {
   }
 
   const handleXAuthorization = () => {
-    window.location.href = '/api/auth/twitter'
+    window.location.href = '/api/auth/X'
   }
 
   useEffect(() => {
@@ -196,9 +196,9 @@ export default function FollowerScanner() {
       } else {
         const error = await response.json()
         if (error.needsAuth) {
-          // Redirect to Twitter authorization
-          alert('Twitter authorization required. Redirecting to authorize...')
-          window.location.href = '/api/auth/twitter'
+          // Redirect to X authorization
+          alert('X authorization required. Redirecting to authorize...')
+          window.location.href = '/api/auth/X'
           return
         }
         throw new Error(error.error || 'Failed to start scan')
@@ -272,7 +272,7 @@ export default function FollowerScanner() {
       case 'scanning':
         return 'Extracting followers...'
       case 'awaiting_user_signin':
-        return progress?.message || 'Browser opened - please sign into your Twitter account'
+        return progress?.message || 'Browser opened - please sign into your X account'
       case 'completed':
         return 'Scan completed successfully!'
       case 'failed':
@@ -508,7 +508,7 @@ export default function FollowerScanner() {
                       </p>
                       <div className="mt-4 space-x-3">
                         <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded-lg">
-                          ℹ️ Authentication is now handled automatically with your Twitter OAuth tokens. No manual sign-in required.
+                          ℹ️ Authentication is now handled automatically with your X OAuth tokens. No manual sign-in required.
                         </div>
                         <button
                           onClick={() => fetchScreenshots(scanProgress.scanId)}
@@ -616,7 +616,7 @@ export default function FollowerScanner() {
                 {recentScans.map((scan) => (
                   <tr key={scan.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      @{scan.xUsername || scan.twitterUsername}
+                      @{scan.xUsername || scan.XUsername}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -683,3 +683,4 @@ export default function FollowerScanner() {
     </div>
   )
 }
+

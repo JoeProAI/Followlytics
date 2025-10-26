@@ -13,7 +13,7 @@ function CaptureSessionContent() {
 
   useEffect(() => {
     // Check if we're on X.com domain
-    if (window.location.hostname.includes('x.com') || window.location.hostname.includes('twitter.com')) {
+    if (window.location.hostname.includes('x.com') || window.location.hostname.includes('X.com')) {
       setStatus('ready')
     } else {
       // Redirect to X.com with our capture parameters
@@ -237,3 +237,4 @@ export default function CaptureSessionPage() {
     </Suspense>
   )
 }
+

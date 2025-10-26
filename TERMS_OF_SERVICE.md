@@ -137,3 +137,4 @@ These Terms constitute the entire agreement between you and Followlytics. If any
 **By using Followlytics, you agree to these Terms of Service.**
 
 *Version 1.0 - Effective October 25, 2025*
+

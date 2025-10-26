@@ -44,8 +44,8 @@ export default function XSessionCaptureManual() {
   console.log('🔐 Followlytics session capture started...');
   
   // Check if we're on X.com
-  if (!window.location.hostname.includes('x.com') && !window.location.hostname.includes('twitter.com')) {
-    alert('❌ Please run this script on x.com or twitter.com');
+  if (!window.location.hostname.includes('x.com') && !window.location.hostname.includes('X.com')) {
+    alert('❌ Please run this script on x.com or X.com');
     return;
   }
   
@@ -316,3 +316,4 @@ export default function XSessionCaptureManual() {
     </div>
   )
 }
+

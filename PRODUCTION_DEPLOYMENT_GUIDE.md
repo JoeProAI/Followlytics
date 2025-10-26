@@ -71,11 +71,11 @@ FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY----
 APIFY_API_TOKEN=apify_api_...
 
 # X API (DORMANT until $200)
-TWITTER_API_KEY=...
-TWITTER_API_SECRET=...
-TWITTER_BEARER_TOKEN=...
-TWITTER_ACCESS_TOKEN=...
-TWITTER_ACCESS_TOKEN_SECRET=...
+X_API_KEY=...
+X_API_SECRET=...
+X_BEARER_TOKEN=...
+X_ACCESS_TOKEN=...
+X_ACCESS_TOKEN_SECRET=...
 
 # Daytona (FREE - 20K credits)
 DAYTONA_API_KEY=dtn_...
@@ -204,7 +204,7 @@ const milestones = {
 
 ### User Extracts Followers:
 ```
-1. User enters Twitter username
+1. User enters X username
 2. System checks credit balance
 3. If sufficient: Extract → Deduct credits
 4. If insufficient: Show overage cost → Ask approval
@@ -339,10 +339,10 @@ Create Vercel cron job to track:
 - r/marketing
 - r/socialmedia
 - r/entrepreneur
-- Twitter/X with demo video
+- X/X with demo video
 - Product Hunt
 
-**Message:** "Free beta access: Extract Twitter follower data + AI analysis. Normally $39/mo, free for early adopters."
+**Message:** "Free beta access: Extract X follower data + AI analysis. Normally $39/mo, free for early adopters."
 
 ### Week 2: Convert 3 to Starter ($39)
 - Email beta users: "Loving it? Upgrade for 10x credits"
@@ -484,3 +484,4 @@ The system is production-grade, tested, and ready to make money. All that's left
 **First $200 unlocks X API. First customer unlocks everything.**
 
 Good luck! 💪
+

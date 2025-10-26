@@ -70,10 +70,10 @@ export default function OptimizedScanInterface() {
   })
   const [currentScan, setCurrentScan] = useState<ScanProgress | null>(null)
   const [isScanning, setIsScanning] = useState(false)
-  const [twitterAuthStatus, setTwitterAuthStatus] = useState<'checking' | 'authorized' | 'unauthorized'>('checking')
+  const [XAuthStatus, setXAuthStatus] = useState<'checking' | 'authorized' | 'unauthorized'>('checking')
 
   useEffect(() => {
-    checkTwitterAuthStatus()
+    checkXAuthStatus()
   }, [user])
 
   useEffect(() => {
@@ -88,33 +88,33 @@ export default function OptimizedScanInterface() {
     }
   }, [currentScan])
 
-  const checkTwitterAuthStatus = async () => {
+  const checkXAuthStatus = async () => {
     if (!user) return
 
     try {
       const token = await user.getIdToken()
-      const response = await fetch('/api/auth/twitter/status', {
+      const response = await fetch('/api/auth/X/status', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       
       if (response.ok) {
         const data = await response.json()
-        setTwitterAuthStatus(data.authorized ? 'authorized' : 'unauthorized')
+        setXAuthStatus(data.authorized ? 'authorized' : 'unauthorized')
       } else {
-        setTwitterAuthStatus('unauthorized')
+        setXAuthStatus('unauthorized')
       }
     } catch (error) {
-      console.error('Failed to check Twitter auth status:', error)
-      setTwitterAuthStatus('unauthorized')
+      console.error('Failed to check X auth status:', error)
+      setXAuthStatus('unauthorized')
     }
   }
 
-  const handleTwitterAuth = async () => {
+  const handleXAuth = async () => {
     if (!user) return
 
     try {
       const token = await user.getIdToken()
-      const response = await fetch('/api/auth/twitter', {
+      const response = await fetch('/api/auth/X', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -124,7 +124,7 @@ export default function OptimizedScanInterface() {
         window.location.href = data.authUrl
       }
     } catch (error) {
-      console.error('Failed to initiate Twitter auth:', error)
+      console.error('Failed to initiate X auth:', error)
     }
   }
 
@@ -199,28 +199,28 @@ export default function OptimizedScanInterface() {
     }
   }
 
-  if (twitterAuthStatus === 'checking') {
+  if (XAuthStatus === 'checking') {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-        <span className="ml-2">Checking Twitter authorization...</span>
+        <span className="ml-2">Checking X authorization...</span>
       </div>
     )
   }
 
-  if (twitterAuthStatus === 'unauthorized') {
+  if (XAuthStatus === 'unauthorized') {
     return (
       <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Twitter Authorization Required</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">X Authorization Required</h2>
           <p className="text-gray-600 mb-6">
-            To use the optimized follower scanning, you need to authorize Followlytics to access your Twitter account.
+            To use the optimized follower scanning, you need to authorize Followlytics to access your X account.
           </p>
           <button
-            onClick={handleTwitterAuth}
+            onClick={handleXAuth}
             className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg transition-colors"
           >
-            🔗 Authorize Twitter Access
+            🔗 Authorize X Access
           </button>
         </div>
       </div>
@@ -516,3 +516,4 @@ export default function OptimizedScanInterface() {
     </div>
   )
 }
+

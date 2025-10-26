@@ -146,7 +146,7 @@ export default function FollowerAnalytics() {
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <a 
-                    href={follower.profile_url || `https://twitter.com/${follower.username}`}
+                    href={follower.profile_url || `https://X.com/${follower.username}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="font-medium hover:text-purple-400 transition-colors"
@@ -204,7 +204,7 @@ export default function FollowerAnalytics() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <a 
-                    href={`https://twitter.com/${follower.username}`}
+                    href={`https://X.com/${follower.username}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="font-medium hover:text-purple-400 transition-colors truncate"
@@ -229,3 +229,4 @@ export default function FollowerAnalytics() {
     </div>
   )
 }
+

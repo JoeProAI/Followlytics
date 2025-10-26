@@ -22,7 +22,7 @@ export default function SmartAuthStatus() {
       setLoading(true)
       
       // Check if user has OAuth tokens
-      const oauthResponse = await fetch('/api/auth/twitter/status')
+      const oauthResponse = await fetch('/api/auth/X/status')
       const oauthData = await oauthResponse.json()
       
       // Check if user is signed in to X in their browser
@@ -155,7 +155,7 @@ export default function SmartAuthStatus() {
           ) : (
             <div className="space-y-2">
               <div><strong>Recommended:</strong> Sign in to X.com in this browser for the easiest experience.</div>
-              <div><strong>Alternative:</strong> Click "Authorize Twitter Access" below for OAuth authentication.</div>
+              <div><strong>Alternative:</strong> Click "Authorize X Access" below for OAuth authentication.</div>
             </div>
           )}
         </div>
@@ -173,7 +173,7 @@ export default function SmartAuthStatus() {
             🚀 Sign in to X.com (Easiest)
           </a>
           <button
-            onClick={() => window.location.href = '/api/auth/twitter'}
+            onClick={() => window.location.href = '/api/auth/X'}
             className="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
           >
             🔑 OAuth Authorization
@@ -183,3 +183,4 @@ export default function SmartAuthStatus() {
     </div>
   )
 }
+

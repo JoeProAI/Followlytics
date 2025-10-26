@@ -53,3 +53,4 @@ export default function LoadingSpinner({ size = 'md', text, fullScreen = false }
     </div>
   )
 }
+

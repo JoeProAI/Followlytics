@@ -275,7 +275,7 @@ export default function DaytonaFeatures() {
                     📋 Copy Tweet
                   </button>
                   <button 
-                    onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(tweet.text)}`, '_blank')}
+                    onClick={() => window.open(`https://X.com/intent/tweet?text=${encodeURIComponent(tweet.text)}`, '_blank')}
                     className="flex-1 px-3 py-2 bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30 rounded text-xs font-medium transition-all"
                   >
                     🐦 Post Now
@@ -304,3 +304,4 @@ export default function DaytonaFeatures() {
     </div>
   )
 }
+

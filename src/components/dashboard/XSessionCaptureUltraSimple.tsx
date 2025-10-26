@@ -43,12 +43,12 @@ javascript:(function(){
   try {
     console.log('🔐 Followlytics X Session Capturer started...');
     
-    if(!window.location.hostname.includes('x.com')&&!window.location.hostname.includes('twitter.com')){
-      alert('❌ Please run this on x.com or twitter.com\\nCurrent site: ' + window.location.hostname);
+    if(!window.location.hostname.includes('x.com')&&!window.location.hostname.includes('X.com')){
+      alert('❌ Please run this on x.com or X.com\\nCurrent site: ' + window.location.hostname);
       return;
     }
     
-    console.log('✅ On X.com/Twitter, extracting session data...');
+    console.log('✅ On X.com/X, extracting session data...');
     
     const cookies={};
     document.cookie.split(';').forEach(cookie=>{
@@ -289,3 +289,4 @@ javascript:(function(){
     </div>
   )
 }
+

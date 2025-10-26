@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 
-function TwitterAuthContent() {
+function XAuthContent() {
   const { user } = useAuth()
   const searchParams = useSearchParams()
   const scanId = searchParams.get('scanId')
@@ -19,7 +19,7 @@ function TwitterAuthContent() {
     }
 
     setStatus('ready')
-    setMessage('Please sign into Twitter in a new tab, then return here to continue.')
+    setMessage('Please sign into X in a new tab, then return here to continue.')
   }, [scanId])
 
   const startLiveExtraction = async () => {
@@ -84,7 +84,7 @@ function TwitterAuthContent() {
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              Twitter Authentication
+              X Authentication
             </h2>
             
             {status === 'ready' && (
@@ -93,7 +93,7 @@ function TwitterAuthContent() {
                   To continue your follower scan, please:
                 </p>
                 <ol className="text-left text-sm text-gray-700 space-y-2">
-                  <li>1. <a href="https://x.com/login" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">Sign into Twitter</a> in a new tab</li>
+                  <li>1. <a href="https://x.com/login" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">Sign into X</a> in a new tab</li>
                   <li>2. Return to this tab</li>
                   <li>3. Click the button below to continue</li>
                 </ol>
@@ -154,7 +154,7 @@ function TwitterAuthContent() {
   )
 }
 
-export default function TwitterAuthPage() {
+export default function XAuthPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -168,7 +168,8 @@ export default function TwitterAuthPage() {
         </div>
       </div>
     }>
-      <TwitterAuthContent />
+      <XAuthContent />
     </Suspense>
   )
 }
+

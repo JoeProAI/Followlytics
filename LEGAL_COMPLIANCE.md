@@ -19,7 +19,7 @@ This document explains why Followlytics operates within legal and ethical bounda
 #### hiQ Labs v. LinkedIn (2022)
 - **Ruling:** Scraping publicly accessible data does NOT violate CFAA (Computer Fraud and Abuse Act)
 - **Key Point:** Data that is publicly available without authentication can be legally accessed
-- **Relevance:** Twitter follower data is public - no login required to view
+- **Relevance:** X follower data is public - no login required to view
 
 #### Meta (Facebook) v. Bright Data (2023)
 - **Outcome:** Court dismissed claims against web scraping company
@@ -29,7 +29,7 @@ This document explains why Followlytics operates within legal and ethical bounda
 #### European Court of Justice - Ryanair (2019)
 - **Ruling:** No copyright in factual data (names, locations, etc.)
 - **Key Point:** Public facts cannot be copyrighted
-- **Relevance:** Twitter usernames, bios, follower counts are factual data
+- **Relevance:** X usernames, bios, follower counts are factual data
 
 ### 3. We Only Collect Public Data
 
@@ -55,11 +55,11 @@ This document explains why Followlytics operates within legal and ethical bounda
 
 ## 📜 Terms of Service Compliance
 
-### Twitter's ToS Position
-**Twitter's ToS prohibits:** Automated scraping of Twitter.com
+### X's ToS Position
+**X's ToS prohibits:** Automated scraping of X.com
 
 **Why This Doesn't Apply to Us:**
-1. **We're not scraping Twitter directly** - Apify is
+1. **We're not scraping X directly** - Apify is
 2. **We're an API customer of Apify** - using their legitimate service
 3. **Apify manages the compliance risk** - they're the data provider
 4. **Similar to using Google Analytics** - you don't violate Google ToS by using their API
@@ -185,7 +185,7 @@ This document explains why Followlytics operates within legal and ethical bounda
 ## 📊 Industry Validation
 
 ### Competitors Using Same Methods
-1. **Phantombuster** - $5M+ funding, scrapes LinkedIn, Twitter, Instagram
+1. **Phantombuster** - $5M+ funding, scrapes LinkedIn, X, Instagram
 2. **Socialbakers (Emplifi)** - $26M funding, social media analytics
 3. **Brand24** - Social listening using web scraping
 4. **Mention** - Social media monitoring via web extraction
@@ -211,7 +211,7 @@ FROM: Followlytics Legal Compliance
 RE: Data Collection Methodology - Legal Analysis
 
 QUESTION PRESENTED:
-Is Followlytics' use of Apify's API for Twitter data extraction legally compliant?
+Is Followlytics' use of Apify's API for X data extraction legally compliant?
 
 SHORT ANSWER:
 Yes. The business operates within established legal precedents for public data collection.
@@ -236,7 +236,7 @@ DISCUSSION:
    - Legitimate business purpose
 
 4. Risk Assessment
-   - Primary risk: Twitter ToS enforcement (low probability)
+   - Primary risk: X ToS enforcement (low probability)
    - Mitigation: Using Apify as intermediary
    - Comparable to: ZoomInfo, Hunter.io, Clearbit
    - Industry precedent: No successful challenges
@@ -277,11 +277,11 @@ Legal risk is acceptable and comparable to established, venture-backed companies
 
 ## 📞 If Challenged
 
-### By Twitter:
-**Response:** "We're an API customer of Apify, a legitimate data provider. We don't directly interact with Twitter's platform. Please direct concerns to Apify."
+### By X:
+**Response:** "We're an API customer of Apify, a legitimate data provider. We don't directly interact with X's platform. Please direct concerns to Apify."
 
 ### By User/Data Subject:
-**Response:** "Your data was publicly available on Twitter. We can remove it from our system immediately per your request (GDPR Article 17)."
+**Response:** "Your data was publicly available on X. We can remove it from our system immediately per your request (GDPR Article 17)."
 
 ### By Regulator:
 **Response:** "We collect only public data through a third-party provider (Apify). We comply with GDPR/CCPA. Here's our legal basis documentation."
@@ -306,7 +306,7 @@ Legal risk is acceptable and comparable to established, venture-backed companies
 - We're an API customer (like using Stripe)
 
 ### 4. Business Necessity
-- Twitter Enterprise API: $42,000/month (prohibitively expensive)
+- X Enterprise API: $42,000/month (prohibitively expensive)
 - SMBs need affordable access to public data
 - We democratize access to publicly available information
 
@@ -336,7 +336,7 @@ Legal risk is acceptable and comparable to established, venture-backed companies
 **Answer:**
 Yes. We operate similarly to ZoomInfo (NASDAQ: ZI, $10B market cap), Hunter.io ($10M+ ARR), and Clearbit (acquired for $150M+). All use web data extraction. All are legally operating. All are venture-backed or public.
 
-**Question: "What if Twitter sues?"**
+**Question: "What if X sues?"**
 
 **Answer:**
 1. Apify assumes liability as data provider
@@ -385,3 +385,4 @@ Followlytics operates within legal boundaries by:
 
 *Last Updated: October 2025*
 *Next Review: January 2026*
+

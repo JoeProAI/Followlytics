@@ -3,16 +3,16 @@
 ## Core Messaging (Use Everywhere)
 
 ### Value Proposition (One-liner)
-**"Get Twitter follower intelligence in seconds, not months. No $42K/month API required."**
+**"Get X follower intelligence in seconds, not months. No $42K/month API required."**
 
 ### Problem We Solve
-Twitter Enterprise API costs $42,000/month. Most businesses can't afford that. We give you the same data for 99.9% less.
+X Enterprise API costs $42,000/month. Most businesses can't afford that. We give you the same data for 99.9% less.
 
 ### Who We Serve
 - Marketing agencies analyzing competitors
 - Sales teams finding decision-makers
 - Content creators understanding their audience
-- Startups building on Twitter data
+- Startups building on X data
 - Researchers studying social trends
 
 ---
@@ -21,7 +21,7 @@ Twitter Enterprise API costs $42,000/month. Most businesses can't afford that. W
 
 ### Hero Section
 ```
-# Turn Twitter Followers Into Business Intelligence
+# Turn X Followers Into Business Intelligence
 
 Extract detailed follower profiles from any public account.
 Analyze audiences. Find influencers. Understand demographics.
@@ -36,7 +36,7 @@ Analyze audiences. Find influencers. Understand demographics.
 ## Simple as 1-2-3
 
 1. **Enter Username**
-   Type any public Twitter handle (@elonmusk, @garyvee, etc.)
+   Type any public X handle (@elonmusk, @garyvee, etc.)
 
 2. **Get Results**
    Complete follower profiles delivered in seconds
@@ -49,7 +49,7 @@ No setup. No API keys. No technical knowledge required.
 
 ### What You Get (Feature List)
 ```
-## Everything You Need to Know About Any Twitter Audience
+## Everything You Need to Know About Any X Audience
 
 ✓ **Complete Profiles**
   Username, display name, bio, profile image
@@ -83,7 +83,7 @@ No setup. No API keys. No technical knowledge required.
 | 10,000 | 2 minutes | Included |
 | 100,000 | 10 minutes | Included |
 
-vs Twitter Enterprise API: $42,000/month minimum commitment
+vs X Enterprise API: $42,000/month minimum commitment
 ```
 
 ---
@@ -295,7 +295,7 @@ Subject: Welcome to Followlytics! Here's your first extraction 🚀
 
 Hey [Name],
 
-You just unlocked Twitter follower intelligence!
+You just unlocked X follower intelligence!
 
 Your Beta account includes:
 ✓ 5,000 follower extractions/month
@@ -304,7 +304,7 @@ Your Beta account includes:
 
 **Try it now:**
 1. Go to dashboard: [link]
-2. Enter any Twitter username
+2. Enter any X username
 3. Get results in 30 seconds
 
 **Popular first searches:**
@@ -354,16 +354,16 @@ Ready to scale?
 ## 💬 FAQ Responses
 
 ### "Where does the data come from?"
-**Answer:** "We extract data from public Twitter profiles - the same information you can see by visiting any profile page. We just do it faster and at scale."
+**Answer:** "We extract data from public X profiles - the same information you can see by visiting any profile page. We just do it faster and at scale."
 
 ### "Is this legal?"
 **Answer:** "Yes. We only collect publicly available data (usernames, bios, follower counts, etc.). This is the same approach used by billion-dollar companies like ZoomInfo, Hunter.io, and Clearbit."
 
 ### "Will my account get banned?"
-**Answer:** "No. We don't access your Twitter account or require your credentials. We're extracting public data from other accounts, not using your account to do it."
+**Answer:** "No. We don't access your X account or require your credentials. We're extracting public data from other accounts, not using your account to do it."
 
 ### "How accurate is the data?"
-**Answer:** "Extremely accurate. We pull data directly from Twitter profiles in real-time. If it's on their profile, we capture it."
+**Answer:** "Extremely accurate. We pull data directly from X profiles in real-time. If it's on their profile, we capture it."
 
 ### "Can I extract private accounts?"
 **Answer:** "No. We only extract data from public accounts. Private accounts require authentication and are not accessible through our service."
@@ -378,7 +378,7 @@ Ready to scale?
 ### Discovery Call Script
 ```
 1. **Understand their use case:**
-   "Tell me about how you currently analyze Twitter audiences?"
+   "Tell me about how you currently analyze X audiences?"
    
 2. **Identify pain point:**
    "What's frustrating about your current process?"
@@ -395,7 +395,7 @@ Ready to scale?
    
 6. **Handle objections:**
    Objection: "Too expensive"
-   Answer: "Compared to Twitter Enterprise API at $42K/month, or an employee spending 20 hours/month doing this manually?"
+   Answer: "Compared to X Enterprise API at $42K/month, or an employee spending 20 hours/month doing this manually?"
    
 7. **Close:**
    "Let's start with a 14-day trial. I'll set it up right now."
@@ -405,10 +405,10 @@ Ready to scale?
 
 ## 📱 Social Media Copy
 
-### Twitter/X Posts
+### X/X Posts
 ```
 Tweet 1:
-Twitter Enterprise API: $42,000/month
+X Enterprise API: $42,000/month
 Followlytics: $39/month
 
 Get the same follower data for 99.9% less.
@@ -453,7 +453,7 @@ Post 1:
 🚨 Marketing agencies: Stop wasting time on manual competitor research.
 
 We analyzed a client's top competitor:
-- 500K Twitter followers extracted
+- 500K X followers extracted
 - Identified 5K decision-makers
 - Filtered by title, location, company size
 - Exported to HubSpot
@@ -470,7 +470,7 @@ What are you using for competitor intelligence?
 ---
 
 Post 2:
-Twitter Enterprise API costs $42,000/month.
+X Enterprise API costs $42,000/month.
 
 99% of businesses can't afford that.
 
@@ -510,7 +510,8 @@ We democratize access to public data.
 
 **DO EMPHASIZE:**
 - Speed (30 seconds)
-- Cost savings (99.9% cheaper than Twitter)
+- Cost savings (99.9% cheaper than X)
 - Ease of use (no technical knowledge)
 - Results (actual follower data)
 - ROI (time saved, leads generated)
+

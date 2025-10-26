@@ -29,7 +29,7 @@ interface AudienceInsights {
 }
 
 interface Props {
-  followers: string[] // Array of Twitter usernames
+  followers: string[] // Array of X usernames
 }
 
 export default function ApolloAudienceInsights({ followers }: Props) {
@@ -297,3 +297,4 @@ function CompanySizeBar({
     </div>
   )
 }
+

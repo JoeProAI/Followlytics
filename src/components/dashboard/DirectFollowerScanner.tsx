@@ -35,7 +35,7 @@ export default function DirectFollowerScanner({ detectedUsername }: DirectFollow
     setStatus('🚀 Starting direct follower scan...')
 
     try {
-      // Use the username from Twitter auth status
+      // Use the username from X auth status
       const username = detectedUsername
       
       if (!username) {
@@ -336,3 +336,4 @@ export default function DirectFollowerScanner({ detectedUsername }: DirectFollow
     </div>
   )
 }
+

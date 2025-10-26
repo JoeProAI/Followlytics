@@ -113,7 +113,7 @@ NET PROFIT: $89.30 (89.3% net margin)
 Paid: $100
 Used: $100 credits
 Got: 50,000 followers
-Cost per follower: $0.002 (vs Twitter's $0.42/follower)
+Cost per follower: $0.002 (vs X's $0.42/follower)
 ```
 
 ---
@@ -171,7 +171,7 @@ NET PROFIT: $4,600/month
 ## 🔥 Customer Value Proposition
 
 ### What They Get:
-- **Twitter charges:** $42,000/month for Enterprise API
+- **X charges:** $42,000/month for Enterprise API
 - **You charge:** $100-500/month for same data
 - **Savings:** 99.5%+ discount
 
@@ -186,7 +186,7 @@ NET PROFIT: $4,600/month
 - Your cost: $15 (Apify)
 - They pay: $200 (prepaid credits)
 - **Your profit: $185**
-- Their alternative: $42,000 (Twitter Enterprise)
+- Their alternative: $42,000 (X Enterprise)
 - **Their savings: $41,800**
 
 **Win-win**: You make 92.5% margins, they save 99.5%
@@ -255,3 +255,4 @@ Before going live:
 ---
 
 **Bottom line:** You were tracking revenue but not collecting it. Now customers prepay with credits, and you automatically deduct on API usage. 92.5% profit margins. Scalable. Ready to make money. 🚀
+

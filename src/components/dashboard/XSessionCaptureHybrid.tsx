@@ -9,14 +9,14 @@ export default function XSessionCaptureHybrid() {
   const [loading, setLoading] = useState(true)
   const [capturing, setCapturing] = useState(false)
   const [captureProgress, setCaptureProgress] = useState('')
-  const [twitterAuthStatus, setTwitterAuthStatus] = useState<{
+  const [XAuthStatus, setXAuthStatus] = useState<{
     authorized: boolean
     loading: boolean
   }>({ authorized: false, loading: true })
 
   useEffect(() => {
     checkSessionStatus()
-    checkTwitterAuth()
+    checkXAuth()
   }, [user])
 
   const checkSessionStatus = async () => {
@@ -41,12 +41,12 @@ export default function XSessionCaptureHybrid() {
     }
   }
 
-  const checkTwitterAuth = async () => {
+  const checkXAuth = async () => {
     if (!user) return
 
     try {
       const token = await user.getIdToken()
-      const response = await fetch('/api/auth/twitter/status', {
+      const response = await fetch('/api/auth/X/status', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -54,18 +54,18 @@ export default function XSessionCaptureHybrid() {
 
       if (response.ok) {
         const data = await response.json()
-        setTwitterAuthStatus({ authorized: data.authorized, loading: false })
+        setXAuthStatus({ authorized: data.authorized, loading: false })
       }
     } catch (error) {
-      console.error('Error checking Twitter auth:', error)
-      setTwitterAuthStatus({ authorized: false, loading: false })
+      console.error('Error checking X auth:', error)
+      setXAuthStatus({ authorized: false, loading: false })
     }
   }
 
-  const startTwitterAuth = async () => {
+  const startXAuth = async () => {
     try {
       const token = await user?.getIdToken()
-      const response = await fetch('/api/auth/twitter', {
+      const response = await fetch('/api/auth/X', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -80,18 +80,18 @@ export default function XSessionCaptureHybrid() {
         }
       }
     } catch (error) {
-      console.error('Twitter auth error:', error)
+      console.error('X auth error:', error)
     }
   }
 
   const startHybridCapture = async () => {
-    if (!twitterAuthStatus.authorized) {
-      alert('Please authorize Twitter access first')
+    if (!XAuthStatus.authorized) {
+      alert('Please authorize X access first')
       return
     }
 
     setCapturing(true)
-    setCaptureProgress('Using your Twitter OAuth tokens to capture session...')
+    setCaptureProgress('Using your X OAuth tokens to capture session...')
 
     try {
       const token = await user?.getIdToken()
@@ -150,7 +150,7 @@ export default function XSessionCaptureHybrid() {
     window.dispatchEvent(scanEvent)
   }
 
-  if (loading || twitterAuthStatus.loading) {
+  if (loading || XAuthStatus.loading) {
     return (
       <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
         <div className="flex items-center">
@@ -220,23 +220,23 @@ export default function XSessionCaptureHybrid() {
     )
   }
 
-  if (!twitterAuthStatus.authorized) {
+  if (!XAuthStatus.authorized) {
     return (
       <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-sm font-medium text-yellow-800">
-              🔑 Twitter Authorization Required
+              🔑 X Authorization Required
             </h3>
             <p className="text-sm text-yellow-700 mt-1">
-              First authorize Twitter access, then we'll capture your session in Daytona
+              First authorize X access, then we'll capture your session in Daytona
             </p>
           </div>
           <button
-            onClick={startTwitterAuth}
+            onClick={startXAuth}
             className="bg-yellow-600 hover:bg-yellow-700 text-white text-sm px-4 py-2 rounded"
           >
-            🔓 Authorize Twitter
+            🔓 Authorize X
           </button>
         </div>
       </div>
@@ -251,7 +251,7 @@ export default function XSessionCaptureHybrid() {
             🔐 X Session Required
           </h3>
           <p className="text-sm text-blue-700 mt-1">
-            Use your Twitter OAuth tokens to capture full session data in Daytona
+            Use your X OAuth tokens to capture full session data in Daytona
           </p>
         </div>
         <button
@@ -272,7 +272,7 @@ export default function XSessionCaptureHybrid() {
             <div className="flex-shrink-0 w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-xs font-medium text-blue-600">1</div>
             <div className="flex-1">
               <p className="text-sm text-gray-700">
-                <strong>Use Your OAuth Tokens:</strong> Leverages your existing Twitter authorization
+                <strong>Use Your OAuth Tokens:</strong> Leverages your existing X authorization
               </p>
             </div>
           </div>
@@ -310,7 +310,7 @@ export default function XSessionCaptureHybrid() {
             ✅ Why This Works:
           </h5>
           <ul className="text-sm text-green-700 space-y-1">
-            <li>• Uses your existing Twitter OAuth authorization</li>
+            <li>• Uses your existing X OAuth authorization</li>
             <li>• No additional login or passwords required</li>
             <li>• Daytona enhances OAuth tokens to full session</li>
             <li>• Captures complete authentication state</li>
@@ -336,9 +336,10 @@ export default function XSessionCaptureHybrid() {
 
       <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded">
         <p className="text-sm text-green-800">
-          <strong>✅ Twitter Authorized:</strong> You're ready to capture your full X session using your existing OAuth tokens.
+          <strong>✅ X Authorized:</strong> You're ready to capture your full X session using your existing OAuth tokens.
         </p>
       </div>
     </div>
   )
 }
+
