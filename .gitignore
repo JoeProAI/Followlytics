@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# internal strategy docs (never commit)
+INTERNAL_LEGAL_STRATEGY.md
+*_INTERNAL.md

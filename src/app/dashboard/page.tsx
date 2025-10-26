@@ -136,41 +136,37 @@ function DashboardContent() {
           <FollowerAnalytics />
         </div>
 
+        {/* ✅ WORKING: AI Tweet Generator */}
+        <div className="mb-8">
+          <div className="bg-green-500/10 border border-green-500/30 rounded px-3 py-1 text-green-400 text-xs font-medium mb-3 inline-block">
+            ✅ BETA
+          </div>
+          <DaytonaFeatures />
+        </div>
+
         {/* 🔜 COMING SOON: X API Features (Requires API Key) */}
         <div className="mb-8 bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-6">
           <div className="flex items-center gap-2 mb-4">
             <span className="text-2xl">⏳</span>
-            <h3 className="text-xl font-medium">X API Features (Coming Soon)</h3>
+            <h3 className="text-xl font-medium">Advanced X Features (Coming Soon)</h3>
             <div className="bg-yellow-500/10 border border-yellow-500/30 rounded px-3 py-1 text-yellow-400 text-xs font-medium">
-              REQUIRES X API KEY
+              REQUIRES X API ACCESS
             </div>
           </div>
           <p className="text-sm text-gray-400 mb-4">
-            Advanced features using official X/Twitter API. Will be activated when API access is configured.
+            Real-time tracking, growth monitoring, and competitor analysis. Activates when we hit $200 MRR milestone.
           </p>
           
           {/* X Auth Connection */}
-          <div className="mb-4 opacity-60 pointer-events-none">
-            <XAuthConnect />
-          </div>
-
-          {/* Daytona Browser Automation */}
           <div className="opacity-60 pointer-events-none">
-            <DaytonaFeatures />
+            <XAuthConnect />
           </div>
         </div>
 
         {/* 🚀 Future Roadmap */}
         <div className="mb-8 bg-gray-900/50 border border-gray-800 rounded-lg p-6">
-          <h3 className="text-xl font-medium mb-4">🚀 Product Roadmap</h3>
+          <h3 className="text-xl font-medium mb-4">🚀 Coming Next</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-black/40 rounded border border-gray-800">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-2xl">🤖</span>
-                <h4 className="font-medium">AI Tweet Generation</h4>
-              </div>
-              <p className="text-sm text-gray-400">Grok-powered, authentic engagement content (no cliché replies)</p>
-            </div>
             <div className="p-4 bg-black/40 rounded border border-gray-800">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-2xl">🔌</span>

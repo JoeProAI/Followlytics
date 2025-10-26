@@ -117,13 +117,13 @@ export default function DaytonaFeatures() {
 
           <div className="flex-1">
             <h3 className="text-lg font-medium mb-1 flex items-center gap-2">
-              Content Generator
+              AI Tweet Generator
               <span className="text-xs px-2 py-0.5 bg-purple-600 text-white border border-purple-500">
-                POWERED BY DAYTONA
+                BETA
               </span>
             </h3>
             <p className="text-sm text-gray-400">
-              Generate high-performing posts using advanced language models in isolated cloud sandboxes
+              Generate viral-optimized tweets in seconds. Choose your voice, get 10 variations, pick the best one.
             </p>
           </div>
         </div>
@@ -294,9 +294,9 @@ export default function DaytonaFeatures() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div className="text-xs text-gray-400 space-y-1">
-            <p><strong className="text-gray-300">How it works:</strong> Daytona spins up isolated AI sandboxes to run multiple language models in parallel, generating and analyzing tweet variations.</p>
-            <p><strong className="text-gray-300">Why it's unique:</strong> Get AI-optimized tweets tested for viral potential before you post them.</p>
-            <p><strong className="text-gray-300">Processing time:</strong> 5-10 seconds for generation + analysis.</p>
+            <p><strong className="text-gray-300">How it works:</strong> Enter your topic or idea, get multiple AI-generated tweet variations optimized for engagement.</p>
+            <p><strong className="text-gray-300">Why it works:</strong> Choose from viral-tested options before you post. Save hours of writing and rewriting.</p>
+            <p><strong className="text-gray-300">Processing time:</strong> 5-10 seconds per batch.</p>
           </div>
         </div>
       </div>
