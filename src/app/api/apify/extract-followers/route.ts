@@ -146,12 +146,37 @@ export async function POST(request: NextRequest) {
     // Calculate cost
     const cost = (processedFollowers.length / 1000) * 0.15
 
+    // Calculate stats
+    const verifiedCount = processedFollowers.filter((f: any) => f.verified).length
+    const followersWithBio = processedFollowers.filter((f: any) => f.bio && f.bio.trim().length > 0).length
+    const avgFollowers = processedFollowers.length > 0 
+      ? Math.round(processedFollowers.reduce((sum: number, f: any) => sum + (f.followers_count || 0), 0) / processedFollowers.length)
+      : 0
+
+    const stats = {
+      verified: verifiedCount,
+      withBio: Math.round((followersWithBio / processedFollowers.length) * 100),
+      avgFollowers: avgFollowers
+    }
+
+    // Get sample of first 15 followers for preview
+    const sample = processedFollowers.slice(0, 15).map((f: any) => ({
+      username: f.username,
+      name: f.name,
+      bio: f.bio,
+      verified: f.verified,
+      followersCount: f.followers_count,
+      profileImage: f.profile_image_url,
+      location: f.location
+    }))
+
     return NextResponse.json({
       success: true,
-      followers: processedFollowers,
       count: processedFollowers.length,
       username: username,
       cost: cost.toFixed(4),
+      stats: stats,
+      sample: sample,
       runId: runId,
       datasetId: defaultDatasetId
     })

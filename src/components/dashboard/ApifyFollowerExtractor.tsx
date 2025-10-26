@@ -105,15 +105,90 @@ export default function ApifyFollowerExtractor() {
 
       {/* Success Display */}
       {result && (
-        <div className="mb-4 bg-green-500/10 border border-green-500/30 text-green-300 px-4 py-3 rounded-lg">
-          <div className="font-semibold mb-2">✅ Extraction Complete!</div>
-          <div className="text-sm space-y-1">
-            <div>Followers extracted: <strong>{result.count.toLocaleString()}</strong></div>
-            <div>Target account: <strong>@{result.username}</strong></div>
-            <div>Cost: <strong>${result.cost}</strong></div>
-            <div className="text-xs text-gray-400 mt-2">
-              Data saved to your account. View in Analytics tab.
+        <div className="mb-4 space-y-4">
+          {/* Summary Card */}
+          <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <div className="font-semibold text-green-300 mb-1">✅ Extraction Complete!</div>
+                <div className="text-sm text-gray-400">Target: <strong className="text-white">@{result.username}</strong></div>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-green-400">{result.count.toLocaleString()}</div>
+                <div className="text-xs text-gray-500">followers</div>
+              </div>
             </div>
+            
+            {/* Stats Grid */}
+            {result.stats && (
+              <div className="grid grid-cols-3 gap-3 mb-3 pb-3 border-b border-green-500/20">
+                <div className="text-center">
+                  <div className="text-lg font-bold text-white">{result.stats.verified || 0}</div>
+                  <div className="text-xs text-gray-400">Verified</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-white">{result.stats.avgFollowers ? result.stats.avgFollowers.toLocaleString() : 'N/A'}</div>
+                  <div className="text-xs text-gray-400">Avg Followers</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-white">{result.stats.withBio || 0}%</div>
+                  <div className="text-xs text-gray-400">Has Bio</div>
+                </div>
+              </div>
+            )}
+            
+            <div className="text-xs text-gray-400">
+              Cost: <strong className="text-green-300">${result.cost}</strong>
+            </div>
+          </div>
+
+          {/* Sample Followers Preview */}
+          {result.sample && result.sample.length > 0 && (
+            <div className="bg-black/40 border border-gray-700 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-medium text-gray-300">Sample Followers ({result.sample.length})</h4>
+                <span className="text-xs text-gray-500">First {result.sample.length} of {result.count}</span>
+              </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {result.sample.map((follower: any, idx: number) => (
+                  <div key={idx} className="flex items-start gap-3 p-2 bg-black/40 rounded border border-gray-800 hover:border-purple-500/30 transition-colors">
+                    {follower.profileImage && (
+                      <img src={follower.profileImage} alt="" className="w-10 h-10 rounded-full" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-white truncate">{follower.name || follower.username}</span>
+                        {follower.verified && <span className="text-blue-400">✓</span>}
+                      </div>
+                      <div className="text-xs text-gray-500">@{follower.username}</div>
+                      {follower.bio && (
+                        <div className="text-xs text-gray-400 mt-1 line-clamp-2">{follower.bio}</div>
+                      )}
+                      <div className="flex gap-3 mt-1 text-xs text-gray-500">
+                        <span>{follower.followersCount?.toLocaleString() || 0} followers</span>
+                        {follower.location && <span>📍 {follower.location}</span>}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => {/* Navigate to analytics */}}
+              className="px-4 py-3 bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 rounded-lg font-medium transition-all"
+            >
+              📊 View Full Analytics
+            </button>
+            <button
+              onClick={() => {/* Export CSV */}}
+              className="px-4 py-3 bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30 rounded-lg font-medium transition-all"
+            >
+              📥 Export CSV
+            </button>
           </div>
         </div>
       )}
