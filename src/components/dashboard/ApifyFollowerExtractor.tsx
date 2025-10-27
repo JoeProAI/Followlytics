@@ -12,6 +12,7 @@ export default function ApifyFollowerExtractor() {
   const [result, setResult] = useState<any>(null)
   const [showAll, setShowAll] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
+  const [selectedFollowers, setSelectedFollowers] = useState<Set<string>>(new Set())
 
   async function extractFollowers() {
     if (!user || !username.trim()) return
@@ -20,6 +21,7 @@ export default function ApifyFollowerExtractor() {
     setError('')
     setResult(null)
     setShowAll(false)
+    setSelectedFollowers(new Set())
     
     try {
       const token = await user.getIdToken()
@@ -53,9 +55,14 @@ export default function ApifyFollowerExtractor() {
   function exportToCSV() {
     if (!result?.sample) return
     
+    // Export ALL followers (or selected ones)
+    const followersToExport = selectedFollowers.size > 0 
+      ? result.sample.filter((f: any) => selectedFollowers.has(f.username))
+      : result.sample
+    
     // Create CSV content
     const headers = ['Username', 'Name', 'Bio', 'Followers', 'Verified', 'Location']
-    const rows = result.sample.map((f: any) => [
+    const rows = followersToExport.map((f: any) => [
       f.username,
       f.name || '',
       (f.bio || '').replace(/,/g, ';'),
@@ -74,7 +81,8 @@ export default function ApifyFollowerExtractor() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${result.username}_followers_${new Date().toISOString().split('T')[0]}.csv`
+    const exportType = selectedFollowers.size > 0 ? `${selectedFollowers.size}_selected` : 'all'
+    a.download = `${result.username}_followers_${exportType}_${new Date().toISOString().split('T')[0]}.csv`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -86,16 +94,20 @@ export default function ApifyFollowerExtractor() {
     
     setAnalyzing(true)
     try {
-      // Smart: Only analyze top 50 followers by follower count
-      const topFollowers = [...result.sample]
-        .sort((a: any, b: any) => (b.followersCount || 0) - (a.followersCount || 0))
-        .slice(0, 50)
+      // Analyze selected followers, or top 50 if none selected
+      const followersToAnalyze = selectedFollowers.size > 0
+        ? result.sample.filter((f: any) => selectedFollowers.has(f.username))
+        : [...result.sample].sort((a: any, b: any) => (b.followersCount || 0) - (a.followersCount || 0)).slice(0, 50)
       
-      alert(`Smart Analysis: Analyzing top 50 most influential followers (by follower count) out of ${result.count} total.\n\nThis saves you money while focusing on high-value accounts.`)
+      const analysisMsg = selectedFollowers.size > 0
+        ? `Analyzing ${selectedFollowers.size} selected followers...`
+        : `Smart Analysis: Analyzing top 50 most influential followers (by follower count) out of ${result.count} total.\n\nTip: Select specific followers using checkboxes for targeted analysis.`
+      
+      alert(analysisMsg)
       
       // Navigate to analytics view with filtered data
       // TODO: Implement actual analytics view
-      console.log('Analyzing top followers:', topFollowers)
+      console.log('Analyzing followers:', followersToAnalyze)
       
     } catch (err: any) {
       setError(err.message)
@@ -212,8 +224,23 @@ export default function ApifyFollowerExtractor() {
                 <span className="text-xs text-green-400">● LIVE DATA - First {result.sample.length} of {result.count}</span>
               </div>
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {(showAll ? result.sample : result.sample.slice(0, 15)).map((follower: any, idx: number) => (
+                {(showAll ? result.sample : result.sample.slice(0, 50)).map((follower: any, idx: number) => (
                   <div key={idx} className="flex items-start gap-3 p-2 bg-black/40 rounded border border-gray-800 hover:border-purple-500/30 transition-colors">
+                    {/* Selection Checkbox */}
+                    <input
+                      type="checkbox"
+                      checked={selectedFollowers.has(follower.username)}
+                      onChange={(e) => {
+                        const newSelected = new Set(selectedFollowers)
+                        if (e.target.checked) {
+                          newSelected.add(follower.username)
+                        } else {
+                          newSelected.delete(follower.username)
+                        }
+                        setSelectedFollowers(newSelected)
+                      }}
+                      className="mt-3 w-4 h-4 text-purple-500 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
+                    />
                     {follower.profileImage && (
                       <img src={follower.profileImage} alt="" className="w-10 h-10 rounded-full" />
                     )}
@@ -235,14 +262,35 @@ export default function ApifyFollowerExtractor() {
                 ))}
               </div>
               
-              {/* Show More Button */}
-              {result.sample.length > 15 && (
-                <button
-                  onClick={() => setShowAll(!showAll)}
-                  className="w-full mt-3 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm font-medium transition-all"
-                >
-                  {showAll ? `▲ Show Less` : `▼ Show All ${result.sample.length} Followers`}
-                </button>
+              {/* Selection and Show More Controls */}
+              <div className="flex gap-2 mt-3">
+                {result.sample.length > 0 && (
+                  <button
+                    onClick={() => {
+                      if (selectedFollowers.size === result.sample.length) {
+                        setSelectedFollowers(new Set())
+                      } else {
+                        setSelectedFollowers(new Set(result.sample.map((f: any) => f.username)))
+                      }
+                    }}
+                    className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm font-medium transition-all"
+                  >
+                    {selectedFollowers.size === result.sample.length ? '☐ Deselect All' : '☑ Select All'}
+                  </button>
+                )}
+                {result.sample.length > 50 && (
+                  <button
+                    onClick={() => setShowAll(!showAll)}
+                    className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm font-medium transition-all"
+                  >
+                    {showAll ? `▲ Show First 50` : `▼ Show All ${result.sample.length} Followers`}
+                  </button>
+                )}
+              </div>
+              {selectedFollowers.size > 0 && (
+                <div className="mt-2 text-xs text-purple-400">
+                  {selectedFollowers.size} followers selected
+                </div>
               )}
             </div>
           )}
@@ -254,13 +302,13 @@ export default function ApifyFollowerExtractor() {
               disabled={analyzing}
               className="px-4 py-3 bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 rounded-lg font-medium transition-all disabled:opacity-50"
             >
-              {analyzing ? '⏳ Analyzing...' : '📊 Analyze Top 50'}
+              {analyzing ? '⏳ Analyzing...' : selectedFollowers.size > 0 ? `📊 Analyze ${selectedFollowers.size} Selected` : '📊 Analyze Top 50'}
             </button>
             <button
               onClick={exportToCSV}
               className="px-4 py-3 bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30 rounded-lg font-medium transition-all"
             >
-              📥 Export CSV
+              {selectedFollowers.size > 0 ? `📥 Export ${selectedFollowers.size} Selected` : `📥 Export All (${result.sample.length})`}
             </button>
           </div>
         </div>

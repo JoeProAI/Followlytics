@@ -159,8 +159,8 @@ export async function POST(request: NextRequest) {
       avgFollowers: avgFollowers
     }
 
-    // Get sample of first 15 followers for preview
-    const sample = processedFollowers.slice(0, 15).map((f: any) => ({
+    // Return ALL followers (up to 1000) for display and export
+    const sample = processedFollowers.slice(0, 1000).map((f: any) => ({
       username: f.username,
       name: f.name,
       bio: f.bio,
