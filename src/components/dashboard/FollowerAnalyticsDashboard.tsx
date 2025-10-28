@@ -62,16 +62,13 @@ export default function FollowerAnalyticsDashboard() {
     )
   }
 
+  // Hide analytics section completely if no follower data exists
   if (!stats) {
-    return (
-      <div className="bg-black border border-gray-800 rounded-lg p-8 text-center">
-        <p className="text-gray-400 mb-4">No follower data yet. Extract followers to see analytics.</p>
-      </div>
-    )
+    return null
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mb-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

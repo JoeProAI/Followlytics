@@ -3,6 +3,43 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 
+type UsageSummary = {
+  month: number
+  year: number
+  tier: string
+  followers_extracted: number
+  extractions_count: number
+  last_extraction: string | null
+  last_reset: string | null
+  limit: number | null
+  remaining: number | null
+}
+
+function normalizeUsage(raw: any): UsageSummary {
+  const now = new Date()
+  const limitValue =
+    raw?.limit === null || raw?.limit === undefined ? null : Number(raw.limit)
+  const used = Number(raw?.followers_extracted) || 0
+  const remainingValue =
+    raw?.remaining === null || raw?.remaining === undefined
+      ? limitValue === null
+        ? null
+        : Math.max(limitValue - used, 0)
+      : Math.max(Number(raw.remaining), 0)
+
+  return {
+    month: Number(raw?.month) || now.getMonth() + 1,
+    year: Number(raw?.year) || now.getFullYear(),
+    tier: (raw?.tier || 'free').toString(),
+    followers_extracted: used,
+    extractions_count: Number(raw?.extractions_count) || 0,
+    last_extraction: raw?.last_extraction || null,
+    last_reset: raw?.last_reset || null,
+    limit: limitValue,
+    remaining: remainingValue
+  }
+}
+
 export default function ApifyFollowerExtractor() {
   const { user } = useAuth()
   const [username, setUsername] = useState('')
@@ -14,6 +51,34 @@ export default function ApifyFollowerExtractor() {
   const [analyzing, setAnalyzing] = useState(false)
   const [selectedFollowers, setSelectedFollowers] = useState<Set<string>>(new Set())
   const [loadingStored, setLoadingStored] = useState(true)
+  const [usage, setUsage] = useState<UsageSummary | null>(null)
+
+  const limit = usage?.limit ?? null
+  const usedFollowers = usage?.followers_extracted ?? 0
+  const remainingFollowers =
+    usage?.remaining ?? (limit === null ? null : Math.max(limit - usedFollowers, 0))
+  const usagePercent =
+    limit && limit > 0 ? Math.min(100, (usedFollowers / limit) * 100) : null
+  const limitReached = limit !== null && (remainingFollowers ?? 0) <= 0
+  const upgradePrompt =
+    limit !== null && usagePercent !== null && usagePercent >= 80 && (remainingFollowers ?? 0) > 0
+  const displayMonthYear = usage
+    ? new Date(usage.year, usage.month - 1, 1).toLocaleString('default', {
+        month: 'long',
+        year: 'numeric'
+      })
+    : ''
+
+  const baseOptions = [100, 200, 500, 1000, 5000, 10_000, 50_000, 100_000, 200_000]
+  const remainingOption =
+    limit !== null && remainingFollowers !== null && remainingFollowers > 0
+      ? Math.max(1, Math.floor(remainingFollowers))
+      : null
+  const optionValues = Array.from(
+    new Set([...baseOptions, ...(remainingOption ? [remainingOption] : [])])
+  )
+    .filter(value => value > 0)
+    .sort((a, b) => a - b)
 
   // Load stored followers on mount
   useEffect(() => {
@@ -21,6 +86,16 @@ export default function ApifyFollowerExtractor() {
       loadStoredFollowers()
     }
   }, [user])
+
+  useEffect(() => {
+    if (!usage || usage.limit === null) return
+    const remaining =
+      usage.remaining ?? Math.max(usage.limit - usage.followers_extracted, 0)
+
+    if (remaining > 0) {
+      setMaxFollowers(prev => (prev > remaining ? Math.max(remaining, 1) : prev))
+    }
+  }, [usage])
 
   async function loadStoredFollowers() {
     if (!user) return
@@ -33,6 +108,9 @@ export default function ApifyFollowerExtractor() {
       
       if (response.ok) {
         const data = await response.json()
+        if (data.usage) {
+          setUsage(normalizeUsage(data.usage))
+        }
         if (data.followers && data.followers.length > 0) {
           // Restore the previous extraction results
           setResult({
@@ -53,6 +131,10 @@ export default function ApifyFollowerExtractor() {
 
   async function extractFollowers() {
     if (!user || !username.trim()) return
+    if (limitReached) {
+      setError('Monthly follower limit reached. Upgrade your plan to extract more followers.')
+      return
+    }
     
     setLoading(true)
     setError('')
@@ -61,6 +143,15 @@ export default function ApifyFollowerExtractor() {
     setSelectedFollowers(new Set())
     
     try {
+      const safeMaxFollowers =
+        limit !== null && remainingFollowers !== null
+          ? Math.max(1, Math.min(maxFollowers, Math.floor(remainingFollowers)))
+          : maxFollowers
+
+      if (safeMaxFollowers !== maxFollowers) {
+        setMaxFollowers(safeMaxFollowers)
+      }
+
       const token = await user.getIdToken()
       
       const response = await fetch('/api/apify/extract-followers', {
@@ -71,11 +162,14 @@ export default function ApifyFollowerExtractor() {
         },
         body: JSON.stringify({
           username: username.replace('@', ''),
-          maxFollowers
+          maxFollowers: safeMaxFollowers
         })
       })
       
       const data = await response.json()
+      if (data.usage) {
+        setUsage(normalizeUsage(data.usage))
+      }
       
       if (response.ok) {
         setResult(data)
@@ -156,14 +250,73 @@ export default function ApifyFollowerExtractor() {
   return (
     <div className="bg-black border border-gray-800 rounded-lg p-6">
       <div className="mb-6">
-        <h2 className="text-xl font-medium mb-2">Extract X Followers</h2>
-        <p className="text-sm text-gray-400">
-          Get detailed follower profiles from any public account in seconds. No setup required.
-        </p>
-      </div>
+      <h2 className="text-xl font-medium mb-2">Extract X Followers</h2>
+      <p className="text-sm text-gray-400">
+        Get detailed follower profiles from any public account in seconds. No setup required.
+      </p>
+    </div>
 
-      {/* Input Section */}
-      <div className="space-y-4 mb-6">
+    {usage && (
+      <div className="mb-6 bg-purple-500/5 border border-purple-500/20 rounded-lg p-4">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-200">
+              Monthly follower usage
+            </p>
+            <p className="text-xs text-gray-500">
+              {displayMonthYear} - Tier: {usage.tier.toUpperCase()}
+            </p>
+          </div>
+          <div className="text-sm text-gray-200 font-semibold">
+            {limit === null
+              ? `${usedFollowers.toLocaleString()} followers extracted`
+              : `${usedFollowers.toLocaleString()} / ${limit.toLocaleString()} followers`}
+          </div>
+        </div>
+
+        {limit !== null ? (
+          <>
+            <div className="mt-3 h-2 rounded-full bg-gray-800 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-purple-500 to-blue-500 transition-all duration-300"
+                style={{ width: `${usagePercent ?? 0}%` }}
+              />
+            </div>
+            <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+              <span>{Math.round(usagePercent ?? 0)}% used</span>
+              <span>{(remainingFollowers ?? 0).toLocaleString()} remaining</span>
+            </div>
+          </>
+        ) : (
+          <p className="mt-3 text-xs text-gray-500">
+            Unlimited follower extractions included with your plan.
+          </p>
+        )}
+
+        {upgradePrompt && limit !== null && usagePercent !== null && (
+          <div className="mt-3 bg-purple-500/10 border border-purple-500/30 text-purple-200 text-xs rounded-lg p-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <span>
+              You&apos;re at {Math.round(usagePercent)}% of your {limit.toLocaleString()} follower limit.
+            </span>
+            <a
+              href="/pricing"
+              className="inline-flex items-center justify-center px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded-md text-xs font-medium transition"
+            >
+              Upgrade plan
+            </a>
+          </div>
+        )}
+
+        {limitReached && (
+          <div className="mt-3 text-xs text-red-300">
+            You&apos;ve used your entire allowance for this month. Upgrade to keep extracting followers.
+          </div>
+        )}
+      </div>
+    )}
+
+    {/* Input Section */}
+    <div className="space-y-4 mb-6">
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-2">
             X Username
@@ -186,19 +339,36 @@ export default function ApifyFollowerExtractor() {
             value={maxFollowers}
             onChange={(e) => setMaxFollowers(Number(e.target.value))}
             className="w-full bg-black/40 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500"
-            disabled={loading}
+            disabled={loading || limitReached}
           >
-            <option value={200}>200 followers (~$0.03)</option>
-            <option value={500}>500 followers (~$0.08)</option>
-            <option value={1000}>1,000 followers (~$0.15)</option>
-            <option value={5000}>5,000 followers (~$0.75)</option>
-            <option value={10000}>10,000 followers (~$1.50)</option>
-            <option value={50000}>50,000 followers (~$7.50)</option>
-            <option value={100000}>100,000 followers (~$15.00)</option>
+            {optionValues.map(value => {
+              const isRemainingOption =
+                remainingOption !== null && value === remainingOption
+              const disabledOption =
+                !isRemainingOption &&
+                limit !== null &&
+                remainingFollowers !== null &&
+                value > remainingFollowers
+              const estimatedCost = ((value / 1000) * 0.15).toFixed(2)
+
+              return (
+                <option key={value} value={value} disabled={disabledOption}>
+                  {value.toLocaleString()} followers (~${estimatedCost})
+                  {isRemainingOption ? ' (remaining this month)' : ''}
+                </option>
+              )
+            })}
           </select>
           <p className="text-xs text-gray-500 mt-1">
             Cost: $0.15 per 1,000 followers extracted (200 minimum)
           </p>
+          {limit !== null && (
+            <p className="text-xs text-gray-500 mt-1">
+              {limitReached
+                ? 'Monthly limit reached. Upgrade to unlock more extractions.'
+                : `${(remainingFollowers ?? 0).toLocaleString()} followers remaining this month.`}
+            </p>
+          )}
         </div>
       </div>
 
@@ -354,7 +524,7 @@ export default function ApifyFollowerExtractor() {
       {/* Action Button */}
       <button
         onClick={extractFollowers}
-        disabled={loading || !username.trim()}
+        disabled={loading || !username.trim() || limitReached}
         className="w-full px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:from-gray-700 disabled:to-gray-700 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? (

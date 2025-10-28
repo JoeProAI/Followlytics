@@ -131,10 +131,8 @@ function DashboardContent() {
           <ApifyFollowerExtractor />
         </div>
 
-        {/* ✅ WORKING: Follower Intelligence Dashboard */}
-        <div className="mb-8">
-          <FollowerAnalyticsDashboard />
-        </div>
+        {/* ✅ Follower Intelligence Dashboard (Conditionally Rendered) */}
+        <FollowerAnalyticsDashboard />
 
         {/* ✅ WORKING: AI Tweet Generator */}
         <div className="mb-8">

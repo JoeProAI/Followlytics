@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase-admin'
+import { getUserSubscription } from '@/lib/subscription'
+import { getFollowerLimitForTier } from '@/lib/follower-usage'
+
+const MAX_REQUEST_FOLLOWERS = 200_000
+const MIN_REQUEST_FOLLOWERS = 1
 
 export const maxDuration = 300 // 5 minutes
 
@@ -15,13 +20,19 @@ export async function POST(request: NextRequest) {
     const decodedToken = await adminAuth.verifyIdToken(idToken)
     const userId = decodedToken.uid
 
-    const { username, maxFollowers = 1000 } = await request.json()
+    const body = await request.json()
+    const username = (body.username || '').toString().trim()
+    const rawMaxFollowers = Number(body.maxFollowers ?? 1000)
+    const requestedFollowers = Math.max(
+      MIN_REQUEST_FOLLOWERS,
+      Math.min(Number.isNaN(rawMaxFollowers) ? 1000 : Math.floor(rawMaxFollowers), MAX_REQUEST_FOLLOWERS)
+    )
 
     if (!username) {
       return NextResponse.json({ error: 'Username required' }, { status: 400 })
     }
 
-    console.log(`[Apify] Extracting followers for @${username}, max: ${maxFollowers}`)
+    console.log(`[Apify] Extracting followers for @${username}, requested: ${requestedFollowers}`)
 
     // Initialize Apify client
     const APIFY_API_TOKEN = process.env.APIFY_API_TOKEN
@@ -29,11 +40,76 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Apify not configured' }, { status: 500 })
     }
 
+    const subscription = await getUserSubscription(userId)
+    const { tierKey: tier, limit: limitForTier } = getFollowerLimitForTier(subscription.tier)
+    const limitIsUnlimited = limitForTier === null
+
+    const now = new Date()
+    const month = now.getMonth() + 1
+    const year = now.getFullYear()
+
+    const usageRef = adminDb
+      .collection('users')
+      .doc(userId)
+      .collection('usage')
+      .doc('current_month')
+
+    const usageSnapshot = await usageRef.get()
+    let usageData = usageSnapshot.exists ? usageSnapshot.data() : null
+
+    if (!usageData || usageData.month !== month || usageData.year !== year) {
+      usageData = {
+        month,
+        year,
+        followers_extracted: 0,
+        extractions_count: 0,
+        last_reset: now.toISOString(),
+        last_extraction: null,
+        tier
+      }
+    } else {
+      usageData = {
+        ...usageData,
+        tier
+      }
+    }
+
+    const usedThisMonth = usageData.followers_extracted || 0
+    const remainingFollowers = limitIsUnlimited
+      ? Number.POSITIVE_INFINITY
+      : Math.max((limitForTier || 0) - usedThisMonth, 0)
+
+    if (!limitIsUnlimited && remainingFollowers <= 0) {
+      await usageRef.set(usageData, { merge: true })
+      return NextResponse.json({
+        error: 'Monthly follower limit reached. Upgrade your plan to extract more followers.',
+        usage: {
+          ...usageData,
+          followers_extracted: usedThisMonth,
+          limit: limitForTier,
+          remaining: 0
+        }
+      }, { status: 429 })
+    }
+
+    if (!limitIsUnlimited && requestedFollowers > remainingFollowers) {
+      await usageRef.set(usageData, { merge: true })
+      return NextResponse.json({
+        error: `Request exceeds monthly limit. You can extract ${remainingFollowers.toLocaleString()} more followers this month.`,
+        usage: {
+          ...usageData,
+          followers_extracted: usedThisMonth,
+          limit: limitForTier,
+          remaining: remainingFollowers
+        }
+      }, { status: 429 })
+    }
+
     // Call Apify Actor
     const runInput = {
       user_names: [username],
       user_ids: [],
-      maxFollowers: Math.max(maxFollowers, 200), // Minimum 200 required by API
+      maxFollowers: Math.max(requestedFollowers, 200), // Minimum 200 required by API
       maxFollowings: 200, // Minimum 200 required by API (we won't use this data)
       getFollowers: true,
       getFollowing: false, // We won't use following data even though we have to set min 200
@@ -124,9 +200,15 @@ export async function POST(request: NextRequest) {
       extracted_at: new Date().toISOString()
     }))
 
+    const followersToPersist = processedFollowers.slice(
+      0,
+      Math.min(processedFollowers.length, requestedFollowers)
+    )
+    const truncatedResults = followersToPersist.length < processedFollowers.length
+
     // Track current follower usernames
     const currentFollowerUsernames = new Set(
-      processedFollowers.map((f: any) => 
+      followersToPersist.map((f: any) => 
         f.username
           .replace(/^_+|_+$/g, '')
           .replace(/\//g, '_')
@@ -141,9 +223,9 @@ export async function POST(request: NextRequest) {
       .doc(userId)
       .collection('followers')
 
-    const now = new Date().toISOString()
+    const nowIso = now.toISOString()
 
-    processedFollowers.forEach((follower: any) => {
+    followersToPersist.forEach((follower: any) => {
       // Sanitize username for Firestore (no leading/trailing __, no /, etc)
       const sanitizedUsername = follower.username
         .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
@@ -157,54 +239,56 @@ export async function POST(request: NextRequest) {
       // If follower exists, update; if new, mark first_seen
       const followerData = {
         ...follower,
-        last_seen: now,
+        last_seen: nowIso,
         status: 'active',
-        first_seen: existing?.first_seen || now
+        first_seen: existing?.first_seen || nowIso
       }
 
       batch.set(docRef, followerData, { merge: true })
     })
 
     // Mark unfollowers (existed before but not in current extraction)
-    existingFollowers.forEach((data, username) => {
-      if (!currentFollowerUsernames.has(username) && data.status !== 'unfollowed') {
-        const docRef = followerCollectionRef.doc(username)
-        batch.update(docRef, {
-          status: 'unfollowed',
-          last_seen: now
-        })
-      }
-    })
+    if (!truncatedResults) {
+      existingFollowers.forEach((data, username) => {
+        if (!currentFollowerUsernames.has(username) && data.status !== 'unfollowed') {
+          const docRef = followerCollectionRef.doc(username)
+          batch.update(docRef, {
+            status: 'unfollowed',
+            last_seen: nowIso
+          })
+        }
+      })
+    }
 
     await batch.commit()
 
     // Update user's metadata
     await adminDb.collection('users').doc(userId).update({
       last_follower_extraction: new Date().toISOString(),
-      total_followers_extracted: processedFollowers.length,
+      total_followers_extracted: followersToPersist.length,
       target_username: username
     })
 
-    console.log(`[Apify] ✅ Saved ${processedFollowers.length} followers to Firestore`)
+    console.log(`[Apify] Saved ${followersToPersist.length} followers to Firestore`)
 
     // Calculate cost
-    const cost = (processedFollowers.length / 1000) * 0.15
+    const cost = (followersToPersist.length / 1000) * 0.15
 
     // Calculate stats
-    const verifiedCount = processedFollowers.filter((f: any) => f.verified).length
-    const followersWithBio = processedFollowers.filter((f: any) => f.bio && f.bio.trim().length > 0).length
-    const avgFollowers = processedFollowers.length > 0 
-      ? Math.round(processedFollowers.reduce((sum: number, f: any) => sum + (f.followers_count || 0), 0) / processedFollowers.length)
+    const verifiedCount = followersToPersist.filter((f: any) => f.verified).length
+    const followersWithBio = followersToPersist.filter((f: any) => f.bio && f.bio.trim().length > 0).length
+    const avgFollowers = followersToPersist.length > 0 
+      ? Math.round(followersToPersist.reduce((sum: number, f: any) => sum + (f.followers_count || 0), 0) / followersToPersist.length)
       : 0
 
     const stats = {
       verified: verifiedCount,
-      withBio: Math.round((followersWithBio / processedFollowers.length) * 100),
+      withBio: followersToPersist.length > 0 ? Math.round((followersWithBio / followersToPersist.length) * 100) : 0,
       avgFollowers: avgFollowers
     }
 
     // Return ALL followers (up to 1000) for display and export
-    const sample = processedFollowers.slice(0, 1000).map((f: any) => ({
+    const sample = followersToPersist.slice(0, 1000).map((f: any) => ({
       username: f.username,
       name: f.name,
       bio: f.bio,
@@ -214,15 +298,53 @@ export async function POST(request: NextRequest) {
       location: f.location
     }))
 
+    const usageSummary = await adminDb.runTransaction(async transaction => {
+      const snapshot = await transaction.get(usageRef)
+      let existingUsage = snapshot.exists ? snapshot.data() : {}
+      let followersExtracted = existingUsage.followers_extracted || 0
+      let extractionsCount = existingUsage.extractions_count || 0
+      let lastReset = existingUsage.last_reset as string | undefined
+
+      if (!snapshot.exists || existingUsage.month !== month || existingUsage.year !== year) {
+        followersExtracted = 0
+        extractionsCount = 0
+        lastReset = nowIso
+      }
+
+      followersExtracted += followersToPersist.length
+      extractionsCount += 1
+
+      const updatedUsage = {
+        month,
+        year,
+        tier,
+        followers_extracted: followersExtracted,
+        extractions_count: extractionsCount,
+        last_reset: lastReset || nowIso,
+        last_extraction: nowIso
+      }
+
+      transaction.set(usageRef, updatedUsage, { merge: true })
+
+      return {
+        ...updatedUsage,
+        limit: limitIsUnlimited ? null : limitForTier,
+        remaining: limitIsUnlimited
+          ? null
+          : Math.max((limitForTier || 0) - followersExtracted, 0)
+      }
+    })
+
     return NextResponse.json({
       success: true,
-      count: processedFollowers.length,
+      count: followersToPersist.length,
       username: username,
       cost: cost.toFixed(4),
       stats: stats,
       sample: sample,
       runId: runId,
-      datasetId: defaultDatasetId
+      datasetId: defaultDatasetId,
+      usage: usageSummary
     })
 
   } catch (error: any) {
@@ -236,3 +358,4 @@ export async function POST(request: NextRequest) {
     }, { status: 500 })
   }
 }
+

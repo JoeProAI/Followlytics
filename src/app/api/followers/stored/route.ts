@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase-admin'
+import { getUserSubscription } from '@/lib/subscription'
+import { getFollowerLimitForTier } from '@/lib/follower-usage'
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,6 +21,36 @@ export async function GET(request: NextRequest) {
     const userDoc = await adminDb.collection('users').doc(userId).get()
     const userData = userDoc.data()
 
+    const subscription = await getUserSubscription(userId)
+    const { tierKey, limit } = getFollowerLimitForTier(subscription.tier)
+    const now = new Date()
+    const month = now.getMonth() + 1
+    const year = now.getFullYear()
+
+    const usageRef = adminDb
+      .collection('users')
+      .doc(userId)
+      .collection('usage')
+      .doc('current_month')
+
+    const usageSnapshot = await usageRef.get()
+    let usageData = usageSnapshot.exists ? usageSnapshot.data() : null
+
+    if (!usageData || usageData.month !== month || usageData.year !== year) {
+      usageData = {
+        month,
+        year,
+        followers_extracted: 0,
+        extractions_count: 0,
+        last_reset: now.toISOString(),
+        last_extraction: null,
+        tier: tierKey
+      }
+    }
+
+    const followersUsed = usageData.followers_extracted || 0
+    const remainingFollowers = limit === null ? null : Math.max((limit || 0) - followersUsed, 0)
+
     // Get all stored followers
     const followersSnapshot = await adminDb
       .collection('users')
@@ -32,7 +64,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         followers: [],
         total: 0,
-        targetUsername: null
+        targetUsername: null,
+        usage: {
+          month,
+          year,
+          tier: usageData.tier || tierKey,
+          followers_extracted: followersUsed,
+          extractions_count: usageData.extractions_count || 0,
+          last_extraction: usageData.last_extraction || null,
+          last_reset: usageData.last_reset || null,
+          limit,
+          remaining: remainingFollowers
+        }
       })
     }
 
@@ -65,14 +108,25 @@ export async function GET(request: NextRequest) {
       withBio: withBioPercent
     }
 
-    console.log(`[Stored Followers] ✅ Loaded ${followers.length} followers`)
+    console.log(`[Stored Followers] Loaded ${followers.length} followers`)
 
     return NextResponse.json({
       success: true,
       followers,
       total: followers.length,
       targetUsername: userData?.target_username || null,
-      stats
+      stats,
+      usage: {
+        month,
+        year,
+        tier: usageData.tier || tierKey,
+        followers_extracted: followersUsed,
+        extractions_count: usageData.extractions_count || 0,
+        last_extraction: usageData.last_extraction || null,
+        last_reset: usageData.last_reset || null,
+        limit,
+        remaining: remainingFollowers
+      }
     })
 
   } catch (error: any) {
