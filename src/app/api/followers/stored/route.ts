@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase-admin'
 import { getUserSubscription } from '@/lib/subscription'
 import { getFollowerLimitForTier } from '@/lib/follower-usage'
+import { getCommunityTier } from '@/lib/community-growth'
 
 export async function GET(request: NextRequest) {
   try {

@@ -8,6 +8,7 @@ import XAuthConnect from '@/components/dashboard/XAuthConnect'
 import DaytonaFeatures from '@/components/dashboard/DaytonaFeatures'
 import ApifyFollowerExtractor from '@/components/dashboard/ApifyFollowerExtractor'
 import FollowerAnalyticsDashboard from '@/components/dashboard/FollowerAnalyticsDashboard'
+import CommunityGrowthBanner from '@/components/dashboard/CommunityGrowthBanner'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import Link from 'next/link'
 
@@ -122,6 +123,9 @@ function DashboardContent() {
           <h2 className="text-3xl font-light mb-2">X Follower Intelligence</h2>
           <p className="text-gray-400">Extract and analyze follower data from any public X account.</p>
         </div>
+
+        {/* 🌱 Community Growth Banner (Free users only) */}
+        <CommunityGrowthBanner userTier={subscription?.tier} />
 
         {/* ✅ WORKING: Apify Follower Extraction */}
         <div className="mb-8">
