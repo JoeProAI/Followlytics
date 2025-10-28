@@ -18,6 +18,12 @@ export async function GET(request: NextRequest) {
 
     console.log(`[Analytics] Loading follower analytics for user: ${userId}, timeframe: ${timeframe}`)
 
+    // Get user metadata to check extraction history
+    const userDoc = await adminDb.collection('users').doc(userId).get()
+    const userData = userDoc.data()
+    const firstExtractionDate = userData?.first_follower_extraction || null
+    const lastExtractionDate = userData?.last_follower_extraction || null
+    
     // Get all followers from Firestore
     const followersSnapshot = await adminDb
       .collection('users')
@@ -36,6 +42,10 @@ export async function GET(request: NextRequest) {
       id: doc.id,
       ...doc.data()
     }))
+
+    // Check if this is within first 24 hours of first extraction
+    const isFirstExtraction = !firstExtractionDate || 
+      (new Date().getTime() - new Date(firstExtractionDate).getTime()) < 86400000 // 24 hours
 
     // Calculate timeframe cutoff
     const now = new Date()
@@ -58,9 +68,11 @@ export async function GET(request: NextRequest) {
     const totalFollowers = followers.length
     
     // New followers in timeframe
-    const newFollowers = followers.filter((f: any) => {
+    // NOTE: On first extraction, all followers get marked with current timestamp
+    // So we exclude the initial batch to avoid false "new follower" counts
+    const newFollowers = isFirstExtraction ? [] : followers.filter((f: any) => {
       const firstSeen = new Date(f.first_seen || f.extracted_at)
-      return firstSeen >= cutoffDate
+      return firstSeen >= cutoffDate && f.status === 'active'
     })
 
     // Detect unfollowers (followers marked as unfollowed in timeframe)
@@ -155,7 +167,14 @@ export async function GET(request: NextRequest) {
       engagementScore,
       topLocations,
       recentUnfollowers,
-      recentNewFollowers
+      recentNewFollowers,
+      isFirstExtraction,
+      firstExtractionDate,
+      lastExtractionDate,
+      warnings: isFirstExtraction ? [
+        'This is your first extraction. Historical tracking starts now.',
+        'New followers and unfollowers will be tracked from your next extraction.'
+      ] : []
     }
 
     console.log(`[Analytics] ✅ Calculated stats:`, {

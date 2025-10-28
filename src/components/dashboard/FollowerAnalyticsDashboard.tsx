@@ -94,6 +94,26 @@ export default function FollowerAnalyticsDashboard() {
         </div>
       </div>
 
+      {/* First Extraction Warning */}
+      {stats.isFirstExtraction && stats.warnings && stats.warnings.length > 0 && (
+        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">ℹ️</span>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-blue-300 mb-2">First Extraction Complete!</h3>
+              <div className="space-y-1">
+                {stats.warnings.map((warning: string, i: number) => (
+                  <p key={i} className="text-xs text-gray-300">• {warning}</p>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                Run another extraction in a few days to start tracking growth trends and unfollows.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Key Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* Total Followers */}

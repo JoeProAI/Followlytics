@@ -263,11 +263,19 @@ export async function POST(request: NextRequest) {
     await batch.commit()
 
     // Update user's metadata
-    await adminDb.collection('users').doc(userId).update({
+    const isFirstExtraction = existingFollowers.size === 0
+    const updateData: any = {
       last_follower_extraction: new Date().toISOString(),
       total_followers_extracted: followersToPersist.length,
       target_username: username
-    })
+    }
+    
+    // Track first extraction date for analytics
+    if (isFirstExtraction) {
+      updateData.first_follower_extraction = new Date().toISOString()
+    }
+    
+    await adminDb.collection('users').doc(userId).update(updateData)
 
     console.log(`[Apify] Saved ${followersToPersist.length} followers to Firestore`)
 
@@ -300,12 +308,12 @@ export async function POST(request: NextRequest) {
 
     const usageSummary = await adminDb.runTransaction(async transaction => {
       const snapshot = await transaction.get(usageRef)
-      let existingUsage = snapshot.exists ? snapshot.data() : {}
-      let followersExtracted = existingUsage.followers_extracted || 0
-      let extractionsCount = existingUsage.extractions_count || 0
-      let lastReset = existingUsage.last_reset as string | undefined
+      const existingUsage: any = snapshot.exists ? snapshot.data() : {}
+      let followersExtracted = existingUsage?.followers_extracted || 0
+      let extractionsCount = existingUsage?.extractions_count || 0
+      let lastReset = existingUsage?.last_reset as string | undefined
 
-      if (!snapshot.exists || existingUsage.month !== month || existingUsage.year !== year) {
+      if (!snapshot.exists || existingUsage?.month !== month || existingUsage?.year !== year) {
         followersExtracted = 0
         extractionsCount = 0
         lastReset = nowIso
