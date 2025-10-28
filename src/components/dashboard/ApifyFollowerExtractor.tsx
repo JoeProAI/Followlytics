@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 
 export default function ApifyFollowerExtractor() {
@@ -13,6 +13,43 @@ export default function ApifyFollowerExtractor() {
   const [showAll, setShowAll] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [selectedFollowers, setSelectedFollowers] = useState<Set<string>>(new Set())
+  const [loadingStored, setLoadingStored] = useState(true)
+
+  // Load stored followers on mount
+  useEffect(() => {
+    if (user) {
+      loadStoredFollowers()
+    }
+  }, [user])
+
+  async function loadStoredFollowers() {
+    if (!user) return
+    
+    try {
+      const token = await user.getIdToken()
+      const response = await fetch('/api/followers/stored', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.followers && data.followers.length > 0) {
+          // Restore the previous extraction results
+          setResult({
+            count: data.total || data.followers.length,
+            username: data.targetUsername || 'stored',
+            cost: '0.00',
+            stats: data.stats,
+            sample: data.followers
+          })
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load stored followers:', err)
+    } finally {
+      setLoadingStored(false)
+    }
+  }
 
   async function extractFollowers() {
     if (!user || !username.trim()) return

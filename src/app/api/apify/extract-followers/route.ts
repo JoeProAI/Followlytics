@@ -97,6 +97,17 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Apify] Extracted ${followers.length} followers`)
 
+    // Get existing followers to detect unfollows
+    const existingFollowersSnapshot = await adminDb
+      .collection('users')
+      .doc(userId)
+      .collection('followers')
+      .get()
+
+    const existingFollowers = new Map(
+      existingFollowersSnapshot.docs.map(doc => [doc.id, doc.data()])
+    )
+
     // Process and save to Firestore
     const processedFollowers = followers.map((follower: any) => ({
       username: follower.screen_name || follower.username,
@@ -113,12 +124,24 @@ export async function POST(request: NextRequest) {
       extracted_at: new Date().toISOString()
     }))
 
+    // Track current follower usernames
+    const currentFollowerUsernames = new Set(
+      processedFollowers.map((f: any) => 
+        f.username
+          .replace(/^_+|_+$/g, '')
+          .replace(/\//g, '_')
+          .replace(/\./g, '_') || 'unknown_user'
+      )
+    )
+
     // Save to Firestore under user's data
     const batch = adminDb.batch()
     const followerCollectionRef = adminDb
       .collection('users')
       .doc(userId)
       .collection('followers')
+
+    const now = new Date().toISOString()
 
     processedFollowers.forEach((follower: any) => {
       // Sanitize username for Firestore (no leading/trailing __, no /, etc)
@@ -129,7 +152,28 @@ export async function POST(request: NextRequest) {
         || 'unknown_user' // Fallback if username becomes empty
       
       const docRef = followerCollectionRef.doc(sanitizedUsername)
-      batch.set(docRef, follower, { merge: true })
+      const existing = existingFollowers.get(sanitizedUsername)
+
+      // If follower exists, update; if new, mark first_seen
+      const followerData = {
+        ...follower,
+        last_seen: now,
+        status: 'active',
+        first_seen: existing?.first_seen || now
+      }
+
+      batch.set(docRef, followerData, { merge: true })
+    })
+
+    // Mark unfollowers (existed before but not in current extraction)
+    existingFollowers.forEach((data, username) => {
+      if (!currentFollowerUsernames.has(username) && data.status !== 'unfollowed') {
+        const docRef = followerCollectionRef.doc(username)
+        batch.update(docRef, {
+          status: 'unfollowed',
+          last_seen: now
+        })
+      }
     })
 
     await batch.commit()

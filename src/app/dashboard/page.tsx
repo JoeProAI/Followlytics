@@ -7,7 +7,7 @@ import ProfessionalAnalytics from '@/components/dashboard/ProfessionalAnalytics'
 import XAuthConnect from '@/components/dashboard/XAuthConnect'
 import DaytonaFeatures from '@/components/dashboard/DaytonaFeatures'
 import ApifyFollowerExtractor from '@/components/dashboard/ApifyFollowerExtractor'
-import FollowerAnalytics from '@/components/dashboard/FollowerAnalytics'
+import FollowerAnalyticsDashboard from '@/components/dashboard/FollowerAnalyticsDashboard'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import Link from 'next/link'
 
@@ -131,9 +131,9 @@ function DashboardContent() {
           <ApifyFollowerExtractor />
         </div>
 
-        {/* ✅ WORKING: Follower Analytics */}
+        {/* ✅ WORKING: Follower Intelligence Dashboard */}
         <div className="mb-8">
-          <FollowerAnalytics />
+          <FollowerAnalyticsDashboard />
         </div>
 
         {/* ✅ WORKING: AI Tweet Generator */}
