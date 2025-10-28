@@ -248,7 +248,19 @@ export async function POST(request: NextRequest) {
     })
 
     // Mark unfollowers (existed before but not in current extraction)
-    if (!truncatedResults) {
+    // IMPORTANT: Only detect unfollows if we extracted a SIGNIFICANT portion of followers
+    // Otherwise we get false positives (people who are still following but weren't in this extraction)
+    const totalStoredFollowers = existingFollowers.size
+    const extractionCoverage = totalStoredFollowers > 0 
+      ? (followersToPersist.length / totalStoredFollowers) 
+      : 1
+    
+    // Only mark unfollowers if we extracted at least 80% of known followers
+    // This prevents false positives from partial extractions
+    const shouldDetectUnfollows = !truncatedResults && extractionCoverage >= 0.8
+    
+    if (shouldDetectUnfollows) {
+      console.log(`[Apify] Unfollower detection enabled (${Math.round(extractionCoverage * 100)}% coverage)`)
       existingFollowers.forEach((data, username) => {
         if (!currentFollowerUsernames.has(username) && data.status !== 'unfollowed') {
           const docRef = followerCollectionRef.doc(username)
@@ -258,6 +270,8 @@ export async function POST(request: NextRequest) {
           })
         }
       })
+    } else {
+      console.log(`[Apify] Unfollower detection skipped (${Math.round(extractionCoverage * 100)}% coverage, need 80%+)`)
     }
 
     await batch.commit()
