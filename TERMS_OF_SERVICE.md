@@ -40,7 +40,7 @@ Followlytics aggregates **publicly available information** that is accessible wi
 
 ### 3.2 Third-Party Data Providers
 
-We utilize third-party services, including but not limited to **Apify**, to collect publicly available data. These third-party services:
+We utilize third-party service providers to collect publicly available data. These third-party services:
 - Operate independently from Followlytics
 - Have their own terms of service and privacy policies
 - Are responsible for their own data collection methods
@@ -135,7 +135,7 @@ You agree to:
 - Loss of access to social media platforms or data
 - Legal action taken by platforms against you
 - Changes to platform APIs, policies, or data access
-- Third-party provider (e.g., Apify) actions, failures, or compliance issues
+- Third-party service provider actions, failures, or compliance issues
 
 ### 6.3 Maximum Liability Cap
 
@@ -296,7 +296,7 @@ These Terms are governed by the laws of Delaware, United States.
 
 ### 16.1 No Affiliation
 
-Followlytics is **NOT** affiliated with, endorsed by, or officially connected to X (Twitter), Apify, or any other social media platform or data provider. Any reference to these platforms is for descriptive purposes only.
+Followlytics is **NOT** affiliated with, endorsed by, or officially connected to X (Twitter) or any other social media platform or data provider. Any reference to these platforms is for descriptive purposes only.
 
 ### 16.2 Platform Changes
 
