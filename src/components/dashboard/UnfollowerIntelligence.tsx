@@ -108,7 +108,11 @@ export default function UnfollowerIntelligence() {
           <div>
             <h2 className="text-2xl font-bold mb-1">👋 Unfollower Intelligence</h2>
             <p className="text-sm text-gray-400">
-              Track who unfollows, re-follows, and identify patterns that affect your reach.
+              {data.targetUsername ? (
+                <>Track unfollows and patterns for <span className="text-blue-400 font-medium">@{data.targetUsername}</span></>
+              ) : (
+                'Track who unfollows, re-follows, and identify patterns that affect your reach.'
+              )}
             </p>
           </div>
           <button
