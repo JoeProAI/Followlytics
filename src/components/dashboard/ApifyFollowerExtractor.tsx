@@ -260,7 +260,8 @@ export default function ApifyFollowerExtractor() {
       const data = await response.json()
       
       // Show success and scroll to analysis section
-      alert(`✅ Analysis Complete!\n\nAnalyzed ${data.followerCount} followers.\nOverall Score: ${data.analysis.overallScore}/100\n\nScroll down to see detailed insights.`)
+      const costMessage = data.cost ? `\nAI Cost: $${data.cost.total_cost.toFixed(4)}` : ''
+      alert(`✅ Analysis Complete!\n\nAnalyzed ${data.followerCount} followers.\nOverall Score: ${data.analysis.overallScore}/100${costMessage}\n\nScroll down to see detailed insights.`)
       
       // Reload the page to show new analysis
       window.location.reload()

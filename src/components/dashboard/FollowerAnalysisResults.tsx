@@ -82,12 +82,31 @@ export default function FollowerAnalysisResults() {
   const [analyses, setAnalyses] = useState<Analysis[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedAnalysis, setSelectedAnalysis] = useState<Analysis | null>(null)
+  const [aiUsage, setAiUsage] = useState<any>(null)
+  const [generatingGamma, setGeneratingGamma] = useState(false)
 
   useEffect(() => {
     if (user) {
       loadAnalyses()
+      loadAiUsage()
     }
   }, [user])
+
+  async function loadAiUsage() {
+    try {
+      const token = await user?.getIdToken()
+      const response = await fetch('/api/ai/usage', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setAiUsage(data.usage)
+      }
+    } catch (error) {
+      console.error('Failed to load AI usage:', error)
+    }
+  }
 
   async function loadAnalyses() {
     try {
@@ -124,6 +143,88 @@ export default function FollowerAnalysisResults() {
     return 'Needs Improvement'
   }
 
+  function exportAsJSON() {
+    if (!selectedAnalysis) return
+    
+    const dataStr = JSON.stringify(selectedAnalysis, null, 2)
+    const dataBlob = new Blob([dataStr], { type: 'application/json' })
+    const url = URL.createObjectURL(dataBlob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `follower-analysis-${selectedAnalysis.target_username || 'results'}-${new Date().toISOString().split('T')[0]}.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  function exportAsCSV() {
+    if (!selectedAnalysis) return
+    
+    const { analysis } = selectedAnalysis
+    
+    // Export individual analyses as CSV
+    if (analysis.individualAnalyses && analysis.individualAnalyses.length > 0) {
+      const headers = ['Username', 'Name', 'Category', 'Influence Score', 'Engagement Value', 'Priority', 'Strategic Value', 'Action Recommendation']
+      const rows = analysis.individualAnalyses.map(f => [
+        f.username,
+        f.name,
+        f.category,
+        f.influenceScore,
+        f.engagementValue,
+        f.priority,
+        `"${f.strategicValue.replace(/"/g, '""')}"`,
+        `"${f.actionRecommendation.replace(/"/g, '""')}"`
+      ])
+      
+      const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+      const blob = new Blob([csvContent], { type: 'text/csv' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `follower-analysis-${selectedAnalysis.target_username || 'results'}-${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    }
+  }
+
+  async function generateGammaReport() {
+    if (!selectedAnalysis || !user) return
+    
+    setGeneratingGamma(true)
+    try {
+      const token = await user.getIdToken()
+      const response = await fetch('/api/gamma/generate-report', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          analysisId: selectedAnalysis.id
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate Gamma report')
+      }
+
+      const data = await response.json()
+      
+      // Open Gamma report in new tab
+      if (data.gamma?.url) {
+        window.open(data.gamma.url, '_blank')
+        alert('🎨 Gamma Report Generated!\n\nOpening in new tab...')
+      }
+    } catch (error: any) {
+      alert(`Failed to generate Gamma report: ${error.message}`)
+    } finally {
+      setGeneratingGamma(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="bg-gray-900 border border-gray-800 rounded-lg p-8">
@@ -150,6 +251,53 @@ export default function FollowerAnalysisResults() {
 
   return (
     <div className="space-y-6">
+      {/* AI Usage Stats & Export */}
+      <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/30 rounded-lg p-4">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          {/* AI Cost Stats */}
+          {aiUsage && (
+            <div className="flex items-center gap-6">
+              <div>
+                <div className="text-xs text-gray-400">AI Analyses</div>
+                <div className="text-lg font-bold text-cyan-400">{aiUsage.total_analyses}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-400">Total Cost</div>
+                <div className="text-lg font-bold text-purple-400">${aiUsage.total_cost.toFixed(4)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-400">Followers Analyzed</div>
+                <div className="text-lg font-bold text-blue-400">{aiUsage.total_followers_analyzed.toLocaleString()}</div>
+              </div>
+            </div>
+          )}
+          
+          {/* Export Buttons */}
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={generateGammaReport}
+              disabled={generatingGamma}
+              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-700 disabled:to-gray-700 rounded-lg text-sm font-medium transition-all flex items-center gap-2 disabled:opacity-50"
+            >
+              {generatingGamma ? '⏳ Generating...' : '🎨 Generate Gamma Report'}
+            </button>
+            <button
+              onClick={exportAsJSON}
+              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+            >
+              📄 Export JSON
+            </button>
+            <button
+              onClick={exportAsCSV}
+              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              disabled={!analysis.individualAnalyses || analysis.individualAnalyses.length === 0}
+            >
+              📊 Export CSV
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Analysis Selector */}
       {analyses.length > 1 && (
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">

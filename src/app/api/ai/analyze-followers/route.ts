@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase-admin'
+import { FieldValue } from 'firebase-admin/firestore'
 import OpenAI from 'openai'
 
 /**
@@ -113,7 +114,19 @@ Format as JSON:
 
     const analysis = JSON.parse(analysisText)
 
-    // Store analysis in Firestore
+    // Calculate AI cost
+    const usage = completion.usage
+    const inputTokens = usage?.prompt_tokens || 0
+    const outputTokens = usage?.completion_tokens || 0
+    
+    // GPT-4o pricing: $2.50 per 1M input tokens, $10.00 per 1M output tokens
+    const inputCost = (inputTokens / 1_000_000) * 2.50
+    const outputCost = (outputTokens / 1_000_000) * 10.00
+    const totalCost = inputCost + outputCost
+
+    console.log(`[AI Analysis] Cost: $${totalCost.toFixed(4)} (${inputTokens} input + ${outputTokens} output tokens)`)
+
+    // Store analysis in Firestore with cost tracking
     const analysisRef = await adminDb
       .collection('users')
       .doc(userId)
@@ -124,8 +137,27 @@ Format as JSON:
         analysis,
         analyzed_followers: followers.map(f => f.username),
         created_at: new Date().toISOString(),
-        model: 'gpt-4o'
+        model: 'gpt-4o',
+        cost: {
+          input_tokens: inputTokens,
+          output_tokens: outputTokens,
+          total_tokens: inputTokens + outputTokens,
+          input_cost: inputCost,
+          output_cost: outputCost,
+          total_cost: totalCost,
+          currency: 'USD'
+        }
       })
+
+    // Update user's total AI cost
+    const userStatsRef = adminDb.collection('users').doc(userId).collection('stats').doc('ai_usage')
+    await userStatsRef.set({
+      total_analyses: FieldValue.increment(1),
+      total_followers_analyzed: FieldValue.increment(followers.length),
+      total_cost: FieldValue.increment(totalCost),
+      total_tokens: FieldValue.increment(inputTokens + outputTokens),
+      last_analysis: new Date().toISOString()
+    }, { merge: true })
 
     // Also update individual follower documents with AI insights
     if (analysis.individualAnalyses && Array.isArray(analysis.individualAnalyses)) {
@@ -169,7 +201,13 @@ Format as JSON:
       analysisId: analysisRef.id,
       analysis,
       followerCount: followers.length,
-      targetUsername
+      targetUsername,
+      cost: {
+        total_cost: totalCost,
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        model: 'gpt-4o'
+      }
     })
 
   } catch (error: any) {
