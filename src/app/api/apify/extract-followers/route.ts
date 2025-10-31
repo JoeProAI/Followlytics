@@ -172,6 +172,17 @@ export async function POST(request: NextRequest) {
     const followers = await datasetResponse.json()
 
     console.log(`[Apify] Extracted ${followers.length} followers`)
+    
+    // Debug: Log first follower structure to understand verification fields
+    if (followers.length > 0) {
+      const sample = followers[0]
+      console.log('[Apify] Sample follower verification fields:', {
+        verified: sample.verified,
+        is_blue_verified: sample.is_blue_verified,
+        verified_type: sample.verified_type,
+        username: sample.screen_name || sample.username
+      })
+    }
 
     // Get existing followers to detect unfollows
     const existingFollowersSnapshot = await adminDb
@@ -185,20 +196,34 @@ export async function POST(request: NextRequest) {
     )
 
     // Process and save to Firestore
-    const processedFollowers = followers.map((follower: any) => ({
-      username: follower.screen_name || follower.username,
-      name: follower.name,
-      bio: follower.description,
-      followers_count: follower.followers_count,
-      following_count: follower.friends_count,
-      tweet_count: follower.statuses_count,
-      verified: follower.verified || false,
-      profile_image_url: follower.profile_image_url_https,
-      location: follower.location,
-      created_at: follower.created_at,
-      url: follower.url,
-      extracted_at: new Date().toISOString()
-    }))
+    const processedFollowers = followers.map((follower: any) => {
+      // X/Twitter has multiple verification types now:
+      // - verified: legacy verification (pre-2023)
+      // - is_blue_verified: X Premium (paid)
+      // - verified_type: "Business", "Government", etc.
+      const isVerified = follower.verified || 
+                        follower.is_blue_verified || 
+                        follower.verified_type === 'Business' ||
+                        follower.verified_type === 'Government' ||
+                        !!follower.verified_type ||
+                        false
+      
+      return {
+        username: follower.screen_name || follower.username,
+        name: follower.name,
+        bio: follower.description,
+        followers_count: follower.followers_count,
+        following_count: follower.friends_count,
+        tweet_count: follower.statuses_count,
+        verified: isVerified,
+        verified_type: follower.verified_type || (isVerified ? 'legacy' : null),
+        profile_image_url: follower.profile_image_url_https,
+        location: follower.location,
+        created_at: follower.created_at,
+        url: follower.url,
+        extracted_at: new Date().toISOString()
+      }
+    })
 
     const followersToPersist = processedFollowers.slice(
       0,
@@ -302,6 +327,8 @@ export async function POST(request: NextRequest) {
     const avgFollowers = followersToPersist.length > 0 
       ? Math.round(followersToPersist.reduce((sum: number, f: any) => sum + (f.followers_count || 0), 0) / followersToPersist.length)
       : 0
+
+    console.log(`[Apify] Stats: ${verifiedCount} verified (${Math.round(verifiedCount/followersToPersist.length*100)}%), ${followersWithBio} with bio`)
 
     const stats = {
       verified: verifiedCount,
