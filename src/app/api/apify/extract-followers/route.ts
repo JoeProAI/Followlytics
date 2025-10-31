@@ -272,7 +272,7 @@ export async function POST(request: NextRequest) {
       batch.set(docRef, followerData, { merge: true })
     })
 
-    // Mark unfollowers (existed before but not in current extraction)
+    // Mark unfollowers and track re-follows
     // IMPORTANT: Only detect unfollows if we extracted a SIGNIFICANT portion of followers
     // Otherwise we get false positives (people who are still following but weren't in this extraction)
     const totalStoredFollowers = existingFollowers.size
@@ -284,14 +284,65 @@ export async function POST(request: NextRequest) {
     // This prevents false positives from partial extractions
     const shouldDetectUnfollows = !truncatedResults && extractionCoverage >= 0.8
     
+    const eventsCollectionRef = adminDb
+      .collection('users')
+      .doc(userId)
+      .collection('unfollower_events')
+    
     if (shouldDetectUnfollows) {
       console.log(`[Apify] Unfollower detection enabled (${Math.round(extractionCoverage * 100)}% coverage)`)
+      
+      // Detect unfollows
       existingFollowers.forEach((data, username) => {
         if (!currentFollowerUsernames.has(username) && data.status !== 'unfollowed') {
           const docRef = followerCollectionRef.doc(username)
           batch.update(docRef, {
             status: 'unfollowed',
-            last_seen: nowIso
+            last_seen: nowIso,
+            unfollowed_at: nowIso
+          })
+          
+          // Create unfollower event for analytics
+          const eventRef = eventsCollectionRef.doc()
+          batch.set(eventRef, {
+            username: data.username || username,
+            name: data.name,
+            profile_image_url: data.profile_image_url,
+            followers_count: data.followers_count,
+            verified: data.verified,
+            bio: data.bio,
+            event_type: 'unfollowed',
+            timestamp: nowIso,
+            first_seen: data.first_seen,
+            days_followed: calculateDaysFollowed(data.first_seen, nowIso)
+          })
+        }
+      })
+      
+      // Detect re-follows (people who unfollowed before but are now following again)
+      followersToPersist.forEach((follower: any) => {
+        const sanitizedUsername = follower.username
+          .replace(/^_+|_+$/g, '')
+          .replace(/\//g, '_')
+          .replace(/\./g, '_') || 'unknown_user'
+        
+        const existing = existingFollowers.get(sanitizedUsername)
+        if (existing && existing.status === 'unfollowed') {
+          console.log(`[Apify] Re-follow detected: ${follower.username}`)
+          
+          // Create refollow event
+          const eventRef = eventsCollectionRef.doc()
+          batch.set(eventRef, {
+            username: follower.username,
+            name: follower.name,
+            profile_image_url: follower.profile_image_url,
+            followers_count: follower.followers_count,
+            verified: follower.verified,
+            bio: follower.bio,
+            event_type: 'refollowed',
+            timestamp: nowIso,
+            previous_unfollow_date: existing.unfollowed_at || existing.last_seen,
+            days_away: calculateDaysFollowed(existing.unfollowed_at || existing.last_seen, nowIso)
           })
         }
       })
@@ -300,6 +351,13 @@ export async function POST(request: NextRequest) {
     }
 
     await batch.commit()
+    
+    // Helper function to calculate days between dates
+    function calculateDaysFollowed(startDate: string, endDate: string): number {
+      const start = new Date(startDate).getTime()
+      const end = new Date(endDate).getTime()
+      return Math.round((end - start) / (1000 * 60 * 60 * 24))
+    }
 
     // Update user's metadata
     const isFirstExtraction = existingFollowers.size === 0

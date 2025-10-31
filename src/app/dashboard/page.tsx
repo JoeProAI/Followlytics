@@ -9,6 +9,7 @@ import DaytonaFeatures from '@/components/dashboard/DaytonaFeatures'
 import ApifyFollowerExtractor from '@/components/dashboard/ApifyFollowerExtractor'
 import FollowerAnalyticsDashboard from '@/components/dashboard/FollowerAnalyticsDashboard'
 import CommunityGrowthBanner from '@/components/dashboard/CommunityGrowthBanner'
+import UnfollowerIntelligence from '@/components/dashboard/UnfollowerIntelligence'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import Link from 'next/link'
 
@@ -137,6 +138,11 @@ function DashboardContent() {
 
         {/* ✅ Follower Intelligence Dashboard (Conditionally Rendered) */}
         <FollowerAnalyticsDashboard />
+
+        {/* 👋 Unfollower Intelligence */}
+        <div className="mb-8">
+          <UnfollowerIntelligence />
+        </div>
 
         {/* ✅ WORKING: AI Tweet Generator */}
         <div className="mb-8">
