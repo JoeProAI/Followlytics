@@ -366,17 +366,36 @@ export async function POST(request: NextRequest) {
       return Math.round((end - start) / (1000 * 60 * 60 * 24))
     }
 
-    // Update user's metadata
+    // Update user's metadata and track this account
     const isFirstExtraction = existingFollowers.size === 0
+    
+    // Store or update tracked account metadata
+    const trackedAccountRef = adminDb
+      .collection('users')
+      .doc(userId)
+      .collection('tracked_accounts')
+      .doc(username.toLowerCase())
+    
+    await trackedAccountRef.set({
+      username: username.toLowerCase(),
+      display_username: username,
+      last_extraction: nowIso,
+      first_extraction: isFirstExtraction ? nowIso : (await trackedAccountRef.get()).data()?.first_extraction || nowIso,
+      total_followers: followersToPersist.length,
+      total_extractions: isFirstExtraction ? 1 : ((await trackedAccountRef.get()).data()?.total_extractions || 0) + 1
+    }, { merge: true })
+    
+    // Update main user doc with last extraction info
     const updateData: any = {
-      last_follower_extraction: new Date().toISOString(),
+      last_follower_extraction: nowIso,
       total_followers_extracted: followersToPersist.length,
-      target_username: username
+      target_username: username.toLowerCase(), // Current/primary tracked account
+      last_tracked_account: username.toLowerCase()
     }
     
     // Track first extraction date for analytics
     if (isFirstExtraction) {
-      updateData.first_follower_extraction = new Date().toISOString()
+      updateData.first_follower_extraction = nowIso
     }
     
     await adminDb.collection('users').doc(userId).update(updateData)

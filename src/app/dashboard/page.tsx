@@ -10,6 +10,7 @@ import ApifyFollowerExtractor from '@/components/dashboard/ApifyFollowerExtracto
 import FollowerAnalyticsDashboard from '@/components/dashboard/FollowerAnalyticsDashboard'
 import CommunityGrowthBanner from '@/components/dashboard/CommunityGrowthBanner'
 import UnfollowerIntelligence from '@/components/dashboard/UnfollowerIntelligence'
+import AccountSwitcher from '@/components/dashboard/AccountSwitcher'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import Link from 'next/link'
 
@@ -127,6 +128,11 @@ function DashboardContent() {
 
         {/* 🌱 Community Growth Banner (Free users only) */}
         <CommunityGrowthBanner userTier={subscription?.tier} />
+
+        {/* 📊 Account Switcher (Shows which account you're viewing) */}
+        <div className="mb-8">
+          <AccountSwitcher />
+        </div>
 
         {/* ✅ WORKING: Apify Follower Extraction */}
         <div className="mb-8">
