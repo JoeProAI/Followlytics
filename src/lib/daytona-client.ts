@@ -407,19 +407,31 @@ async function takeScreenshot(page, step, description) {
       console.log(\`🔍 Extraction attempt \${scrollAttempts + 1}/\${maxScrolls}\`);
       
       const newFollowers = await page.evaluate(() => {
-        const followerElements = document.querySelectorAll('[data-testid="UserCell"] a[href^="/"]');
+        const followerElements = document.querySelectorAll('[data-testid="UserCell"]');
         const extracted = [];
         
-        followerElements.forEach((element, index) => {
+        followerElements.forEach((cell, index) => {
           if (index >= 20) return; // Limit per scroll
           
-          const href = element.getAttribute('href');
+          // Extract username from the profile link
+          const profileLink = cell.querySelector('a[href^="/"]');
+          if (!profileLink) return;
+          
+          const href = profileLink.getAttribute('href');
           if (href && href.startsWith('/')) {
-            const username = href.substring(1);
+            const username = href.substring(1).split('/')[0]; // Get just the username
             if (username && username.length > 0 && username.length <= 15) {
+              
+              // Check for verified badge - X/Twitter uses SVG with specific aria-label or data-testid
+              const verifiedBadge = cell.querySelector('[aria-label*="Verified"]') || 
+                                   cell.querySelector('[data-testid="icon-verified"]') ||
+                                   cell.querySelector('svg[aria-label="Verified account"]') ||
+                                   cell.querySelector('svg path[d*="M22.25 12c0-1.43-.88-2.67-2.19-3.34"]'); // Blue checkmark path
+              
               extracted.push({
                 username: username,
-                displayName: element.textContent || username
+                displayName: profileLink.textContent?.trim() || username,
+                isVerified: !!verifiedBadge
               });
             }
           }
@@ -890,10 +902,20 @@ async function scanWithStrategy(strategy, username, accessToken, accessTokenSecr
                 }
               }
               
+              // Check for verified badge
+              const verifiedBadge = element.querySelector('[aria-label*="Verified"]') || 
+                                   element.querySelector('[data-testid="icon-verified"]') ||
+                                   element.querySelector('svg[aria-label="Verified account"]') ||
+                                   element.querySelector('svg path[d*="M22.25 12c0-1.43-.88-2.67-2.19-3.34"]');
+              
               // Only add if we have a valid, unique username
               if (username && username.length > 1) {
-                extracted.push({ username, displayName: displayName || username });
-                console.log(\`✅ Added follower: \${username} (\${displayName || username})\`);
+                extracted.push({ 
+                  username, 
+                  displayName: displayName || username,
+                  isVerified: !!verifiedBadge
+                });
+                console.log(\`✅ Added follower: \${username} (\${displayName || username}) - Verified: \${!!verifiedBadge}\`);
               } else {
                 console.log(\`❌ No valid username found for element \${index}\`);
               }
@@ -1271,12 +1293,19 @@ const puppeteer = require('puppeteer');
                   }
                 }
                 
+                // Check for verified badge
+                const verifiedBadge = cell.querySelector('[aria-label*="Verified"]') || 
+                                     cell.querySelector('[data-testid="icon-verified"]') ||
+                                     cell.querySelector('svg[aria-label="Verified account"]') ||
+                                     cell.querySelector('svg path[d*="M22.25 12c0-1.43-.88-2.67-2.19-3.34"]');
+                
                 extracted.push({
                   username: username,
-                  displayName: displayName
+                  displayName: displayName,
+                  isVerified: !!verifiedBadge
                 });
                 
-                console.log(\`✅ Found follower: @\${username} (\${displayName})\`);
+                console.log(\`✅ Found follower: @\${username} (\${displayName}) - Verified: \${!!verifiedBadge}\`);
               }
             }
           }
