@@ -47,37 +47,43 @@ export async function POST(request: NextRequest) {
     // Build Gamma presentation prompt
     const gammaPrompt = buildGammaPrompt(analysisData, analysis)
 
-    // Call Gamma API
-    const gammaResponse = await fetch('https://api.gamma.app/api/v1/generate', {
+    console.log('[Gamma] Generating report for analysis:', analysisId)
+
+    // Call Gamma API (correct endpoint v0.2)
+    const gammaResponse = await fetch('https://public-api.gamma.app/v0.2/generations', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.GAMMA_API_KEY}`,
+        'X-API-Key': process.env.GAMMA_API_KEY!,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        text: gammaPrompt,
-        mode: 'paste',
-        options: {
-          textOptions: {
-            language: 'en'
-          },
-          imageOptions: {
-            model: 'dall-e-3',
-            generate: true
-          }
+        inputText: gammaPrompt,
+        textMode: 'preserve',
+        format: 'presentation',
+        textOptions: {
+          language: 'en'
+        },
+        imageOptions: {
+          source: 'aiGenerated',
+          model: 'dall-e-3'
         }
       })
     })
 
     if (!gammaResponse.ok) {
       const error = await gammaResponse.text()
-      console.error('[Gamma] API Error:', error)
-      throw new Error(`Gamma API failed: ${gammaResponse.status}`)
+      console.error('[Gamma] API Error:', gammaResponse.status, error)
+      throw new Error(`Gamma API failed: ${gammaResponse.status} - ${error}`)
     }
 
     const gammaData = await gammaResponse.json()
+    console.log('[Gamma] Generation created:', gammaData.id)
 
-    // Store Gamma URL in analysis document
+    // Gamma API returns a generation ID, we need to poll for the final URL
+    // For now, return the generation ID and let user check it in Gamma dashboard
+    const generationId = gammaData.id
+    
+    // Store generation info in analysis document
     await adminDb
       .collection('users')
       .doc(userId)
@@ -85,17 +91,21 @@ export async function POST(request: NextRequest) {
       .doc(analysisId)
       .update({
         gamma_report: {
-          url: gammaData.url,
-          id: gammaData.id,
+          generation_id: generationId,
+          status: 'generating',
           created_at: new Date().toISOString()
         }
       })
 
+    // Return success with generation ID
+    // User can view in their Gamma dashboard: https://gamma.app
     return NextResponse.json({
       success: true,
       gamma: {
-        url: gammaData.url,
-        id: gammaData.id
+        id: generationId,
+        status: 'generating',
+        message: 'Gamma presentation is being generated. Check your Gamma dashboard at https://gamma.app to view it.',
+        dashboardUrl: 'https://gamma.app'
       }
     })
 

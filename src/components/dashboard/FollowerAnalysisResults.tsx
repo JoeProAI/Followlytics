@@ -214,10 +214,12 @@ export default function FollowerAnalysisResults() {
 
       const data = await response.json()
       
-      // Open Gamma report in new tab
-      if (data.gamma?.url) {
-        window.open(data.gamma.url, '_blank')
-        alert('🎨 Gamma Report Generated!\n\nOpening in new tab...')
+      // Gamma report is generating - direct user to dashboard
+      if (data.gamma?.dashboardUrl) {
+        const message = `🎨 Gamma Report Generating!\n\n${data.gamma.message}\n\nClick OK to open Gamma dashboard.`
+        if (confirm(message)) {
+          window.open(data.gamma.dashboardUrl, '_blank')
+        }
       }
     } catch (error: any) {
       console.error('Gamma generation error:', error)
