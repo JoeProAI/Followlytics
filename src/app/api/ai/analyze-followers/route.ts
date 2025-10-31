@@ -40,31 +40,54 @@ export async function POST(request: NextRequest) {
       verified: f.verified || false
     }))
 
-    // Create AI analysis prompt
-    const prompt = `Analyze these ${followers.length} followers and provide strategic insights:
+    // Create AI analysis prompt with both individual AND aggregate analysis
+    const prompt = `Analyze these ${followers.length} followers. Provide BOTH individual analysis for each follower AND aggregate insights about the group.
 
+FOLLOWERS TO ANALYZE:
 ${JSON.stringify(followerSummary, null, 2)}
 
-Provide a comprehensive analysis covering:
-1. **Audience Composition**: What types of people follow this account? (professionals, enthusiasts, brands, etc.)
-2. **Influence Level**: Overall influence and reach based on follower counts
-3. **Key Influencers**: Top 5 most influential followers and why they matter
-4. **Industry Patterns**: Common themes, industries, or interests
-5. **Engagement Potential**: Which followers are most likely to engage and amplify content
-6. **Strategic Recommendations**: How to leverage this audience for growth
-7. **Red Flags**: Any bot accounts, inactive users, or quality concerns
+Provide a comprehensive analysis with:
 
-Format as JSON with these keys:
+1. **INDIVIDUAL FOLLOWER ANALYSIS** - For EACH follower, provide:
+   - Category: (e.g., "Tech Influencer", "Entrepreneur", "Content Creator", "Brand", "Investor", etc.)
+   - Influence Score: 1-10 based on follower count and verification
+   - Engagement Value: HIGH/MEDIUM/LOW - likelihood to engage/amplify
+   - Strategic Value: Why this follower matters to you
+   - Action: One specific recommendation for engaging with them
+   - Priority: HIGH/MEDIUM/LOW for outreach
+
+2. **AGGREGATE ANALYSIS** - Overall insights about the group:
+   - Audience Composition: What types of people follow this account
+   - Overall Influence Level: Score 1-10
+   - Key Themes: Common industries/interests
+   - Engagement Potential: Score 1-10
+   - Strategic Recommendations: How to leverage this audience
+   - Red Flags: Any concerns
+
+Format as JSON:
 {
-  "audienceComposition": { "types": ["type1", "type2"], "summary": "..." },
-  "influenceLevel": { "score": 1-10, "summary": "..." },
-  "keyInfluencers": [{ "username": "...", "reason": "..." }],
-  "industryPatterns": { "themes": ["theme1", "theme2"], "summary": "..." },
-  "engagementPotential": { "score": 1-10, "highPotential": ["username1"], "summary": "..." },
-  "recommendations": ["rec1", "rec2", "rec3"],
-  "redFlags": { "concerns": ["concern1"], "summary": "..." },
+  "individualAnalyses": [
+    {
+      "username": "...",
+      "name": "...",
+      "category": "...",
+      "influenceScore": 1-10,
+      "engagementValue": "HIGH/MEDIUM/LOW",
+      "strategicValue": "...",
+      "actionRecommendation": "...",
+      "priority": "HIGH/MEDIUM/LOW"
+    }
+  ],
+  "aggregateAnalysis": {
+    "audienceComposition": { "types": ["type1"], "summary": "..." },
+    "influenceLevel": { "score": 1-10, "summary": "..." },
+    "industryPatterns": { "themes": ["theme1"], "summary": "..." },
+    "engagementPotential": { "score": 1-10, "summary": "..." },
+    "recommendations": ["rec1", "rec2"],
+    "redFlags": { "concerns": ["concern1"], "summary": "..." }
+  },
   "overallScore": 1-100,
-  "summary": "One paragraph executive summary"
+  "summary": "Executive summary"
 }`
 
     const completion = await openai.chat.completions.create({
@@ -103,6 +126,41 @@ Format as JSON with these keys:
         created_at: new Date().toISOString(),
         model: 'gpt-4o'
       })
+
+    // Also update individual follower documents with AI insights
+    if (analysis.individualAnalyses && Array.isArray(analysis.individualAnalyses)) {
+      const batch = adminDb.batch()
+      
+      for (const individualAnalysis of analysis.individualAnalyses) {
+        // Find follower document
+        const followerSnapshot = await adminDb
+          .collection('users')
+          .doc(userId)
+          .collection('followers')
+          .where('username', '==', individualAnalysis.username)
+          .where('target_username', '==', targetUsername?.toLowerCase() || null)
+          .limit(1)
+          .get()
+        
+        if (!followerSnapshot.empty) {
+          const followerDoc = followerSnapshot.docs[0]
+          batch.update(followerDoc.ref, {
+            ai_analysis: {
+              category: individualAnalysis.category,
+              influenceScore: individualAnalysis.influenceScore,
+              engagementValue: individualAnalysis.engagementValue,
+              strategicValue: individualAnalysis.strategicValue,
+              actionRecommendation: individualAnalysis.actionRecommendation,
+              priority: individualAnalysis.priority,
+              analyzed_at: new Date().toISOString()
+            }
+          })
+        }
+      }
+      
+      await batch.commit()
+      console.log(`[AI Analysis] Updated ${analysis.individualAnalyses.length} follower documents with AI insights`)
+    }
 
     console.log(`[AI Analysis] Saved analysis: ${analysisRef.id}`)
 
