@@ -52,14 +52,26 @@ export async function GET(request: NextRequest) {
     const followersUsed = usageData.followers_extracted || 0
     const remainingFollowers = limit === null ? null : Math.max((limit || 0) - followersUsed, 0)
 
-    // Get all stored followers
-    const followersSnapshot = await adminDb
-      .collection('users')
-      .doc(userId)
-      .collection('followers')
-      .where('status', '==', 'active') // Only active followers
-      .limit(1000)
-      .get()
+    // Get target username from user doc
+    const targetUsername = userData?.target_username?.toLowerCase() || null
+
+    // Get all stored followers for this target account
+    const followersSnapshot = targetUsername
+      ? await adminDb
+          .collection('users')
+          .doc(userId)
+          .collection('followers')
+          .where('target_username', '==', targetUsername)
+          .where('status', '==', 'active')
+          .limit(1000)
+          .get()
+      : await adminDb
+          .collection('users')
+          .doc(userId)
+          .collection('followers')
+          .where('status', '==', 'active')
+          .limit(1000)
+          .get()
 
     if (followersSnapshot.empty) {
       return NextResponse.json({

@@ -23,13 +23,21 @@ export async function GET(request: NextRequest) {
     const userData = userDoc.data()
     const firstExtractionDate = userData?.first_follower_extraction || null
     const lastExtractionDate = userData?.last_follower_extraction || null
+    const targetUsername = userData?.target_username?.toLowerCase() || null
     
-    // Get all followers from Firestore
-    const followersSnapshot = await adminDb
-      .collection('users')
-      .doc(userId)
-      .collection('followers')
-      .get()
+    // Get all followers from Firestore for this target account
+    const followersSnapshot = targetUsername
+      ? await adminDb
+          .collection('users')
+          .doc(userId)
+          .collection('followers')
+          .where('target_username', '==', targetUsername)
+          .get()
+      : await adminDb
+          .collection('users')
+          .doc(userId)
+          .collection('followers')
+          .get()
 
     if (followersSnapshot.empty) {
       return NextResponse.json({

@@ -23,6 +23,8 @@ interface UnfollowerData {
     quickUnfollowers: any[]
   }
   allEvents: any[]
+  message?: string
+  targetUsername?: string
 }
 
 export default function UnfollowerIntelligence() {
@@ -86,9 +88,12 @@ export default function UnfollowerIntelligence() {
       <div className="bg-gray-900 border border-gray-800 rounded-lg p-8 text-center">
         <div className="text-4xl mb-4">👋</div>
         <h3 className="text-xl font-medium mb-2">No Unfollower Data Yet</h3>
-        <p className="text-gray-400 text-sm">
+        <p className="text-gray-400 text-sm mb-4">
           Extract followers multiple times to start tracking unfollows and re-follows.
         </p>
+        {data?.message && (
+          <p className="text-xs text-gray-500 italic">{data.message}</p>
+        )}
       </div>
     )
   }

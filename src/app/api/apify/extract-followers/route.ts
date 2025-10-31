@@ -184,16 +184,20 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Get existing followers to detect unfollows
+    // Get existing followers to detect unfollows (scoped by target account)
+    // This ensures we don't mix data from different accounts
     const existingFollowersSnapshot = await adminDb
       .collection('users')
       .doc(userId)
       .collection('followers')
+      .where('target_username', '==', username.toLowerCase())
       .get()
 
     const existingFollowers = new Map(
       existingFollowersSnapshot.docs.map(doc => [doc.id, doc.data()])
     )
+    
+    console.log(`[Apify] Found ${existingFollowers.size} existing followers for @${username}`)
 
     // Process and save to Firestore
     const processedFollowers = followers.map((follower: any) => {
@@ -264,6 +268,7 @@ export async function POST(request: NextRequest) {
       // If follower exists, update; if new, mark first_seen
       const followerData = {
         ...follower,
+        target_username: username.toLowerCase(), // Critical: Track which account these followers belong to
         last_seen: nowIso,
         status: 'active',
         first_seen: existing?.first_seen || nowIso
@@ -305,6 +310,7 @@ export async function POST(request: NextRequest) {
           // Create unfollower event for analytics
           const eventRef = eventsCollectionRef.doc()
           batch.set(eventRef, {
+            target_username: username.toLowerCase(), // Critical: Track which account this event belongs to
             username: data.username || username,
             name: data.name,
             profile_image_url: data.profile_image_url,
@@ -333,6 +339,7 @@ export async function POST(request: NextRequest) {
           // Create refollow event
           const eventRef = eventsCollectionRef.doc()
           batch.set(eventRef, {
+            target_username: username.toLowerCase(), // Critical: Track which account this event belongs to
             username: follower.username,
             name: follower.name,
             profile_image_url: follower.profile_image_url,

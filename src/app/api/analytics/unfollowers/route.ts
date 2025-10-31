@@ -19,11 +19,43 @@ export async function GET(request: NextRequest) {
 
     console.log(`[Unfollowers] Loading analytics for user: ${userId}`)
 
-    // Get all unfollower events
+    // Get user's tracked account (their own username)
+    const userDoc = await adminDb.collection('users').doc(userId).get()
+    const userData = userDoc.data()
+    const targetUsername = userData?.target_username?.toLowerCase() || null
+
+    if (!targetUsername) {
+      return NextResponse.json({
+        success: true,
+        stats: {
+          totalUnfollows: 0,
+          totalRefollows: 0,
+          netLoss: 0,
+          currentUnfollowers: 0,
+          serialUnfollowers: 0,
+          unfollowsLast24h: 0,
+          unfollowsLast7d: 0,
+          unfollowsLast30d: 0
+        },
+        currentUnfollowers: [],
+        recentUnfollows: [],
+        recentRefollows: [],
+        patterns: {
+          serialUnfollowers: [],
+          loyalRefollowers: [],
+          quickUnfollowers: []
+        },
+        allEvents: [],
+        message: 'No follower data yet. Extract followers first to start tracking unfollows.'
+      })
+    }
+
+    // Get all unfollower events for this target account
     const eventsSnapshot = await adminDb
       .collection('users')
       .doc(userId)
       .collection('unfollower_events')
+      .where('target_username', '==', targetUsername)
       .orderBy('timestamp', 'desc')
       .limit(1000)
       .get()
@@ -33,11 +65,12 @@ export async function GET(request: NextRequest) {
       ...doc.data()
     }))
 
-    // Get current unfollowers (status = 'unfollowed')
+    // Get current unfollowers (status = 'unfollowed') for this target account
     const currentUnfollowersSnapshot = await adminDb
       .collection('users')
       .doc(userId)
       .collection('followers')
+      .where('target_username', '==', targetUsername)
       .where('status', '==', 'unfollowed')
       .get()
 
