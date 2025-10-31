@@ -11,6 +11,7 @@ import FollowerAnalyticsDashboard from '@/components/dashboard/FollowerAnalytics
 import CommunityGrowthBanner from '@/components/dashboard/CommunityGrowthBanner'
 import UnfollowerIntelligence from '@/components/dashboard/UnfollowerIntelligence'
 import AccountManager from '@/components/dashboard/AccountManager'
+import FollowerAnalysisResults from '@/components/dashboard/FollowerAnalysisResults'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import Link from 'next/link'
 
@@ -148,6 +149,11 @@ function DashboardContent() {
         {/* 👋 Unfollower Intelligence */}
         <div className="mb-8">
           <UnfollowerIntelligence />
+        </div>
+
+        {/* 🤖 AI Follower Analysis Results */}
+        <div className="mb-8">
+          <FollowerAnalysisResults />
         </div>
 
         {/* ✅ WORKING: AI Tweet Generator */}

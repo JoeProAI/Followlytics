@@ -224,6 +224,8 @@ export default function ApifyFollowerExtractor() {
     if (!result?.sample || !user) return
     
     setAnalyzing(true)
+    setError('')
+    
     try {
       // Analyze selected followers, or top 50 if none selected
       const followersToAnalyze = selectedFollowers.size > 0
@@ -231,17 +233,39 @@ export default function ApifyFollowerExtractor() {
         : [...result.sample].sort((a: any, b: any) => (b.followersCount || 0) - (a.followersCount || 0)).slice(0, 50)
       
       const analysisMsg = selectedFollowers.size > 0
-        ? `Analyzing ${selectedFollowers.size} selected followers...`
-        : `Smart Analysis: Analyzing top 50 most influential followers (by follower count) out of ${result.count} total.\n\nTip: Select specific followers using checkboxes for targeted analysis.`
+        ? `Analyzing ${selectedFollowers.size} selected followers with AI...`
+        : `🤖 AI Analysis: Analyzing top 50 most influential followers (by follower count)...\n\nThis will take about 30 seconds.`
       
       alert(analysisMsg)
       
-      // Navigate to analytics view with filtered data
-      // TODO: Implement actual analytics view
-      console.log('Analyzing followers:', followersToAnalyze)
+      const token = await user.getIdToken()
+      
+      const response = await fetch('/api/ai/analyze-followers', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          followers: followersToAnalyze,
+          targetUsername: username
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Analysis failed')
+      }
+      
+      const data = await response.json()
+      
+      // Show success and scroll to analysis section
+      alert(`✅ Analysis Complete!\n\nAnalyzed ${data.followerCount} followers.\nOverall Score: ${data.analysis.overallScore}/100\n\nScroll down to see detailed insights.`)
+      
+      // Reload the page to show new analysis
+      window.location.reload()
       
     } catch (err: any) {
-      setError(err.message)
+      setError(`Analysis failed: ${err.message}`)
     } finally {
       setAnalyzing(false)
     }
