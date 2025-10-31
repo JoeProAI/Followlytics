@@ -12,7 +12,7 @@ import CommunityGrowthBanner from '@/components/dashboard/CommunityGrowthBanner'
 import UnfollowerIntelligence from '@/components/dashboard/UnfollowerIntelligence'
 import AccountManager from '@/components/dashboard/AccountManager'
 import FollowerAnalysisResults from '@/components/dashboard/FollowerAnalysisResults'
-import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import XFireworksLoader from '@/components/ui/XFireworksLoader'
 import Link from 'next/link'
 
 function DashboardContent() {
@@ -52,7 +52,11 @@ function DashboardContent() {
   }, [user])
 
   if (loading) {
-    return <LoadingSpinner fullScreen text="LOADING..." />
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <XFireworksLoader message="LOADING..." size="lg" />
+      </div>
+    )
   }
 
   if (!user) {
@@ -252,7 +256,11 @@ function DashboardContent() {
 
 export default function Dashboard() {
   return (
-    <Suspense fallback={<LoadingSpinner fullScreen text="LOADING..." />}>
+    <Suspense fallback={
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <XFireworksLoader message="LOADING..." size="lg" />
+      </div>
+    }>
       <DashboardContent />
     </Suspense>
   )

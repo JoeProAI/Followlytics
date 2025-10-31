@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
+import XFireworksLoader from '@/components/ui/XFireworksLoader'
 
 interface IndividualAnalysis {
   username: string
@@ -126,10 +127,7 @@ export default function FollowerAnalysisResults() {
   if (loading) {
     return (
       <div className="bg-gray-900 border border-gray-800 rounded-lg p-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-gray-800 rounded w-1/3"></div>
-          <div className="h-4 bg-gray-800 rounded w-2/3"></div>
-        </div>
+        <XFireworksLoader message="Loading AI analysis..." size="md" />
       </div>
     )
   }

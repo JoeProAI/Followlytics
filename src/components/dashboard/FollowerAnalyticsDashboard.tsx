@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
+import XSpinner from '@/components/ui/XSpinner'
 
 interface FollowerData {
   username: string
@@ -56,7 +57,9 @@ export default function FollowerAnalyticsDashboard() {
   if (loading) {
     return (
       <div className="bg-black border border-gray-800 rounded-lg p-8 text-center">
-        <div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+        <div className="flex justify-center mb-4">
+          <XSpinner size="lg" />
+        </div>
         <p className="text-gray-400">Loading follower analytics...</p>
       </div>
     )
