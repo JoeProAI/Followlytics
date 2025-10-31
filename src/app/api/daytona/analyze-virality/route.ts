@@ -4,11 +4,11 @@ import OpenAI from 'openai'
 
 export const maxDuration = 30
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
-
 export async function POST(request: NextRequest) {
+  // Initialize OpenAI at runtime (not build time)
+  const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+  })
   try {
     // Payment gate: requires Pro tier + AI analysis feature
     const gateResult = await withPaymentGate(request, {
