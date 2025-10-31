@@ -36,6 +36,14 @@ export async function POST(request: NextRequest) {
     const analysisData = analysisDoc.data()
     const analysis = analysisData?.analysis
 
+    // Check if Gamma API key is configured
+    if (!process.env.GAMMA_API_KEY) {
+      return NextResponse.json({
+        error: 'Gamma API not configured',
+        details: 'Contact support to enable Gamma report generation'
+      }, { status: 503 })
+    }
+
     // Build Gamma presentation prompt
     const gammaPrompt = buildGammaPrompt(analysisData, analysis)
 

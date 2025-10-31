@@ -208,7 +208,8 @@ export default function FollowerAnalysisResults() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to generate Gamma report')
+        const errorData = await response.json()
+        throw new Error(errorData.details || 'Failed to generate Gamma report')
       }
 
       const data = await response.json()
@@ -219,7 +220,8 @@ export default function FollowerAnalysisResults() {
         alert('🎨 Gamma Report Generated!\n\nOpening in new tab...')
       }
     } catch (error: any) {
-      alert(`Failed to generate Gamma report: ${error.message}`)
+      console.error('Gamma generation error:', error)
+      alert(`Gamma Report Error: ${error.message}`)
     } finally {
       setGeneratingGamma(false)
     }

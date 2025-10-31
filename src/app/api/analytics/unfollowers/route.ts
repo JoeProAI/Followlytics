@@ -51,19 +51,22 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all unfollower events for this target account
+    // Note: Removed orderBy to avoid requiring Firestore index
     const eventsSnapshot = await adminDb
       .collection('users')
       .doc(userId)
       .collection('unfollower_events')
       .where('target_username', '==', targetUsername)
-      .orderBy('timestamp', 'desc')
       .limit(1000)
       .get()
 
     const events = eventsSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
-    }))
+    })).sort((a: any, b: any) => {
+      // Sort by timestamp descending (newest first)
+      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    })
 
     // Get current unfollowers (status = 'unfollowed') for this target account
     const currentUnfollowersSnapshot = await adminDb
