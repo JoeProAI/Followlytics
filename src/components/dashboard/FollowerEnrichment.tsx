@@ -63,10 +63,19 @@ export default function FollowerEnrichment() {
           body: JSON.stringify({ usernames: batches[i] })
         })
         
-        const enrichData = await enrichResponse.json()
+        // Get response text first to handle both JSON and non-JSON responses
+        const responseText = await enrichResponse.text()
+        
+        let enrichData
+        try {
+          enrichData = JSON.parse(responseText)
+        } catch (jsonError) {
+          console.error('[Enrich] Failed to parse JSON response:', responseText)
+          throw new Error(`Server error: ${responseText.substring(0, 100)}... Check console for full details.`)
+        }
         
         if (!enrichResponse.ok) {
-          throw new Error(enrichData.error || 'Failed to enrich followers')
+          throw new Error(enrichData.error || enrichData.details || 'Failed to enrich followers')
         }
 
         totalEnriched += enrichData.enriched_count

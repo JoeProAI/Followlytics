@@ -31,12 +31,27 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    if (!process.env.APIFY_API_TOKEN) {
+      return NextResponse.json({ 
+        error: 'Apify not configured - APIFY_API_TOKEN missing' 
+      }, { status: 500 })
+    }
+
     console.log(`[Enrich] Enriching ${usernames.length} users for ${userId}`)
 
     // Run the Premium X User Scraper Actor
-    const run = await apifyClient.actor('kaitoeasyapi/premium-twitter-user-scraper-pay-per-result').call({
-      user_names: usernames,
-    })
+    let run
+    try {
+      run = await apifyClient.actor('kaitoeasyapi/premium-twitter-user-scraper-pay-per-result').call({
+        user_names: usernames,
+      })
+    } catch (apifyError: any) {
+      console.error('[Enrich] Apify actor call failed:', apifyError)
+      return NextResponse.json({ 
+        error: 'Apify actor execution failed',
+        details: apifyError.message || 'Unknown Apify error'
+      }, { status: 500 })
+    }
 
     // Fetch results from the Actor's dataset
     const { items } = await apifyClient.dataset(run.defaultDatasetId).listItems()
@@ -81,7 +96,8 @@ export async function POST(request: NextRequest) {
 
         const docRef = followersCollectionRef.doc(sanitizedUsername)
         
-        batch.update(docRef, {
+        // Use set with merge instead of update to handle both existing and new docs
+        batch.set(docRef, {
           verified: profile.verified,
           verified_type: profile.verified_type,
           is_blue_verified: profile.is_blue_verified,
@@ -95,11 +111,16 @@ export async function POST(request: NextRequest) {
           url: profile.url,
           is_protected: profile.is_protected,
           enriched_at: new Date().toISOString(),
-        })
+        }, { merge: true })
       })
 
-      await batch.commit()
-      console.log(`[Enrich] Updated ${enrichedData.length} follower records in Firestore`)
+      try {
+        await batch.commit()
+        console.log(`[Enrich] Updated ${enrichedData.length} follower records in Firestore`)
+      } catch (firestoreError: any) {
+        console.error('[Enrich] Firestore batch commit failed:', firestoreError)
+        // Don't fail the whole request - enrichment data was still retrieved
+      }
     }
 
     return NextResponse.json({
