@@ -14,6 +14,7 @@ import AccountManager from '@/components/dashboard/AccountManager'
 import FollowerAnalysisResults from '@/components/dashboard/FollowerAnalysisResults'
 import QuickFullScan from '@/components/dashboard/QuickFullScan'
 import FollowerEnrichment from '@/components/dashboard/FollowerEnrichment'
+import VerifiedCounter from '@/components/dashboard/VerifiedCounter'
 import XFireworksLoader from '@/components/ui/XFireworksLoader'
 import Link from 'next/link'
 
@@ -149,10 +150,15 @@ function DashboardContent() {
           <ApifyFollowerExtractor />
         </div>
 
+        {/* ✓ Verified Followers Counter */}
+        <div className="mb-8">
+          <VerifiedCounter />
+        </div>
+
         {/* ✨ Follower Enrichment - Get Verified Badges */}
         <div className="mb-8">
           <div className="bg-blue-500/10 border border-blue-500/30 rounded px-3 py-1 text-blue-400 text-xs font-medium mb-3 inline-block">
-            ✨ NEW - GET VERIFIED BADGES
+            ✨ OPTIONAL - GET MORE DATA
           </div>
           <FollowerEnrichment />
         </div>

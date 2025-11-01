@@ -40,8 +40,8 @@ export default function FollowerEnrichment() {
 
       console.log(`[Enrich] Enriching ${allUsernames.length} followers in batches...`)
       
-      // Process in batches of 1000 (Apify limit)
-      const batchSize = 1000
+      // Process in batches of 100 to avoid timeouts
+      const batchSize = 100
       const batches = []
       for (let i = 0; i < allUsernames.length; i += batchSize) {
         batches.push(allUsernames.slice(i, i + batchSize))

@@ -11,6 +11,8 @@ const apifyClient = new ApifyClient({
   token: process.env.APIFY_API_TOKEN,
 })
 
+export const maxDuration = 300 // 5 minutes for large batches
+
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('Authorization')
