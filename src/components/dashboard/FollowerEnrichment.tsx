@@ -94,13 +94,13 @@ export default function FollowerEnrichment() {
     <div className="bg-black border border-gray-800 rounded-lg p-6">
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
-          <h2 className="text-xl font-medium">✨ Enrich Follower Data</h2>
+          <h2 className="text-xl font-medium">✨ Get Verified Badges</h2>
           <span className="text-xs px-2 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded">
-            PREMIUM
+            REQUIRED FOR VERIFIED COUNT
           </span>
         </div>
         <p className="text-sm text-gray-400">
-          Add detailed metrics and verified status to your followers using Premium X User Scraper.
+          Your current extraction doesn't include verified status. Run this once to add Blue/Gold/Gray checkmarks to ALL your followers.
         </p>
       </div>
 

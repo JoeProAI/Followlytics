@@ -76,10 +76,21 @@ export async function GET(request: NextRequest) {
     const totalFollowers = followers.length
     
     // New followers in timeframe
-    // NOTE: On first extraction, all followers get marked with current timestamp
-    // So we exclude the initial batch to avoid false "new follower" counts
+    // FIXED: Exclude followers from the initial extraction batch to prevent false "new follower" counts
+    // If a follower's first_seen is within 1 hour of the first extraction, they're part of the initial batch
+    const firstExtractionTime = firstExtractionDate ? new Date(firstExtractionDate).getTime() : 0
+    const oneHourMs = 3600000 // 1 hour in milliseconds
+    
     const newFollowers = isFirstExtraction ? [] : followers.filter((f: any) => {
       const firstSeen = new Date(f.first_seen || f.extracted_at)
+      const firstSeenTime = firstSeen.getTime()
+      
+      // Exclude if part of initial extraction (within 1 hour of first extraction)
+      if (Math.abs(firstSeenTime - firstExtractionTime) < oneHourMs) {
+        return false
+      }
+      
+      // Include if within the selected timeframe and still active
       return firstSeen >= cutoffDate && f.status === 'active'
     })
 
