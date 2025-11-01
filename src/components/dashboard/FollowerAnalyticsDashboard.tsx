@@ -53,10 +53,63 @@ export default function FollowerAnalyticsDashboard() {
       setFollowers(data.followers || [])
       setStats(data.stats || null)
       
-      // Extract influencers (10K+ followers)
+      // Extract and rank influencers (10K+ followers) with sophisticated scoring
       const highValueFollowers = (data.followers || []).filter(
         (f: FollowerData) => f.followers_count >= 10000
-      ).sort((a: FollowerData, b: FollowerData) => b.followers_count - a.followers_count)
+      ).map((f: FollowerData) => {
+        // Multi-factor scoring system
+        const reachScore = Math.min((f.followers_count / 1000000) * 100, 100) // Max 100 at 1M followers
+        const engagementRate = f.tweet_count && f.followers_count ? 
+          Math.min((f.tweet_count / f.followers_count) * 1000, 100) : 50
+        const verifiedBonus = f.verified ? 20 : 0
+        const influenceRatio = f.following_count ? 
+          Math.min((f.followers_count / f.following_count) * 10, 100) : 50
+        const activityScore = f.tweet_count ? Math.min((f.tweet_count / 10000) * 100, 100) : 30
+        
+        // Weighted total score (out of 100)
+        const totalScore = (
+          reachScore * 0.35 +           // 35% reach
+          engagementRate * 0.20 +       // 20% engagement
+          verifiedBonus * 0.15 +        // 15% verification
+          influenceRatio * 0.20 +       // 20% influence quality
+          activityScore * 0.10          // 10% activity
+        )
+        
+        // Determine tier
+        let tier = 'C'
+        let tierColor = 'gray'
+        if (totalScore >= 80) { tier = 'S'; tierColor = 'purple' }
+        else if (totalScore >= 65) { tier = 'A'; tierColor = 'blue' }
+        else if (totalScore >= 50) { tier = 'B'; tierColor = 'green' }
+        
+        // Strategic analysis
+        let strategy = ''
+        if (tier === 'S') {
+          strategy = '🎯 Top Priority: High-value partnership opportunity. Direct engagement recommended.'
+        } else if (tier === 'A') {
+          strategy = '⭐ High Value: Strong collaboration potential. Regular engagement advised.'
+        } else if (tier === 'B') {
+          strategy = '✅ Good Value: Potential micro-influencer. Occasional engagement beneficial.'
+        } else {
+          strategy = '💡 Monitor: Building influence. Engage if niche-relevant.'
+        }
+        
+        return {
+          ...f,
+          score: Math.round(totalScore),
+          tier,
+          tierColor,
+          strategy,
+          breakdown: {
+            reach: Math.round(reachScore),
+            engagement: Math.round(engagementRate),
+            verified: verifiedBonus,
+            influence: Math.round(influenceRatio),
+            activity: Math.round(activityScore)
+          }
+        }
+      }).sort((a: any, b: any) => b.score - a.score)
+      
       setInfluencers(highValueFollowers)
       
       // Extract verified followers
@@ -355,21 +408,73 @@ export default function FollowerAnalyticsDashboard() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {influencers.map((influencer, idx) => (
-                    <div key={idx} className="bg-black border border-purple-500/20 rounded-lg p-4 hover:border-purple-500/40 transition-all">
-                      <div className="flex items-start gap-4">
-                        <img src={influencer.profile_image_url} alt="" className="w-16 h-16 rounded-full" />
+                  {/* Scoring Legend */}
+                  <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-lg p-4 mb-6">
+                    <h4 className="font-semibold mb-3 text-sm">📊 Influencer Scoring System</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+                      <div>
+                        <div className="text-purple-400 font-medium">Reach (35%)</div>
+                        <div className="text-gray-500">Follower count</div>
+                      </div>
+                      <div>
+                        <div className="text-blue-400 font-medium">Influence (20%)</div>
+                        <div className="text-gray-500">Follower ratio</div>
+                      </div>
+                      <div>
+                        <div className="text-green-400 font-medium">Engagement (20%)</div>
+                        <div className="text-gray-500">Tweet rate</div>
+                      </div>
+                      <div>
+                        <div className="text-cyan-400 font-medium">Verified (15%)</div>
+                        <div className="text-gray-500">Credibility</div>
+                      </div>
+                      <div>
+                        <div className="text-yellow-400 font-medium">Activity (10%)</div>
+                        <div className="text-gray-500">Total posts</div>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 mt-3 pt-3 border-t border-gray-700">
+                      <span className="text-xs"><span className="text-purple-400 font-bold">S-Tier</span> 80-100</span>
+                      <span className="text-xs"><span className="text-blue-400 font-bold">A-Tier</span> 65-79</span>
+                      <span className="text-xs"><span className="text-green-400 font-bold">B-Tier</span> 50-64</span>
+                      <span className="text-xs"><span className="text-gray-400 font-bold">C-Tier</span> &lt;50</span>
+                    </div>
+                  </div>
+
+                  {influencers.map((influencer: any, idx) => (
+                    <div key={idx} className={`bg-black border-2 rounded-lg p-5 hover:border-${influencer.tierColor}-500/60 transition-all border-${influencer.tierColor}-500/30`}>
+                      {/* Header with Rank and Tier */}
+                      <div className="flex items-start gap-4 mb-4">
+                        {/* Rank Badge */}
+                        <div className="flex flex-col items-center gap-1">
+                          <div className={`w-12 h-12 rounded-full bg-gradient-to-br from-${influencer.tierColor}-500/20 to-${influencer.tierColor}-600/20 border-2 border-${influencer.tierColor}-500/50 flex items-center justify-center font-bold text-lg`}>
+                            #{idx + 1}
+                          </div>
+                          <div className={`text-xs font-bold px-2 py-0.5 rounded bg-${influencer.tierColor}-500/20 text-${influencer.tierColor}-400`}>
+                            {influencer.tier}-Tier
+                          </div>
+                        </div>
+
+                        {/* Profile */}
+                        <img src={influencer.profile_image_url} alt="" className="w-16 h-16 rounded-full border-2 border-gray-700" />
+                        
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-bold text-white">{influencer.name}</h4>
-                            {influencer.verified && <span className="text-blue-400">✓</span>}
+                            <h4 className="font-bold text-white text-lg">{influencer.name}</h4>
+                            {influencer.verified && <span className="text-blue-400 text-lg">✓</span>}
                           </div>
                           <p className="text-sm text-gray-400 mb-2">@{influencer.username}</p>
-                          <p className="text-xs text-gray-500 mb-3 line-clamp-2">{influencer.bio}</p>
-                          <div className="flex items-center gap-4 text-xs">
+                          <p className="text-xs text-gray-500 line-clamp-2 mb-3">{influencer.bio}</p>
+                          
+                          {/* Stats Row */}
+                          <div className="flex items-center gap-4 text-xs mb-3">
                             <div>
-                              <span className="text-purple-400 font-medium">{influencer.followers_count?.toLocaleString()}</span>
+                              <span className="text-purple-400 font-bold">{influencer.followers_count?.toLocaleString()}</span>
                               <span className="text-gray-500"> followers</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">{influencer.following_count?.toLocaleString()}</span>
+                              <span className="text-gray-500"> following</span>
                             </div>
                             <div>
                               <span className="text-green-400 font-medium">{influencer.tweet_count?.toLocaleString()}</span>
@@ -382,15 +487,73 @@ export default function FollowerAnalyticsDashboard() {
                             )}
                           </div>
                         </div>
-                        <a 
-                          href={`https://x.com/${influencer.username}`} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-sm font-medium transition-all"
-                        >
-                          Engage →
-                        </a>
+
+                        {/* Overall Score */}
+                        <div className="text-center">
+                          <div className={`text-4xl font-bold text-${influencer.tierColor}-400 mb-1`}>
+                            {influencer.score}
+                          </div>
+                          <div className="text-xs text-gray-500">Overall Score</div>
+                        </div>
                       </div>
+
+                      {/* Score Breakdown */}
+                      <div className="bg-gray-900/50 rounded-lg p-3 mb-3">
+                        <div className="text-xs text-gray-400 mb-2 font-semibold">Score Breakdown:</div>
+                        <div className="grid grid-cols-5 gap-2">
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Reach</div>
+                            <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                              <div className="h-full bg-purple-500" style={{ width: `${influencer.breakdown.reach}%` }}></div>
+                            </div>
+                            <div className="text-xs text-purple-400 font-medium mt-1">{influencer.breakdown.reach}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Influence</div>
+                            <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                              <div className="h-full bg-blue-500" style={{ width: `${influencer.breakdown.influence}%` }}></div>
+                            </div>
+                            <div className="text-xs text-blue-400 font-medium mt-1">{influencer.breakdown.influence}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Engagement</div>
+                            <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                              <div className="h-full bg-green-500" style={{ width: `${influencer.breakdown.engagement}%` }}></div>
+                            </div>
+                            <div className="text-xs text-green-400 font-medium mt-1">{influencer.breakdown.engagement}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Verified</div>
+                            <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                              <div className="h-full bg-cyan-500" style={{ width: `${(influencer.breakdown.verified / 20) * 100}%` }}></div>
+                            </div>
+                            <div className="text-xs text-cyan-400 font-medium mt-1">{influencer.breakdown.verified ? '✓' : '—'}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Activity</div>
+                            <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                              <div className="h-full bg-yellow-500" style={{ width: `${influencer.breakdown.activity}%` }}></div>
+                            </div>
+                            <div className="text-xs text-yellow-400 font-medium mt-1">{influencer.breakdown.activity}</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Strategic Analysis */}
+                      <div className={`bg-${influencer.tierColor}-500/10 border border-${influencer.tierColor}-500/30 rounded-lg p-3 mb-3`}>
+                        <div className="text-xs font-semibold text-gray-400 mb-1">Strategic Analysis:</div>
+                        <p className="text-sm text-gray-300">{influencer.strategy}</p>
+                      </div>
+
+                      {/* Action Button */}
+                      <a 
+                        href={`https://x.com/${influencer.username}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className={`block text-center px-4 py-2.5 bg-gradient-to-r from-${influencer.tierColor}-600 to-${influencer.tierColor}-700 hover:from-${influencer.tierColor}-700 hover:to-${influencer.tierColor}-800 text-white rounded-lg text-sm font-medium transition-all`}
+                      >
+                        Engage with @{influencer.username} →
+                      </a>
                     </div>
                   ))}
                 </div>
