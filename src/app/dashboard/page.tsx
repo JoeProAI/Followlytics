@@ -12,6 +12,8 @@ import CommunityGrowthBanner from '@/components/dashboard/CommunityGrowthBanner'
 import UnfollowerIntelligence from '@/components/dashboard/UnfollowerIntelligence'
 import AccountManager from '@/components/dashboard/AccountManager'
 import FollowerAnalysisResults from '@/components/dashboard/FollowerAnalysisResults'
+import QuickFullScan from '@/components/dashboard/QuickFullScan'
+import FollowerEnrichment from '@/components/dashboard/FollowerEnrichment'
 import XFireworksLoader from '@/components/ui/XFireworksLoader'
 import Link from 'next/link'
 
@@ -147,8 +149,21 @@ function DashboardContent() {
           <ApifyFollowerExtractor />
         </div>
 
+        {/* ✨ Follower Enrichment - Get Verified Badges */}
+        <div className="mb-8">
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded px-3 py-1 text-blue-400 text-xs font-medium mb-3 inline-block">
+            ✨ NEW - GET VERIFIED BADGES
+          </div>
+          <FollowerEnrichment />
+        </div>
+
         {/* ✅ Follower Intelligence Dashboard (Conditionally Rendered) */}
         <FollowerAnalyticsDashboard />
+
+        {/* 🎯 Quick Fix: Enable Unfollow Detection */}
+        <div className="mb-8">
+          <QuickFullScan />
+        </div>
 
         {/* 👋 Unfollower Intelligence */}
         <div className="mb-8">
