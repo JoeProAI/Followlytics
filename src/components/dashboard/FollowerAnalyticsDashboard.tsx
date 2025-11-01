@@ -30,7 +30,9 @@ export default function FollowerAnalyticsDashboard() {
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '90d' | 'all'>('30d')
   const [showInfluencers, setShowInfluencers] = useState(false)
   const [showGrowthTips, setShowGrowthTips] = useState(false)
+  const [showVerified, setShowVerified] = useState(false)
   const [influencers, setInfluencers] = useState<FollowerData[]>([])
+  const [verifiedFollowers, setVerifiedFollowers] = useState<FollowerData[]>([])
 
   useEffect(() => {
     if (user) {
@@ -56,6 +58,12 @@ export default function FollowerAnalyticsDashboard() {
         (f: FollowerData) => f.followers_count >= 10000
       ).sort((a: FollowerData, b: FollowerData) => b.followers_count - a.followers_count)
       setInfluencers(highValueFollowers)
+      
+      // Extract verified followers
+      const verified = (data.followers || []).filter(
+        (f: FollowerData) => f.verified === true
+      ).sort((a: FollowerData, b: FollowerData) => b.followers_count - a.followers_count)
+      setVerifiedFollowers(verified)
     } catch (err) {
       console.error('Failed to load follower analytics:', err)
     } finally {
@@ -180,9 +188,19 @@ export default function FollowerAnalyticsDashboard() {
           </h3>
           <div className="space-y-4">
             <div>
-              <div className="flex justify-between text-sm mb-2">
+              <div className="flex justify-between items-center text-sm mb-2">
                 <span className="text-gray-400">Verified Accounts</span>
-                <span className="text-white font-medium">{stats.verifiedCount} ({stats.verifiedPercent}%)</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-white font-medium">{stats.verifiedCount} ({stats.verifiedPercent}%)</span>
+                  {stats.verifiedCount > 0 && (
+                    <button 
+                      onClick={() => setShowVerified(true)}
+                      className="text-xs px-2 py-0.5 bg-blue-500/20 border border-blue-500/30 text-blue-300 rounded hover:bg-blue-500/30 transition-all"
+                    >
+                      View
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="w-full bg-gray-800 rounded-full h-2">
                 <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${stats.verifiedPercent}%` }}></div>
@@ -369,6 +387,75 @@ export default function FollowerAnalyticsDashboard() {
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-sm font-medium transition-all"
+                        >
+                          Engage →
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verified Followers Modal */}
+      {showVerified && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowVerified(false)}>
+          <div className="bg-gray-900 border border-blue-500/30 rounded-lg max-w-4xl w-full max-h-[80vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-800 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <span>✓</span> Your Verified Followers
+                </h3>
+                <p className="text-sm text-gray-400 mt-1">{verifiedFollowers.length} verified accounts following you</p>
+              </div>
+              <button onClick={() => setShowVerified(false)} className="text-gray-400 hover:text-white text-2xl">
+                ×
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[calc(80vh-100px)]">
+              {verifiedFollowers.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <div className="text-4xl mb-4">🔍</div>
+                  <p>No verified followers found yet.</p>
+                  <p className="text-sm mt-2">Build credibility and engage with verified accounts to attract them!</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {verifiedFollowers.map((follower, idx) => (
+                    <div key={idx} className="bg-black border border-blue-500/20 rounded-lg p-4 hover:border-blue-500/40 transition-all">
+                      <div className="flex items-start gap-4">
+                        <img src={follower.profile_image_url} alt="" className="w-16 h-16 rounded-full" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-bold text-white">{follower.name}</h4>
+                            <span className="text-blue-400 text-lg">✓</span>
+                          </div>
+                          <p className="text-sm text-gray-400 mb-2">@{follower.username}</p>
+                          <p className="text-xs text-gray-500 mb-3 line-clamp-2">{follower.bio}</p>
+                          <div className="flex items-center gap-4 text-xs">
+                            <div>
+                              <span className="text-blue-400 font-medium">{follower.followers_count?.toLocaleString()}</span>
+                              <span className="text-gray-500"> followers</span>
+                            </div>
+                            <div>
+                              <span className="text-green-400 font-medium">{follower.tweet_count?.toLocaleString()}</span>
+                              <span className="text-gray-500"> posts</span>
+                            </div>
+                            {follower.location && (
+                              <div>
+                                <span className="text-gray-400">📍 {follower.location}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <a 
+                          href={`https://x.com/${follower.username}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-all"
                         >
                           Engage →
                         </a>

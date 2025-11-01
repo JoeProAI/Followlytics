@@ -77,11 +77,18 @@ export async function POST(request: NextRequest) {
     }
 
     const gammaData = await gammaResponse.json()
-    console.log('[Gamma] Generation created:', gammaData.id)
+    console.log('[Gamma] Generation response:', gammaData)
 
     // Gamma API returns a generation ID, we need to poll for the final URL
     // For now, return the generation ID and let user check it in Gamma dashboard
-    const generationId = gammaData.id
+    const generationId = gammaData.id || gammaData.generationId || gammaData.generation_id
+    
+    if (!generationId) {
+      console.error('[Gamma] No generation ID in response:', gammaData)
+      throw new Error('Gamma API did not return a generation ID')
+    }
+    
+    console.log('[Gamma] Generation created:', generationId)
     
     // Store generation info in analysis document
     await adminDb
