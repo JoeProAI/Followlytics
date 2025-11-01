@@ -43,43 +43,57 @@ export default function FollowerAnalytics() {
     
     setLoading(true)
     try {
-      const followersRef = collection(db, 'users', user.uid, 'followers')
-      const q = query(followersRef, limit(1000)) // Load up to 1000 followers
-      
-      const snapshot = await getDocs(q)
-      const followerData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Follower))
-      
-      setFollowers(followerData)
-      
-      // Calculate stats
-      const verified = followerData.filter(f => f.verified).length
-      const totalFollowerCount = followerData.reduce((sum, f) => sum + (f.followers_count || 0), 0)
-      const avgFollowers = followerData.length > 0 ? Math.round(totalFollowerCount / followerData.length) : 0
-      
-      // Location breakdown
-      const locations: Record<string, number> = {}
-      followerData.forEach(f => {
-        if (f.location && f.location.trim()) {
-          locations[f.location] = (locations[f.location] || 0) + 1
-        }
+      // Try to get follower data from the analytics API instead
+      const token = await user.getIdToken()
+      const response = await fetch('/api/analytics/followers?timeframe=all', {
+        headers: { 'Authorization': `Bearer ${token}` }
       })
       
-      // Top followers by follower count
-      const topFollowers = [...followerData]
-        .filter(f => f.followers_count > 0)
-        .sort((a, b) => (b.followers_count || 0) - (a.followers_count || 0))
-        .slice(0, 10)
-      
-      setStats({
-        total: followerData.length,
-        verified,
-        avgFollowers,
-        locations,
-        topFollowers
-      })
+      if (response.ok) {
+        const data = await response.json()
+        const followerData = (data.followers || []).map((f: any, index: number) => ({
+          id: f.username || index.toString(),
+          username: f.username,
+          name: f.name || f.displayName || f.username,
+          bio: f.bio || '',
+          followers_count: f.followers_count || 0,
+          following_count: f.following_count || 0,
+          tweet_count: f.tweet_count || 0,
+          verified: f.verified || f.isVerified || false,
+          profile_image_url: f.profile_image_url || '',
+          location: f.location || '',
+          created_at: f.extracted_at || f.created_at || new Date().toISOString()
+        } as Follower))
+        
+        setFollowers(followerData)
+        
+        // Calculate stats
+        const verified = followerData.filter((f: Follower) => f.verified).length
+        const totalFollowerCount = followerData.reduce((sum: number, f: Follower) => sum + (f.followers_count || 0), 0)
+        const avgFollowers = followerData.length > 0 ? Math.round(totalFollowerCount / followerData.length) : 0
+        
+        // Location breakdown
+        const locations: Record<string, number> = {}
+        followerData.forEach((f: Follower) => {
+          if (f.location && f.location.trim()) {
+            locations[f.location] = (locations[f.location] || 0) + 1
+          }
+        })
+        
+        // Top followers by follower count
+        const topFollowers = [...followerData]
+          .filter(f => f.followers_count > 0)
+          .sort((a, b) => (b.followers_count || 0) - (a.followers_count || 0))
+          .slice(0, 10)
+        
+        setStats({
+          total: followerData.length,
+          verified,
+          avgFollowers,
+          locations,
+          topFollowers
+        })
+      }
       
     } catch (error) {
       console.error('Error loading followers:', error)

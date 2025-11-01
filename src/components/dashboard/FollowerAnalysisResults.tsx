@@ -84,6 +84,8 @@ export default function FollowerAnalysisResults() {
   const [selectedAnalysis, setSelectedAnalysis] = useState<Analysis | null>(null)
   const [aiUsage, setAiUsage] = useState<any>(null)
   const [generatingGamma, setGeneratingGamma] = useState(false)
+  const [gammaReport, setGammaReport] = useState<any>(null)
+  const [pollingGamma, setPollingGamma] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -91,6 +93,12 @@ export default function FollowerAnalysisResults() {
       loadAiUsage()
     }
   }, [user])
+
+  useEffect(() => {
+    if (selectedAnalysis) {
+      checkGammaReport()
+    }
+  }, [selectedAnalysis])
 
   async function loadAiUsage() {
     try {
@@ -127,6 +135,68 @@ export default function FollowerAnalysisResults() {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function checkGammaReport() {
+    if (!selectedAnalysis || !user) return
+    
+    try {
+      const token = await user.getIdToken()
+      const response = await fetch(`/api/gamma/status?analysisId=${selectedAnalysis.id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.gammaReport) {
+          setGammaReport(data.gammaReport)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check Gamma report:', error)
+    }
+  }
+
+  async function pollGammaStatus(generationId: string) {
+    setPollingGamma(true)
+    let attempts = 0
+    const maxAttempts = 30 // Poll for up to 5 minutes (10 seconds * 30)
+    
+    const poll = async () => {
+      attempts++
+      
+      try {
+        const token = await user?.getIdToken()
+        const response = await fetch(`/api/gamma/status?analysisId=${selectedAnalysis?.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          
+          if (data.gammaReport?.status === 'completed' && data.gammaReport?.url) {
+            setGammaReport(data.gammaReport)
+            setPollingGamma(false)
+            return
+          } else if (data.gammaReport?.status === 'failed') {
+            alert('Gamma report generation failed. Please try again.')
+            setPollingGamma(false)
+            return
+          }
+        }
+      } catch (error) {
+        console.error('Polling error:', error)
+      }
+      
+      if (attempts < maxAttempts) {
+        setTimeout(poll, 10000) // Poll every 10 seconds
+      } else {
+        setPollingGamma(false)
+        alert('Gamma report is still generating. Please check back in a few minutes.')
+      }
+    }
+    
+    setTimeout(poll, 10000) // Start polling after 10 seconds
   }
 
   function getScoreColor(score: number) {
@@ -214,12 +284,13 @@ export default function FollowerAnalysisResults() {
 
       const data = await response.json()
       
-      // Gamma report is generating - direct user to dashboard
-      if (data.gamma?.dashboardUrl) {
-        const message = `🎨 Gamma Report Generating!\n\n${data.gamma.message}\n\nClick OK to open Gamma dashboard.`
-        if (confirm(message)) {
-          window.open(data.gamma.dashboardUrl, '_blank')
-        }
+      // Start polling for completion
+      if (data.gamma?.id) {
+        alert('🎨 Gamma Report Started!\n\nYour report is being generated. This usually takes 2-5 minutes. You can continue using Followlytics, and we\'ll notify you when it\'s ready.')
+        pollGammaStatus(data.gamma.id)
+        
+        // Reload analysis to get the updated gamma_report field
+        setTimeout(() => checkGammaReport(), 5000)
       }
     } catch (error: any) {
       console.error('Gamma generation error:', error)
@@ -278,13 +349,31 @@ export default function FollowerAnalysisResults() {
           
           {/* Export Buttons */}
           <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={generateGammaReport}
-              disabled={generatingGamma}
-              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-700 disabled:to-gray-700 rounded-lg text-sm font-medium transition-all flex items-center gap-2 disabled:opacity-50"
-            >
-              {generatingGamma ? '⏳ Generating...' : '🎨 Generate Gamma Report'}
-            </button>
+            {gammaReport?.status === 'completed' && gammaReport?.url ? (
+              <a
+                href={gammaReport.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
+              >
+                ✓ View Gamma Report
+              </a>
+            ) : gammaReport?.status === 'generating' || pollingGamma ? (
+              <button
+                disabled
+                className="px-4 py-2 bg-gradient-to-r from-gray-700 to-gray-700 rounded-lg text-sm font-medium flex items-center gap-2 opacity-50"
+              >
+                ⏳ Generating Gamma Report...
+              </button>
+            ) : (
+              <button
+                onClick={generateGammaReport}
+                disabled={generatingGamma}
+                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-700 disabled:to-gray-700 rounded-lg text-sm font-medium transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                {generatingGamma ? '⏳ Starting...' : '🎨 Generate Gamma Report'}
+              </button>
+            )}
             <button
               onClick={exportAsJSON}
               className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
