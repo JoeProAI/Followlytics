@@ -100,10 +100,14 @@ export default function VerifiedCounter() {
         </div>
       ) : (
         <div className="text-center py-8">
-          <div className="text-4xl mb-3">❓</div>
-          <p className="text-gray-400 text-sm mb-4">{data.message}</p>
+          <div className="text-4xl mb-3">ℹ️</div>
+          <p className="text-gray-300 font-medium mb-2">Verified Status Not Available</p>
+          <p className="text-sm text-gray-400 mb-4">
+            Your current extraction doesn't include verified badges.<br/>
+            You can still see all your followers and analytics!
+          </p>
           <p className="text-xs text-gray-500">
-            Enrichment adds verified badges to your followers.
+            Total Followers: <strong className="text-white">{data.total_followers}</strong>
           </p>
         </div>
       )}

@@ -155,14 +155,6 @@ function DashboardContent() {
           <VerifiedCounter />
         </div>
 
-        {/* ✨ Follower Enrichment - Get Verified Badges */}
-        <div className="mb-8">
-          <div className="bg-blue-500/10 border border-blue-500/30 rounded px-3 py-1 text-blue-400 text-xs font-medium mb-3 inline-block">
-            ✨ OPTIONAL - GET MORE DATA
-          </div>
-          <FollowerEnrichment />
-        </div>
-
         {/* ✅ Follower Intelligence Dashboard (Conditionally Rendered) */}
         <FollowerAnalyticsDashboard />
 
