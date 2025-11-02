@@ -173,14 +173,16 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Apify] Extracted ${followers.length} followers`)
     
-    // Debug: Log first follower structure to understand verification fields
+    // Debug: Log first follower structure to understand ALL available fields
     if (followers.length > 0) {
       const sample = followers[0]
-      console.log('[Apify] Sample follower verification fields:', {
+      console.log('[Apify] Sample follower ALL fields:', JSON.stringify(sample, null, 2))
+      console.log('[Apify] Verification fields:', {
         verified: sample.verified,
         is_blue_verified: sample.is_blue_verified,
         verified_type: sample.verified_type,
-        username: sample.screen_name || sample.username
+        legacy_verified: sample.legacy_verified,
+        blue_verified: sample.blue_verified
       })
     }
 
@@ -201,30 +203,38 @@ export async function POST(request: NextRequest) {
 
     // Process and save to Firestore
     const processedFollowers = followers.map((follower: any) => {
-      // X/Twitter has multiple verification types now:
+      // X/Twitter has multiple verification types - check ALL possible fields:
       // - verified: legacy verification (pre-2023)
       // - is_blue_verified: X Premium (paid)
-      // - verified_type: "Business", "Government", etc.
-      const isVerified = follower.verified || 
-                        follower.is_blue_verified || 
-                        follower.verified_type === 'Business' ||
-                        follower.verified_type === 'Government' ||
-                        !!follower.verified_type ||
-                        false
+      // - blue_verified: alternate field name
+      // - legacy_verified: another field name
+      // - verified_type: "Business", "Government", "blue", etc.
+      const isVerified = !!(
+        follower.verified || 
+        follower.is_blue_verified || 
+        follower.blue_verified ||
+        follower.legacy_verified ||
+        follower.verified_type === 'Business' ||
+        follower.verified_type === 'Government' ||
+        follower.verified_type === 'blue' ||
+        follower.verified_type
+      )
       
       return {
-        username: follower.screen_name || follower.username,
-        name: follower.name,
-        bio: follower.description,
-        followers_count: follower.followers_count,
-        following_count: follower.friends_count,
-        tweet_count: follower.statuses_count,
+        username: follower.screen_name || follower.username || follower.user_name,
+        name: follower.name || follower.display_name,
+        bio: follower.description || follower.bio,
+        followers_count: follower.followers_count || follower.followersCount || 0,
+        following_count: follower.friends_count || follower.following_count || follower.followingCount || 0,
+        tweet_count: follower.statuses_count || follower.tweet_count || follower.tweetCount || 0,
         verified: isVerified,
-        verified_type: follower.verified_type || (isVerified ? 'legacy' : null),
-        profile_image_url: follower.profile_image_url_https,
+        verified_type: follower.verified_type || (isVerified ? 'blue' : null),
+        is_blue_verified: follower.is_blue_verified || follower.blue_verified || false,
+        profile_image_url: follower.profile_image_url_https || follower.profile_image_url,
         location: follower.location,
         created_at: follower.created_at,
         url: follower.url,
+        user_id: follower.id_str || follower.id || follower.user_id,
         extracted_at: new Date().toISOString()
       }
     })
@@ -234,6 +244,10 @@ export async function POST(request: NextRequest) {
       Math.min(processedFollowers.length, requestedFollowers)
     )
     const truncatedResults = followersToPersist.length < processedFollowers.length
+    
+    // Log verified count IMMEDIATELY after processing
+    const verifiedInBatch = followersToPersist.filter((f: any) => f.verified === true).length
+    console.log(`[Apify] Processed ${followersToPersist.length} followers, ${verifiedInBatch} are VERIFIED (${Math.round(verifiedInBatch/followersToPersist.length*100)}%)`)
 
     // Track current follower usernames
     const currentFollowerUsernames = new Set(
@@ -254,7 +268,8 @@ export async function POST(request: NextRequest) {
 
     const nowIso = now.toISOString()
 
-    followersToPersist.forEach((follower: any) => {
+    let savedVerifiedCount = 0
+    followersToPersist.forEach((follower: any, index: number) => {
       // Sanitize username for Firestore (no leading/trailing __, no /, etc)
       const sanitizedUsername = follower.username
         .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
@@ -272,6 +287,12 @@ export async function POST(request: NextRequest) {
         last_seen: nowIso,
         status: 'active',
         first_seen: existing?.first_seen || nowIso
+      }
+
+      // Log first few verified followers to confirm data
+      if (follower.verified && savedVerifiedCount < 5) {
+        console.log(`[Apify] Saving VERIFIED follower #${savedVerifiedCount + 1}: @${follower.username}, verified=${follower.verified}, type=${follower.verified_type}`)
+        savedVerifiedCount++
       }
 
       batch.set(docRef, followerData, { merge: true })

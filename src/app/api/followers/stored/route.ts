@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
     }))
 
     // Calculate quick stats
-    const verifiedCount = followers.filter(f => f.verified).length
+    const verifiedCount = followers.filter(f => f.verified === true).length
     const avgFollowers = followers.length > 0
       ? Math.round(followers.reduce((sum, f) => sum + (f.followersCount || 0), 0) / followers.length)
       : 0
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
       withBio: withBioPercent
     }
 
-    console.log(`[Stored Followers] Loaded ${followers.length} followers`)
+    console.log(`[Stored Followers] Loaded ${followers.length} followers, ${verifiedCount} verified`)
 
     return NextResponse.json({
       success: true,

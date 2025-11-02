@@ -66,6 +66,11 @@ export async function POST(request: NextRequest) {
     const profiles = await runResponse.json()
     console.log(`[Apify Verify] Got ${profiles.length} profiles from Apify`)
 
+    // Log first profile structure for debugging
+    if (profiles.length > 0) {
+      console.log('[Apify Verify] Sample profile structure:', JSON.stringify(profiles[0], null, 2))
+    }
+
     // Process results
     const results = []
     let checkedCount = 0
@@ -75,7 +80,7 @@ export async function POST(request: NextRequest) {
       // This actor returns author info with verified status
       const author = item.author || item.user
       if (!author) {
-        console.log('[Apify Verify] Item missing author data:', item)
+        console.log('[Apify Verify] Item missing author data:', JSON.stringify(item).substring(0, 200))
         continue
       }
       
