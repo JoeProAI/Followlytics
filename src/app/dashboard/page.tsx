@@ -15,6 +15,7 @@ import FollowerAnalysisResults from '@/components/dashboard/FollowerAnalysisResu
 import QuickFullScan from '@/components/dashboard/QuickFullScan'
 import FollowerEnrichment from '@/components/dashboard/FollowerEnrichment'
 import VerifiedCounter from '@/components/dashboard/VerifiedCounter'
+import VerifiedChecker from '@/components/dashboard/VerifiedChecker'
 import DataCleanup from '@/components/dashboard/DataCleanup'
 import XFireworksLoader from '@/components/ui/XFireworksLoader'
 import Link from 'next/link'
@@ -146,9 +147,17 @@ function DashboardContent() {
         {/* ✅ WORKING: Apify Follower Extraction */}
         <div className="mb-8">
           <div className="bg-green-500/10 border border-green-500/30 rounded px-3 py-1 text-green-400 text-xs font-medium mb-3 inline-block">
-            ✅ ACTIVE
+            ✅ ACTIVE - FAST
           </div>
           <ApifyFollowerExtractor />
+        </div>
+
+        {/* ✓ NEW: Daytona Verified Checker */}
+        <div className="mb-8">
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded px-3 py-1 text-blue-400 text-xs font-medium mb-3 inline-block">
+            ✓ CHECK VERIFIED STATUS
+          </div>
+          <VerifiedChecker />
         </div>
 
         {/* ✓ Verified Followers Counter */}
