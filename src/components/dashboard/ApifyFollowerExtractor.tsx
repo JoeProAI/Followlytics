@@ -81,12 +81,35 @@ export default function ApifyFollowerExtractor() {
     .filter(value => value > 0)
     .sort((a, b) => a - b)
 
-  // Load stored followers on mount
+  // Load stored followers and auto-fill username on mount
   useEffect(() => {
     if (user) {
       loadStoredFollowers()
+      loadUserProfile()
     }
   }, [user])
+
+  async function loadUserProfile() {
+    if (!user) return
+    
+    try {
+      const token = await user.getIdToken()
+      const response = await fetch('/api/user/profile', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        // Auto-fill username from profile
+        const savedUsername = data.xUsername || data.twitterUsername || data.target_username
+        if (savedUsername && !username) {
+          setUsername(savedUsername)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load user profile:', err)
+    }
+  }
 
   useEffect(() => {
     if (!usage || usage.limit === null) return

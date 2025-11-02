@@ -15,6 +15,7 @@ import FollowerAnalysisResults from '@/components/dashboard/FollowerAnalysisResu
 import QuickFullScan from '@/components/dashboard/QuickFullScan'
 import FollowerEnrichment from '@/components/dashboard/FollowerEnrichment'
 import VerifiedCounter from '@/components/dashboard/VerifiedCounter'
+import DataCleanup from '@/components/dashboard/DataCleanup'
 import XFireworksLoader from '@/components/ui/XFireworksLoader'
 import Link from 'next/link'
 
@@ -262,6 +263,12 @@ function DashboardContent() {
         )}
         
         <ProfessionalAnalytics />
+
+        {/* 🗑️ Data Management */}
+        <div className="mb-8">
+          <h3 className="text-lg font-medium mb-3">⚙️ Data Management</h3>
+          <DataCleanup />
+        </div>
       </div>
     </div>
   )
