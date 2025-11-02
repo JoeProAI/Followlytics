@@ -354,7 +354,7 @@ export default function VerifiedChecker() {
             )}
           </button>
           <p className="text-xs text-gray-500 mt-2 text-center">
-            ~1-2 min per batch (100 followers) • No Twitter API needed! • Click multiple times for all
+            ~1-2 min per batch (100 followers) • $0.2 per 1K profiles (~$0.16 total) • No Twitter API!
           </p>
           
           {/* Live Status During Check */}

@@ -36,22 +36,19 @@ export async function POST(request: NextRequest) {
     
     console.log(`[Apify Verify] Checking ${usernamesToCheck.length} of ${usernames.length} users`)
 
-    // Start Apify Actor run
+    // Build profile URLs for each username
+    const profileUrls = usernamesToCheck.map(username => `https://x.com/${username}`)
+    
+    // Start Apify Actor run (pay-per-result model: $0.2 per 1K)
     console.log('[Apify Verify] Starting Apify Actor run...')
     const actorInput = {
-      handles: usernamesToCheck,
-      tweetsDesired: 0, // Only get profile info, no tweets (FAST!)
-      storeUserIfNoTweets: true, // Store user data even without tweets
-      includeUserInfo: true,
-      proxyConfig: {
-        useApifyProxy: true,
-        apifyProxyGroups: ['RESIDENTIAL']
-      }
+      startUrls: profileUrls,
+      maxItems: usernamesToCheck.length
     }
 
     // Run Actor synchronously and get results
     const runResponse = await fetch(
-      `https://api.apify.com/v2/acts/web.harvester~twitter-scraper/run-sync-get-dataset-items?token=${APIFY_API_TOKEN}`,
+      `https://api.apify.com/v2/acts/fastcrawler~tweet-x-twitter-scraper-0-2-1k-pay-per-result-v2/run-sync-get-dataset-items?token=${APIFY_API_TOKEN}`,
       {
         method: 'POST',
         headers: {
@@ -75,10 +72,16 @@ export async function POST(request: NextRequest) {
     let checkedCount = 0
     let verifiedCount = 0
 
-    for (const profile of profiles) {
-      // Apify returns user data with verified badge info
-      const username = profile.username || profile.handle
-      const isVerified = profile.isBlueVerified || profile.verified || false
+    for (const item of profiles) {
+      // This actor returns author info with verified status
+      const author = item.author || item.user
+      if (!author) {
+        console.log('[Apify Verify] Item missing author data:', item)
+        continue
+      }
+      
+      const username = author.userName || author.screen_name || author.username
+      const isVerified = author.isBlueVerified || author.verified || author.blue_verified || false
       
       results.push({
         username,
@@ -93,7 +96,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Add any usernames that weren't returned (failed to scrape)
-    const scrapedUsernames = new Set(profiles.map((p: any) => p.username || p.handle))
+    const scrapedUsernames = new Set(profiles.map((p: any) => {
+      const author = p.author || p.user
+      return author?.userName || author?.screen_name || author?.username
+    }).filter(Boolean))
+    
     for (const username of usernamesToCheck) {
       if (!scrapedUsernames.has(username)) {
         console.log(`[Apify Verify] @${username}: NOT FOUND (suspended/deleted?)`)
