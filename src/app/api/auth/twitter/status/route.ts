@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
     
     if (!xTokensDoc.exists) {
       return NextResponse.json({ 
+        connected: false,
         authorized: false, 
         message: 'X OAuth not completed - no tokens found' 
       })
@@ -53,12 +54,14 @@ export async function GET(request: NextRequest) {
 
     if (hasXTokens) {
       return NextResponse.json({
+        connected: true,
         authorized: true,
         xUsername: tokenData.screenName || null,
         xUserId: tokenData.xUserId || null
       })
     } else {
       return NextResponse.json({
+        connected: false,
         authorized: false,
         message: 'X OAuth tokens incomplete'
       })

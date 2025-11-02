@@ -94,8 +94,13 @@ export default function VerifiedChecker() {
   }
 
   async function connectTwitter() {
-    // If user is logged in, use POST endpoint to preserve session
+    // If user is logged in, mark it so we don't switch accounts on return
     if (user) {
+      // Store in localStorage that we're linking from a logged-in session
+      localStorage.setItem('x_oauth_linking', 'true')
+      localStorage.setItem('x_oauth_user_email', user.email || '')
+      console.log('[VerifiedChecker] Marking OAuth as linking session for:', user.email)
+      
       try {
         const token = await user.getIdToken()
         const response = await fetch('/api/auth/twitter', {
@@ -108,21 +113,16 @@ export default function VerifiedChecker() {
         
         const data = await response.json()
         if (data.authUrl) {
-          // Store tokens in sessionStorage to prevent account switching
-          sessionStorage.setItem('oauth_token', data.oauth_token)
-          sessionStorage.setItem('oauth_token_secret', data.oauth_token_secret)
-          sessionStorage.setItem('linking_to_user', user.uid)
           window.location.href = data.authUrl
+          return
         }
       } catch (error) {
-        console.error('Failed to initialize X OAuth:', error)
-        // Fallback to GET method
-        window.location.href = '/api/auth/twitter'
+        console.error('Failed to use POST endpoint:', error)
       }
-    } else {
-      // Not logged in - use GET method
-      window.location.href = '/api/auth/twitter'
     }
+    
+    // Fallback to GET method
+    window.location.href = '/api/auth/twitter'
   }
 
   async function checkVerified() {

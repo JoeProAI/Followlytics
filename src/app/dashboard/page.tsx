@@ -38,10 +38,29 @@ function DashboardContent() {
     const customToken = urlParams.get('token')
     const xAuthSuccess = urlParams.get('x_auth')
     
-    if (customToken && xAuthSuccess === 'success') {
-      // IMPORTANT: Only sign in if user is NOT already logged in
-      // If they're logged in, the X tokens are already linked to their account
-      if (!user && !loading) {
+    if (xAuthSuccess === 'success') {
+      console.log('[Dashboard] X OAuth callback detected')
+      
+      // Check if this was a linking session (user was already logged in)
+      const wasLinking = localStorage.getItem('x_oauth_linking') === 'true'
+      const linkingEmail = localStorage.getItem('x_oauth_user_email')
+      
+      if (wasLinking) {
+        console.log('[Dashboard] This was a linking session for:', linkingEmail)
+        console.log('[Dashboard] Staying logged in, NOT using custom token')
+        
+        // Clear the linking flags
+        localStorage.removeItem('x_oauth_linking')
+        localStorage.removeItem('x_oauth_user_email')
+        
+        // Just clean up URL - DO NOT sign in with token
+        window.history.replaceState({}, '', '/dashboard?twitter_success=true')
+        return
+      }
+      
+      // Not a linking session - proceed with normal sign-in if token exists
+      if (customToken && !user && !loading) {
+        console.log('[Dashboard] New user sign-in with custom token')
         // User not logged in - sign them in with custom token
         import('firebase/auth').then(({ signInWithCustomToken }) => {
           import('@/lib/firebase').then(({ auth }) => {
@@ -58,6 +77,7 @@ function DashboardContent() {
         })
       } else if (user) {
         // User already logged in - just clean up URL and show success
+        console.log('[Dashboard] User already logged in, cleaning up URL')
         window.history.replaceState({}, '', '/dashboard?twitter_success=true')
       }
     }
