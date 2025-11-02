@@ -159,7 +159,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Determine redirect URL
-    const redirectUrl = `${baseUrl}/dashboard?x_auth=success&token=${customToken}&username=${accessTokens.screen_name}`
+    const redirectUrl = `${baseUrl}/dashboard?x_auth=success&twitter_success=true&token=${customToken}&username=${accessTokens.screen_name}`
     
     console.log('🔄 Redirecting to:', redirectUrl)
 

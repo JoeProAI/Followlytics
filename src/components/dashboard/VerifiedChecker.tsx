@@ -19,6 +19,19 @@ export default function VerifiedChecker() {
     }
   }, [user])
 
+  // Auto-refresh Twitter auth status after redirect
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('twitter_success') === 'true' && user) {
+      // Remove the query param
+      window.history.replaceState({}, '', window.location.pathname)
+      // Recheck auth status
+      setTimeout(() => {
+        checkTwitterAuth()
+      }, 1000)
+    }
+  }, [user])
+
   async function checkTwitterAuth() {
     if (!user) return
     
@@ -172,7 +185,7 @@ export default function VerifiedChecker() {
       )}
 
       {/* Twitter Auth Step */}
-      {!twitterConnected && (
+      {!twitterConnected && !checkingAuth && (
         <div className="mb-6 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-yellow-400">⚠️</span>
@@ -181,12 +194,23 @@ export default function VerifiedChecker() {
           <p className="text-sm text-gray-400 mb-4">
             To check verified status, we need to view Twitter profiles using your login (browser automation).
           </p>
-          <button
-            onClick={connectTwitter}
-            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all"
-          >
-            🔗 Authorize Twitter Access
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={connectTwitter}
+              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all"
+            >
+              🔗 Authorize Twitter Access
+            </button>
+            <button
+              onClick={checkTwitterAuth}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-all text-sm"
+            >
+              🔄 Refresh
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            If you just authorized, click Refresh to update status
+          </p>
         </div>
       )}
 
