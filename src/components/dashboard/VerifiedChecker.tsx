@@ -46,7 +46,7 @@ export default function VerifiedChecker() {
         setTwitterConnected(data.connected)
       }
     } catch (err) {
-      console.error('Failed to check Twitter auth:', err)
+      console.error('Failed to check X auth:', err)
     } finally {
       setCheckingAuth(false)
     }
@@ -101,7 +101,7 @@ export default function VerifiedChecker() {
 
       if (data.needsAuth) {
         setTwitterConnected(false)
-        throw new Error('Please authorize Twitter access first')
+        throw new Error('X not connected. Please authorize X access first.')
       }
 
       if (response.ok) {
@@ -136,7 +136,7 @@ export default function VerifiedChecker() {
           </span>
         </div>
         <p className="text-sm text-gray-400">
-          Check verified status using browser automation. Sees badges exactly like you do on Twitter/X!
+          Check verified status using browser automation. Sees badges exactly like you do on X!
         </p>
       </div>
 
@@ -164,7 +164,7 @@ export default function VerifiedChecker() {
                   <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
-                  Uses your Twitter OAuth
+                  Uses your X OAuth
                 </span>
                 <span className="flex items-center gap-1">
                   <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -189,17 +189,17 @@ export default function VerifiedChecker() {
         <div className="mb-6 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-yellow-400">⚠️</span>
-            <h3 className="font-medium text-yellow-300">Twitter Authorization Required</h3>
+            <h3 className="font-medium text-yellow-300">X Authorization Required</h3>
           </div>
           <p className="text-sm text-gray-400 mb-4">
-            To check verified status, we need to view Twitter profiles using your login (browser automation).
+            To check verified status, we need to view X profiles using your login (browser automation).
           </p>
           <div className="flex gap-2">
             <button
               onClick={connectTwitter}
               className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all"
             >
-              🔗 Authorize Twitter Access
+              🔗 Authorize X Access
             </button>
             <button
               onClick={checkTwitterAuth}
@@ -240,7 +240,7 @@ export default function VerifiedChecker() {
             <div className="mt-4 bg-black/40 border border-blue-500/30 rounded-lg p-4 animate-pulse">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-2 h-2 bg-blue-400 rounded-full animate-ping"></div>
-                <span className="text-sm font-medium text-blue-300">🔒 Logged in as YOUR Twitter account</span>
+                <span className="text-sm font-medium text-blue-300">🔒 Logged in as YOUR X account</span>
               </div>
               <div className="space-y-2 text-xs text-gray-400">
                 <div className="flex items-center gap-2">
@@ -266,7 +266,7 @@ export default function VerifiedChecker() {
               </div>
               <div className="mt-3 pt-3 border-t border-gray-700">
                 <p className="text-xs text-gray-500 text-center">
-                  🛡️ Your Twitter session is secure and temporary
+                  🛡️ Your X session is secure and temporary
                 </p>
               </div>
             </div>
@@ -319,7 +319,7 @@ export default function VerifiedChecker() {
       <div className="mt-6 bg-black/40 border border-gray-700 rounded-lg p-4">
         <h4 className="text-sm font-medium text-gray-300 mb-2">How It Works:</h4>
         <ul className="text-xs text-gray-400 space-y-1">
-          <li>• Uses your Twitter login to view profiles</li>
+          <li>• Uses your X login to view profiles</li>
           <li>• Browser automation sees verified badges (just like you!)</li>
           <li>• Checks first 100 followers automatically</li>
           <li>• Updates Firestore with verified status</li>

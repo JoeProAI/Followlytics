@@ -32,6 +32,30 @@ function DashboardContent() {
     }
   }, [user, loading, router])
 
+  // Handle X OAuth callback with custom token
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const customToken = urlParams.get('token')
+    const xAuthSuccess = urlParams.get('x_auth')
+    
+    if (customToken && xAuthSuccess === 'success') {
+      // Sign in with custom token
+      import('firebase/auth').then(({ signInWithCustomToken }) => {
+        import('@/lib/firebase').then(({ auth }) => {
+          signInWithCustomToken(auth, customToken)
+            .then(() => {
+              // Clean up URL
+              window.history.replaceState({}, '', '/dashboard?twitter_success=true')
+            })
+            .catch((error) => {
+              console.error('Failed to sign in with custom token:', error)
+              window.history.replaceState({}, '', '/dashboard')
+            })
+        })
+      })
+    }
+  }, [])
+
   useEffect(() => {
     async function fetchSubscription() {
       if (!user) return
