@@ -72,32 +72,57 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${baseUrl}/dashboard?error=firebase_not_configured&message=Server configuration error`)
     }
 
-    // Create or get Firebase user
-    let firebaseUser
-    try {
-      firebaseUser = await adminAuth.getUserByEmail(`${xUser.screen_name}@x.followlytics.local`)
-    } catch {
-      // User doesn't exist, create them
-      const createUserData: any = {
-        email: `${xUser.screen_name}@x.followlytics.local`,
-        displayName: xUser.name || xUser.screen_name,
-        uid: `x_${xUser.id}`,
+    // IMPORTANT: Link X tokens to the CURRENTLY LOGGED IN USER
+    // This prevents creating a separate X-only account
+    
+    // Get the current user ID from cookies (if they're already logged in)
+    const sessionCookie = request.cookies.get('__session')?.value
+    let currentUserId: string | null = null
+    
+    if (sessionCookie) {
+      try {
+        const decodedToken = await adminAuth.verifySessionCookie(sessionCookie)
+        currentUserId = decodedToken.uid
+        console.log('✅ Found existing logged-in user:', currentUserId)
+      } catch {
+        console.log('⚠️ No valid session cookie found')
       }
-      
-      // Only add photoURL if it exists
-      if (xUser.profile_image_url) {
-        createUserData.photoURL = xUser.profile_image_url
-      }
-      
-      firebaseUser = await adminAuth.createUser(createUserData)
     }
 
-    // Store X tokens and user info in Firestore
+    let firebaseUser
+    
+    if (currentUserId) {
+      // User is already logged in - link X tokens to their existing account
+      firebaseUser = await adminAuth.getUser(currentUserId)
+      console.log(`✅ Linking X tokens to existing user: ${firebaseUser.email}`)
+    } else {
+      // No existing session - check if X user already exists
+      try {
+        firebaseUser = await adminAuth.getUserByEmail(`${xUser.screen_name}@x.followlytics.local`)
+      } catch {
+        // User doesn't exist, create them
+        const createUserData: any = {
+          email: `${xUser.screen_name}@x.followlytics.local`,
+          displayName: xUser.name || xUser.screen_name,
+          uid: `x_${xUser.id}`,
+        }
+        
+        // Only add photoURL if it exists
+        if (xUser.profile_image_url) {
+          createUserData.photoURL = xUser.profile_image_url
+        }
+        
+        firebaseUser = await adminAuth.createUser(createUserData)
+      }
+    }
+
+    // Store X tokens and user info in Firestore (linked to their real account)
     await adminDb.collection('x_tokens').doc(firebaseUser.uid).set({
       accessToken: accessTokens.oauth_token,
       accessTokenSecret: accessTokens.oauth_token_secret,
       xUserId: accessTokens.user_id,
       screenName: accessTokens.screen_name,
+      userId: firebaseUser.uid,
       createdAt: new Date(),
     })
 
@@ -127,24 +152,30 @@ export async function GET(request: NextRequest) {
     }
 
     // Update user document - filter out undefined values
+    // IMPORTANT: Use merge: true to preserve existing data
     const userDocData: any = {
-      email: firebaseUser.email,
-      displayName: xUser.name || xUser.screen_name,
       xConnected: true,
       xUsername: accessTokens.screen_name,
       xUserId: accessTokens.user_id,
       xName: xUser.name || xUser.screen_name,
-      createdAt: new Date(),
-      provider: 'x',
+      lastXAuth: new Date(),
+    }
+
+    // Only update email/displayName if this is a new X-only account
+    if (firebaseUser.email?.includes('@x.followlytics.local')) {
+      userDocData.email = firebaseUser.email
+      userDocData.displayName = xUser.name || xUser.screen_name
+      userDocData.provider = 'x'
+      userDocData.createdAt = new Date()
     }
 
     // Only add photo fields if they exist
     if (xUser.profile_image_url) {
-      userDocData.photoURL = xUser.profile_image_url
       userDocData.xProfileImage = xUser.profile_image_url
     }
 
     await adminDb.collection('users').doc(firebaseUser.uid).set(userDocData, { merge: true })
+    console.log(`✅ Updated user document for: ${firebaseUser.email} with X connection`)
 
     // Create custom token for client-side auth
     console.log('🔑 Creating custom token for user:', firebaseUser.uid)
