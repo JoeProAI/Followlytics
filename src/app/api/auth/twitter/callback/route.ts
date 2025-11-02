@@ -55,17 +55,34 @@ export async function GET(request: NextRequest) {
     }
 
     // Exchange request token for access token
+    console.log('[Callback] Exchanging tokens with X...')
     const accessTokens = await XAuth.getAccessToken(
       oauthToken,
       oauthTokenSecret,
       oauthVerifier
     )
+    
+    console.log('[Callback] Access tokens received:', {
+      hasOAuthToken: !!accessTokens.oauth_token,
+      hasOAuthSecret: !!accessTokens.oauth_token_secret,
+      userId: accessTokens.user_id,
+      screenName: accessTokens.screen_name,
+      tokenLength: accessTokens.oauth_token?.length,
+      secretLength: accessTokens.oauth_token_secret?.length
+    })
 
     // Verify credentials
+    console.log('[Callback] Verifying credentials with X...')
     const xUser = await XAuth.verifyCredentials(
       accessTokens.oauth_token,
       accessTokens.oauth_token_secret
     )
+    
+    console.log('[Callback] X user verified:', {
+      id: xUser.id,
+      screenName: xUser.screen_name,
+      name: xUser.name
+    })
 
     if (!adminAuth || !adminDb) {
       console.log('❌ Firebase Admin not configured')
@@ -119,14 +136,25 @@ export async function GET(request: NextRequest) {
       screenName: accessTokens.screen_name
     })
     
-    await adminDb.collection('x_tokens').doc(firebaseUser.uid).set({
+    const tokenData = {
       accessToken: accessTokens.oauth_token,
       accessTokenSecret: accessTokens.oauth_token_secret,
       xUserId: accessTokens.user_id,
       screenName: accessTokens.screen_name,
       userId: firebaseUser.uid,
       createdAt: new Date(),
+    }
+    
+    console.log('[Callback] Token data to be stored:', {
+      hasAccessToken: !!tokenData.accessToken,
+      hasAccessTokenSecret: !!tokenData.accessTokenSecret,
+      accessTokenLength: tokenData.accessToken?.length,
+      secretLength: tokenData.accessTokenSecret?.length,
+      xUserId: tokenData.xUserId,
+      screenName: tokenData.screenName
     })
+    
+    await adminDb.collection('x_tokens').doc(firebaseUser.uid).set(tokenData)
 
     console.log('✅ OAuth tokens stored successfully in x_tokens/' + firebaseUser.uid);
     
