@@ -6,7 +6,7 @@ import { getFollowerLimitForTier } from '@/lib/follower-usage'
 const MAX_REQUEST_FOLLOWERS = 200_000
 const MIN_REQUEST_FOLLOWERS = 1
 
-export const maxDuration = 300 // 5 minutes
+export const maxDuration = 300 // 5 minutes for extraction + auto-enrichment
 
 export async function POST(request: NextRequest) {
   try {
@@ -364,6 +364,53 @@ export async function POST(request: NextRequest) {
       const start = new Date(startDate).getTime()
       const end = new Date(endDate).getTime()
       return Math.round((end - start) / (1000 * 60 * 60 * 24))
+    }
+
+    // AUTO-ENRICH: Automatically enrich first 200 followers with verified status
+    // This runs in background so user gets verified data without extra steps
+    const followersToEnrich = followersToPersist.slice(0, 200).map((f: any) => f.username)
+    
+    if (followersToEnrich.length > 0) {
+      console.log(`[Apify] Auto-enriching ${followersToEnrich.length} followers with verified status...`)
+      
+      try {
+        const { ApifyClient } = await import('apify-client')
+        const apifyClient = new ApifyClient({ token: APIFY_API_TOKEN })
+        
+        const enrichRun = await apifyClient.actor('kaitoeasyapi/premium-twitter-user-scraper-pay-per-result').call({
+          user_names: followersToEnrich,
+        })
+
+        const { items } = await apifyClient.dataset(enrichRun.defaultDatasetId).listItems()
+        
+        console.log(`[Apify] Auto-enriched ${items.length} profiles with verified status`)
+        
+        // Update Firestore with verified data
+        const enrichBatch = adminDb.batch()
+        
+        items.forEach((item: any) => {
+          const sanitizedUsername = (item.screen_name || item.username)
+            .replace(/^_+|_+$/g, '')
+            .replace(/\//g, '_')
+            .replace(/\./g, '_') || 'unknown_user'
+          
+          const docRef = followerCollectionRef.doc(sanitizedUsername)
+          
+          enrichBatch.set(docRef, {
+            verified: item.verified || false,
+            verified_type: item.verified_type || null,
+            is_blue_verified: item.is_blue_verified || false,
+            enriched_at: nowIso,
+          }, { merge: true })
+        })
+        
+        await enrichBatch.commit()
+        console.log(`[Apify] ✅ Auto-enrichment complete - verified data available!`)
+        
+      } catch (enrichError: any) {
+        console.error('[Apify] Auto-enrichment failed (non-critical):', enrichError.message)
+        // Don't fail the whole extraction if enrichment fails
+      }
     }
 
     // Update user's metadata and track this account

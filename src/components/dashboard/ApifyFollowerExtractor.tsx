@@ -276,11 +276,17 @@ export default function ApifyFollowerExtractor() {
   return (
     <div className="bg-black border border-gray-800 rounded-lg p-6">
       <div className="mb-6">
-      <h2 className="text-xl font-medium mb-2">Extract X Followers</h2>
-      <p className="text-sm text-gray-400">
-        Get detailed follower profiles from any public account in seconds. No setup required.
-      </p>
-    </div>
+        <h2 className="text-xl font-medium mb-2">Extract X Followers</h2>
+        <p className="text-sm text-gray-400 mb-2">
+          Extract and analyze your X (Twitter) followers using Apify's Premium X Scraper.
+        </p>
+        <div className="flex items-center gap-2 text-xs">
+          <span className="px-2 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded">
+            ✓ Auto-includes Verified Badges
+          </span>
+          <span className="text-gray-500">First 200 followers enriched automatically</span>
+        </div>
+      </div>
 
     {usage && (
       <div className="mb-6 bg-purple-500/5 border border-purple-500/20 rounded-lg p-4">
