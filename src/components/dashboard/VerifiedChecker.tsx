@@ -127,25 +127,24 @@ export default function VerifiedChecker() {
       }
 
       const followersData = await followersResponse.json()
-      const usernames = followersData.followers
-        ?.slice(0, 100) // Check first 100
-        .map((f: any) => f.username)
+      const allFollowers = followersData.followers
+        ?.map((f: any) => f.username)
         .filter(Boolean)
 
-      if (!usernames || usernames.length === 0) {
+      if (!allFollowers || allFollowers.length === 0) {
         throw new Error('No followers found to check')
       }
 
-      console.log(`[Verified Check] Checking ${usernames.length} followers...`)
+      console.log(`[Verified Check] Checking ALL ${allFollowers.length} followers in parallel batches...`)
 
-      // Call Daytona verification endpoint
-      const response = await fetch('/api/daytona/check-verified', {
+      // Call batch verification endpoint (faster, parallel processing)
+      const response = await fetch('/api/daytona/check-verified-batch', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ usernames })
+        body: JSON.stringify({ allFollowers })
       })
 
       const data = await response.json()
@@ -156,7 +155,11 @@ export default function VerifiedChecker() {
       }
 
       if (response.ok) {
-        setResult(data)
+        setResult({
+          verified: data.verified || 0,
+          total: data.checked || data.total || 0,
+          message: `✅ Checked ${data.checked || 0} followers across ${data.batches || 1} parallel batches. ${data.verified || 0} verified!`
+        })
       } else {
         throw new Error(data.error || 'Verification failed')
       }
@@ -321,15 +324,15 @@ export default function VerifiedChecker() {
           <button
             onClick={checkVerified}
             disabled={checking}
-            className="w-full px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 disabled:from-gray-700 disabled:to-gray-700 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-6 py-3 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-600 text-white rounded-lg font-medium transition-all disabled:cursor-not-allowed"
           >
             {checking ? (
               <span className="flex items-center justify-center gap-2">
                 <XSpinner size="md" />
-                Checking verified status via browser...
+                🔍 Checking ALL Followers in Parallel...
               </span>
             ) : (
-              '✓ Check First 100 Followers for Verified Badges'
+              '⚡ Check ALL Followers for Verified Badges (Fast Parallel Mode)'
             )}
           </button>
           <p className="text-xs text-gray-500 mt-2 text-center">
