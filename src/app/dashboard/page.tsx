@@ -3,7 +3,7 @@
 import { useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
-import CleanDashboard from '@/components/dashboard/CleanDashboard'
+import AnalyticsDashboard from '@/components/dashboard/AnalyticsDashboard'
 import XFireworksLoader from '@/components/ui/XFireworksLoader'
 
 function DashboardContent() {
@@ -84,8 +84,8 @@ function DashboardContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 flex items-center justify-center">
-        <XFireworksLoader message="Loading your dashboard..." size="lg" />
+      <div className="min-h-screen bg-[#0f1419] flex items-center justify-center">
+        <XFireworksLoader message="Loading analytics..." size="lg" />
       </div>
     )
   }
@@ -94,14 +94,14 @@ function DashboardContent() {
     return null
   }
 
-  return <CleanDashboard />
+  return <AnalyticsDashboard />
 }
 
 export default function Dashboard() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <XFireworksLoader message="LOADING..." size="lg" />
+      <div className="min-h-screen bg-[#0f1419] flex items-center justify-center">
+        <XFireworksLoader message="Loading analytics..." size="lg" />
       </div>
     }>
       <DashboardContent />
