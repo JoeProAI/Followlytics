@@ -12,6 +12,7 @@ export default function VerifiedChecker() {
   const [error, setError] = useState('')
   const [twitterConnected, setTwitterConnected] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
+  const [justAuthorized, setJustAuthorized] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -22,13 +23,53 @@ export default function VerifiedChecker() {
   // Auto-refresh Twitter auth status after redirect
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
-    if (urlParams.get('twitter_success') === 'true' && user) {
-      // Remove the query param
+    const xAuthSuccess = urlParams.get('x_auth') === 'success' || urlParams.get('twitter_success') === 'true'
+    
+    if (xAuthSuccess && user) {
+      console.log('[VerifiedChecker] Detected X auth success, refreshing status...')
+      setJustAuthorized(true)
+      
+      // Remove the query params
       window.history.replaceState({}, '', window.location.pathname)
-      // Recheck auth status
-      setTimeout(() => {
-        checkTwitterAuth()
-      }, 1000)
+      
+      // Recheck auth status with multiple retries (tokens might take a moment to sync)
+      const recheckWithRetry = (attempt = 1, maxAttempts = 5) => {
+        setTimeout(async () => {
+          console.log(`[VerifiedChecker] Checking auth status (attempt ${attempt}/${maxAttempts})...`)
+          await checkTwitterAuth()
+          
+          // Check if connection was successful
+          const connected = await isConnected()
+          
+          if (!connected && attempt < maxAttempts) {
+            // Not connected yet, retry
+            recheckWithRetry(attempt + 1, maxAttempts)
+          } else if (connected) {
+            console.log('[VerifiedChecker] ✓ X connection verified!')
+            // Clear the just authorized flag after 3 seconds
+            setTimeout(() => setJustAuthorized(false), 3000)
+          }
+        }, attempt * 800) // 800ms, 1.6s, 2.4s, 3.2s, 4s delays
+      }
+      
+      recheckWithRetry()
+    }
+    
+    async function isConnected() {
+      if (!user) return false
+      try {
+        const token = await user.getIdToken()
+        const response = await fetch('/api/auth/twitter/status', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (response.ok) {
+          const data = await response.json()
+          return data.connected
+        }
+      } catch (err) {
+        console.error('Failed to check connection:', err)
+      }
+      return false
     }
   }, [user])
 
@@ -167,6 +208,26 @@ export default function VerifiedChecker() {
           Check verified status using browser automation. Sees badges exactly like you do on X!
         </p>
       </div>
+
+      {/* Success Banner - Show when just authorized */}
+      {justAuthorized && (
+        <div className="mb-6 bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/40 rounded-lg p-4 animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0">
+              <svg className="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-green-300 mb-1">✅ X Authorization Successful!</h3>
+              <p className="text-sm text-gray-300">
+                Verifying connection... The check button will appear in a moment.
+              </p>
+            </div>
+            <XSpinner size="md" />
+          </div>
+        </div>
+      )}
 
       {/* Security Badge - Show logged in as user */}
       {twitterConnected && (
