@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase-admin'
+import { DaytonaSandboxManager } from '@/lib/daytona-client'
 
 export const maxDuration = 300 // 5 minutes
 
@@ -41,37 +42,23 @@ export async function POST(request: NextRequest) {
 
     const tokens = tokensSnapshot.docs[0].data()
 
-    // Create Daytona sandbox and run verified check script
+    // Create Daytona sandbox using proper SDK
     const DAYTONA_API_KEY = process.env.DAYTONA_API_KEY
     if (!DAYTONA_API_KEY) {
       return NextResponse.json({ error: 'Daytona not configured' }, { status: 500 })
     }
 
-    // Create sandbox
+    // Create sandbox using SDK
     console.log('[Daytona Verify] Creating sandbox...')
-    const sandboxResponse = await fetch('https://api.daytona.io/workspace/create', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${DAYTONA_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        name: `verify-${userId}-${Date.now()}`,
-        language: 'javascript',
-        timeout: 300,
-        env: {
-          TWITTER_ACCESS_TOKEN: tokens.access_token,
-          TWITTER_ACCESS_TOKEN_SECRET: tokens.access_token_secret,
-          USERNAMES: JSON.stringify(usernames)
-        }
-      })
+    const sandbox = await DaytonaSandboxManager.createSandbox({
+      name: `verify-${userId}-${Date.now()}`,
+      envVars: {
+        TWITTER_ACCESS_TOKEN: tokens.accessToken,
+        TWITTER_ACCESS_TOKEN_SECRET: tokens.accessTokenSecret,
+        USERNAMES: JSON.stringify(usernames)
+      }
     })
 
-    if (!sandboxResponse.ok) {
-      throw new Error(`Daytona sandbox creation failed: ${sandboxResponse.status}`)
-    }
-
-    const sandbox = await sandboxResponse.json()
     console.log(`[Daytona Verify] Sandbox created: ${sandbox.id}`)
 
     // Run verified check script
@@ -152,35 +139,32 @@ async function checkVerified() {
 checkVerified().catch(console.error);
 `;
 
-    // Execute script
-    const execResponse = await fetch(`https://api.daytona.io/workspace/${sandbox.id}/execute`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${DAYTONA_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        code: verifyScript,
-        timeout: 300
-      })
-    })
-
-    if (!execResponse.ok) {
-      throw new Error(`Script execution failed: ${execResponse.status}`)
-    }
-
-    const execution = await execResponse.json()
+    // Execute script in sandbox using SDK
+    console.log('[Daytona Verify] Executing verification script...')
+    
+    // Write script to file and execute
+    const base64Script = Buffer.from(verifyScript).toString('base64')
+    await sandbox.process.executeCommand(`echo '${base64Script}' | base64 -d > /tmp/verify.js`)
+    
+    // Install dependencies
+    await sandbox.process.executeCommand('npm init -y')
+    await sandbox.process.executeCommand('npm install puppeteer')
+    
+    // Execute the script
+    const execution = await sandbox.process.executeCommand('node /tmp/verify.js')
     
     // Parse results from output
     let verifiedResults = []
     try {
-      // Find JSON array in output (use [\s\S]* instead of .* with s flag for compatibility)
-      const outputMatch = execution.output.match(/\[[\s\S]*\]/)
+      // Find JSON array in result (use [\s\S]* instead of .* with s flag for compatibility)
+      const output = execution.result || execution.output || ''
+      const outputMatch = output.match(/\[[\s\S]*\]/)
       if (outputMatch) {
         verifiedResults = JSON.parse(outputMatch[0])
       }
     } catch (parseError) {
       console.error('[Daytona Verify] Failed to parse results:', parseError)
+      console.error('[Daytona Verify] Execution output:', execution.result || execution.output)
     }
 
     // Update Firestore with verified status
