@@ -138,10 +138,10 @@ export default function VerifiedChecker() {
         throw new Error('All followers already checked! Refresh to see results.')
       }
 
-      console.log(`[Verified Check] Checking ${allFollowers.length} followers via X API...`)
+      console.log(`[Verified Check] Checking ${allFollowers.length} followers via Apify scraper...`)
 
-      // Call direct API verification (reliable, uses your X tokens)
-      const response = await fetch('/api/check-verified-direct', {
+      // Call Apify verification (scrapes public profiles, no API needed!)
+      const response = await fetch('/api/check-verified-apify', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -347,14 +347,14 @@ export default function VerifiedChecker() {
             {checking ? (
               <span className="flex items-center justify-center gap-2">
                 <XSpinner size="md" />
-                🔍 Checking ALL Followers via X API...
+                🔍 Checking Followers via Apify Scraper...
               </span>
             ) : (
-              '✓ Check ALL Followers for Verified Badges (Direct X API)'
+              '✓ Check ALL Followers for Verified Badges (Apify Scraper)'
             )}
           </button>
           <p className="text-xs text-gray-500 mt-2 text-center">
-            ~4 min per batch (250 followers max) • Click multiple times for all followers
+            ~1-2 min per batch (100 followers) • No Twitter API needed! • Click multiple times for all
           </p>
           
           {/* Live Status During Check */}
