@@ -99,20 +99,11 @@ export default function VerifiedChecker() {
       // Store in localStorage that we're linking from a logged-in session
       localStorage.setItem('x_oauth_linking', 'true')
       localStorage.setItem('x_oauth_user_email', user.email || '')
-      console.log('[VerifiedChecker] Marking OAuth as linking session for:', user.email)
-      
-      // Get Firebase token and add to URL params
-      try {
-        const token = await user.getIdToken()
-        // Redirect to endpoint with token in header via cookie
-        // Store token temporarily for the redirect
-        sessionStorage.setItem('firebase_id_token', token)
-      } catch (error) {
-        console.error('Failed to get Firebase token:', error)
-      }
+      localStorage.setItem('x_oauth_user_id', user.uid) // Store user ID
+      console.log('[VerifiedChecker] Marking OAuth as linking session for:', user.email, 'UID:', user.uid)
     }
     
-    // Direct navigation to endpoint - this preserves cookies properly
+    // Direct navigation to endpoint
     window.location.href = '/api/auth/twitter'
   }
 

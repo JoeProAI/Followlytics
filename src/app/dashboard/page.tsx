@@ -44,14 +44,29 @@ function DashboardContent() {
       // Check if this was a linking session (user was already logged in)
       const wasLinking = localStorage.getItem('x_oauth_linking') === 'true'
       const linkingEmail = localStorage.getItem('x_oauth_user_email')
+      const linkingUserId = localStorage.getItem('x_oauth_user_id')
       
-      if (wasLinking) {
-        console.log('[Dashboard] This was a linking session for:', linkingEmail)
+      if (wasLinking && linkingUserId) {
+        console.log('[Dashboard] This was a linking session for:', linkingEmail, 'UID:', linkingUserId)
         console.log('[Dashboard] Staying logged in, NOT using custom token')
+        
+        // Send linking user ID to backend to fix the tokens
+        if (user && user.uid === linkingUserId) {
+          console.log('[Dashboard] User matches, triggering token fix...')
+          fetch('/api/auth/twitter/fix-tokens', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${user.getIdToken()}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userId: linkingUserId })
+          }).catch(err => console.error('Failed to fix tokens:', err))
+        }
         
         // Clear the linking flags
         localStorage.removeItem('x_oauth_linking')
         localStorage.removeItem('x_oauth_user_email')
+        localStorage.removeItem('x_oauth_user_id')
         
         // Just clean up URL - DO NOT sign in with token
         window.history.replaceState({}, '', '/dashboard?twitter_success=true')
