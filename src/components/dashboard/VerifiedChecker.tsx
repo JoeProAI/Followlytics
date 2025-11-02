@@ -171,13 +171,8 @@ export default function VerifiedChecker() {
           message: data.message || `✅ Checked ${data.checked || 0} followers. ${data.verified || 0} verified!`
         })
         
-        // If there are more to check, show a message
-        if (data.hasMore) {
-          setTimeout(() => {
-            alert(`✅ Batch complete! ${data.remaining} followers remaining. Click the button again to continue.`)
-            setResult(null) // Reset to show button again
-          }, 1000)
-        }
+        // DON'T auto-clear - keep result visible!
+        console.log('[Verified Check] ✅ Complete!', data)
       } else {
         throw new Error(data.error || data.details || 'Verification failed')
       }
@@ -347,14 +342,14 @@ export default function VerifiedChecker() {
             {checking ? (
               <span className="flex items-center justify-center gap-2">
                 <XSpinner size="md" />
-                🔍 Checking Followers via Apify Scraper...
+                🔍 Checking ALL Followers via Apify...
               </span>
             ) : (
-              '✓ Check ALL Followers for Verified Badges (Apify Scraper)'
+              '✓ Check ALL Followers for Verified Badges'
             )}
           </button>
           <p className="text-xs text-gray-500 mt-2 text-center">
-            ~1-2 min per batch (100 followers) • $0.2 per 1K profiles (~$0.16 total) • No Twitter API!
+            Checks ALL unchecked followers at once • $0.2 per 1K • No Twitter API needed!
           </p>
           
           {/* Live Status During Check */}

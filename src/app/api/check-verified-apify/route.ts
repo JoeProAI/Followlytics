@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase-admin'
 
-export const maxDuration = 300
+export const maxDuration = 300 // 5 minutes - should be enough for ~800 followers
 
 /**
  * Check verified status using Apify Twitter scraper
@@ -30,11 +30,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Apify not configured' }, { status: 500 })
     }
 
-    // Process 100 at a time (Apify can handle batches)
-    const MAX_PER_REQUEST = 100
-    const usernamesToCheck = usernames.slice(0, MAX_PER_REQUEST)
+    // Check ALL followers at once
+    const usernamesToCheck = usernames
     
-    console.log(`[Apify Verify] Checking ${usernamesToCheck.length} of ${usernames.length} users`)
+    console.log(`[Apify Verify] Checking ALL ${usernamesToCheck.length} users`)
 
     // Build profile URLs for each username
     const profileUrls = usernamesToCheck.map(username => `https://x.com/${username}`)
@@ -92,7 +91,10 @@ export async function POST(request: NextRequest) {
       checkedCount++
       if (isVerified) verifiedCount++
       
-      console.log(`[Apify Verify] @${username}: ${isVerified ? 'VERIFIED ✓' : 'not verified'}`)
+      // Log every 50 users + verified users
+      if (checkedCount % 50 === 0 || isVerified) {
+        console.log(`[Apify Verify] Progress: ${checkedCount}/${profiles.length} | Verified so far: ${verifiedCount} | Latest: @${username} ${isVerified ? '✓ VERIFIED' : ''}`)
+      }
     }
 
     // Add any usernames that weren't returned (failed to scrape)
@@ -138,20 +140,15 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Apify Verify] ✅ Complete! ${verifiedCount} verified out of ${checkedCount} checked`)
 
-    const hasMore = usernames.length > MAX_PER_REQUEST
-    const remaining = usernames.length - MAX_PER_REQUEST
-
     return NextResponse.json({
       success: true,
       total: results.length,
       checked: checkedCount,
       verified: verifiedCount,
       failed: results.length - checkedCount,
-      hasMore,
-      remaining: hasMore ? remaining : 0,
-      message: hasMore 
-        ? `✅ Checked ${checkedCount}/${usernames.length} followers. ${verifiedCount} verified! (${remaining} remaining - click again)`
-        : `✅ Checked all ${checkedCount} followers. ${verifiedCount} verified!`
+      hasMore: false,
+      remaining: 0,
+      message: `✅ Checked all ${checkedCount} followers. ${verifiedCount} verified!`
     })
 
   } catch (error) {
