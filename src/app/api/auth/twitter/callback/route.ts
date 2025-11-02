@@ -92,14 +92,22 @@ export async function GET(request: NextRequest) {
     // IMPORTANT: Link X tokens to the CURRENTLY LOGGED IN USER
     // This prevents creating a separate X-only account
     
-    // Get the current user ID from cookie (set when initiating OAuth from logged-in state)
-    const linkingUserId = request.cookies.get('linking_user_id')?.value
-    let currentUserId: string | null = linkingUserId || null
+    // Strategy 1: Check linking_user URL parameter (survives X redirect)
+    const linkingUserFromUrl = searchParams.get('linking_user')
+    let currentUserId: string | null = linkingUserFromUrl || null
     
     if (currentUserId) {
-      console.log('✅ Found linking_user_id cookie:', currentUserId)
+      console.log('✅ Found linking_user from URL parameter:', currentUserId)
     } else {
-      console.log('⚠️ No linking_user_id cookie - user was not logged in when initiating OAuth')
+      // Strategy 2: Check linking_user_id cookie (fallback)
+      const linkingUserId = request.cookies.get('linking_user_id')?.value
+      currentUserId = linkingUserId || null
+      
+      if (currentUserId) {
+        console.log('✅ Found linking_user_id cookie:', currentUserId)
+      } else {
+        console.log('⚠️ No linking_user parameter or cookie found')
+      }
     }
 
     let firebaseUser

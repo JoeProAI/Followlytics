@@ -20,8 +20,13 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    // Get callback URL
-    const callbackUrl = `${process.env.NEXTAUTH_URL}/api/auth/twitter/callback`
+    // Get callback URL - add linking_user parameter if logged in
+    let callbackUrl = `${process.env.NEXTAUTH_URL}/api/auth/twitter/callback`
+    if (currentUserId) {
+      callbackUrl += `?linking_user=${encodeURIComponent(currentUserId)}`
+      console.log('[OAuth GET] Added linking_user to callback URL:', currentUserId)
+    }
+    
     const tokens = await XAuth.getRequestToken(callbackUrl)
     
     const authUrl = XAuth.getAuthorizationUrl(tokens.oauth_token)
