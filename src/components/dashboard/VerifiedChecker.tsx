@@ -53,7 +53,35 @@ export default function VerifiedChecker() {
   }
 
   async function connectTwitter() {
-    window.location.href = '/api/auth/twitter'
+    // If user is logged in, use POST endpoint to preserve session
+    if (user) {
+      try {
+        const token = await user.getIdToken()
+        const response = await fetch('/api/auth/twitter', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        const data = await response.json()
+        if (data.authUrl) {
+          // Store tokens in sessionStorage to prevent account switching
+          sessionStorage.setItem('oauth_token', data.oauth_token)
+          sessionStorage.setItem('oauth_token_secret', data.oauth_token_secret)
+          sessionStorage.setItem('linking_to_user', user.uid)
+          window.location.href = data.authUrl
+        }
+      } catch (error) {
+        console.error('Failed to initialize X OAuth:', error)
+        // Fallback to GET method
+        window.location.href = '/api/auth/twitter'
+      }
+    } else {
+      // Not logged in - use GET method
+      window.location.href = '/api/auth/twitter'
+    }
   }
 
   async function checkVerified() {

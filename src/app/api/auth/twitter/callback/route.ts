@@ -75,18 +75,14 @@ export async function GET(request: NextRequest) {
     // IMPORTANT: Link X tokens to the CURRENTLY LOGGED IN USER
     // This prevents creating a separate X-only account
     
-    // Get the current user ID from cookies (if they're already logged in)
-    const sessionCookie = request.cookies.get('__session')?.value
-    let currentUserId: string | null = null
+    // Get the current user ID from cookie (set when initiating OAuth from logged-in state)
+    const linkingUserId = request.cookies.get('linking_user_id')?.value
+    let currentUserId: string | null = linkingUserId || null
     
-    if (sessionCookie) {
-      try {
-        const decodedToken = await adminAuth.verifySessionCookie(sessionCookie)
-        currentUserId = decodedToken.uid
-        console.log('✅ Found existing logged-in user:', currentUserId)
-      } catch {
-        console.log('⚠️ No valid session cookie found')
-      }
+    if (currentUserId) {
+      console.log('✅ Found linking_user_id cookie:', currentUserId)
+    } else {
+      console.log('⚠️ No linking_user_id cookie - user was not logged in when initiating OAuth')
     }
 
     let firebaseUser
@@ -177,20 +173,27 @@ export async function GET(request: NextRequest) {
     await adminDb.collection('users').doc(firebaseUser.uid).set(userDocData, { merge: true })
     console.log(`✅ Updated user document for: ${firebaseUser.email} with X connection`)
 
-    // Create custom token for client-side auth
-    console.log('🔑 Creating custom token for user:', firebaseUser.uid)
-    let customToken
-    try {
-      customToken = await adminAuth.createCustomToken(firebaseUser.uid)
-      console.log('✅ Custom token created successfully')
-    } catch (tokenError) {
-      console.error('❌ Failed to create custom token:', tokenError)
-      // Fallback: redirect without token, let user sign in normally
-      return NextResponse.redirect(`${baseUrl}/dashboard?x_auth=success&username=${accessTokens.screen_name}`)
+    // Create custom token for client-side auth ONLY if user wasn't already logged in
+    let redirectUrl
+    
+    if (currentUserId) {
+      // User was already logged in - don't create token, just redirect with success
+      console.log('✅ User already logged in, skipping custom token creation')
+      redirectUrl = `${baseUrl}/dashboard?x_auth=success&twitter_success=true&username=${accessTokens.screen_name}`
+    } else {
+      // User not logged in - create custom token for sign-in
+      console.log('🔑 Creating custom token for user:', firebaseUser.uid)
+      let customToken
+      try {
+        customToken = await adminAuth.createCustomToken(firebaseUser.uid)
+        console.log('✅ Custom token created successfully')
+        redirectUrl = `${baseUrl}/dashboard?x_auth=success&twitter_success=true&token=${customToken}&username=${accessTokens.screen_name}`
+      } catch (tokenError) {
+        console.error('❌ Failed to create custom token:', tokenError)
+        // Fallback: redirect without token, let user sign in normally
+        redirectUrl = `${baseUrl}/dashboard?x_auth=success&username=${accessTokens.screen_name}`
+      }
     }
-
-    // Determine redirect URL
-    const redirectUrl = `${baseUrl}/dashboard?x_auth=success&twitter_success=true&token=${customToken}&username=${accessTokens.screen_name}`
     
     console.log('🔄 Redirecting to:', redirectUrl)
 
@@ -198,6 +201,7 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(redirectUrl)
     response.cookies.delete('oauth_token')
     response.cookies.delete('oauth_token_secret')
+    response.cookies.delete('linking_user_id') // Clear the linking cookie
 
     return response
   } catch (error) {

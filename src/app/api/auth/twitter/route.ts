@@ -52,11 +52,21 @@ export async function POST(request: NextRequest) {
     
     const authUrl = XAuth.getAuthorizationUrl(tokens.oauth_token)
 
-    return NextResponse.json({
+    // Return tokens and also set a cookie to track that this OAuth is from a logged-in user
+    const response = NextResponse.json({
       authUrl,
       oauth_token: tokens.oauth_token,
       oauth_token_secret: tokens.oauth_token_secret,
     })
+    
+    // Store current user ID in cookie to link OAuth to this account
+    response.cookies.set('linking_user_id', userId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 600 // 10 minutes
+    })
+
+    return response
   } catch (error) {
     console.error('X OAuth initialization error:', error)
     return NextResponse.json(

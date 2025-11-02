@@ -39,22 +39,29 @@ function DashboardContent() {
     const xAuthSuccess = urlParams.get('x_auth')
     
     if (customToken && xAuthSuccess === 'success') {
-      // Sign in with custom token
-      import('firebase/auth').then(({ signInWithCustomToken }) => {
-        import('@/lib/firebase').then(({ auth }) => {
-          signInWithCustomToken(auth, customToken)
-            .then(() => {
-              // Clean up URL
-              window.history.replaceState({}, '', '/dashboard?twitter_success=true')
-            })
-            .catch((error) => {
-              console.error('Failed to sign in with custom token:', error)
-              window.history.replaceState({}, '', '/dashboard')
-            })
+      // IMPORTANT: Only sign in if user is NOT already logged in
+      // If they're logged in, the X tokens are already linked to their account
+      if (!user && !loading) {
+        // User not logged in - sign them in with custom token
+        import('firebase/auth').then(({ signInWithCustomToken }) => {
+          import('@/lib/firebase').then(({ auth }) => {
+            signInWithCustomToken(auth, customToken)
+              .then(() => {
+                // Clean up URL
+                window.history.replaceState({}, '', '/dashboard?twitter_success=true')
+              })
+              .catch((error) => {
+                console.error('Failed to sign in with custom token:', error)
+                window.history.replaceState({}, '', '/dashboard')
+              })
+          })
         })
-      })
+      } else if (user) {
+        // User already logged in - just clean up URL and show success
+        window.history.replaceState({}, '', '/dashboard?twitter_success=true')
+      }
     }
-  }, [])
+  }, [user, loading])
 
   useEffect(() => {
     async function fetchSubscription() {
