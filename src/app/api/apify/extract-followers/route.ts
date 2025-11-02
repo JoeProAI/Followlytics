@@ -251,12 +251,14 @@ export async function POST(request: NextRequest) {
 
     // Track current follower usernames
     const currentFollowerUsernames = new Set(
-      followersToPersist.map((f: any) => 
-        f.username
-          .replace(/^_+|_+$/g, '')
-          .replace(/\//g, '_')
-          .replace(/\./g, '_') || 'unknown_user'
-      )
+      followersToPersist
+        .filter((f: any) => f.username) // Filter out null/undefined usernames
+        .map((f: any) => 
+          (f.username || '')
+            .replace(/^_+|_+$/g, '')
+            .replace(/\//g, '_')
+            .replace(/\./g, '_') || 'unknown_user'
+        )
     )
 
     // Save to Firestore under user's data
