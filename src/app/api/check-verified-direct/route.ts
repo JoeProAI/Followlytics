@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase-admin'
 import { XAuth } from '@/lib/twitter-auth'
 
-export const maxDuration = 60
+export const maxDuration = 300 // 5 minutes max
 
 /**
  * Direct X API check for verified status
@@ -26,7 +26,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing usernames array' }, { status: 400 })
     }
 
-    console.log(`[Direct Verify] Checking ${usernames.length} users via X API`)
+    // Limit to 250 followers per request to fit in 5-minute timeout
+    const MAX_PER_REQUEST = 250
+    const usernamesToCheck = usernames.slice(0, MAX_PER_REQUEST)
+    
+    console.log(`[Direct Verify] Checking ${usernamesToCheck.length} of ${usernames.length} users via X API (batch 1)`)
 
     // Get X tokens
     const tokensDoc = await adminDb.collection('x_tokens').doc(userId).get()
@@ -52,7 +56,7 @@ export async function POST(request: NextRequest) {
     let checkedCount = 0
     let verifiedCount = 0
     
-    for (const username of usernames) {
+    for (const username of usernamesToCheck) {
       try {
         // Call Twitter API v1.1 users/show endpoint with proper OAuth signing
         const response = await XAuth.makeAuthenticatedRequest(
@@ -78,7 +82,7 @@ export async function POST(request: NextRequest) {
           
           // Log progress every 10 users
           if (checkedCount % 10 === 0) {
-            console.log(`[Direct Verify] Progress: ${checkedCount}/${usernames.length}, Verified: ${verifiedCount}`)
+            console.log(`[Direct Verify] Progress: ${checkedCount}/${usernamesToCheck.length}, Verified: ${verifiedCount}`)
           }
         } else {
           console.error(`[Direct Verify] Error for @${username}: ${response.status}`)
@@ -129,13 +133,20 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Direct Verify] ✅ Complete! ${verifiedCount} verified out of ${checkedCount} checked`)
 
+    const hasMore = usernames.length > MAX_PER_REQUEST
+    const remaining = usernames.length - MAX_PER_REQUEST
+
     return NextResponse.json({
       success: true,
       total: results.length,
       checked: checkedCount,
       verified: verifiedCount,
       failed: results.length - checkedCount,
-      message: `Checked ${checkedCount} followers via X API`
+      hasMore,
+      remaining: hasMore ? remaining : 0,
+      message: hasMore 
+        ? `Checked ${checkedCount}/${usernames.length} followers (${remaining} remaining - click again to continue)`
+        : `Checked all ${checkedCount} followers via X API`
     })
 
   } catch (error) {

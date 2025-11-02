@@ -127,15 +127,18 @@ export default function VerifiedChecker() {
       }
 
       const followersData = await followersResponse.json()
+      
+      // Filter out already-checked followers
       const allFollowers = followersData.followers
-        ?.map((f: any) => f.username)
+        ?.filter((f: any) => !f.verified_checked_at) // Only unchecked
+        .map((f: any) => f.username)
         .filter(Boolean)
 
       if (!allFollowers || allFollowers.length === 0) {
-        throw new Error('No followers found to check')
+        throw new Error('All followers already checked! Refresh to see results.')
       }
 
-      console.log(`[Verified Check] Checking ALL ${allFollowers.length} followers via X API...`)
+      console.log(`[Verified Check] Checking ${allFollowers.length} followers via X API...`)
 
       // Call direct API verification (reliable, uses your X tokens)
       const response = await fetch('/api/check-verified-direct', {
@@ -147,7 +150,14 @@ export default function VerifiedChecker() {
         body: JSON.stringify({ usernames: allFollowers })
       })
 
-      const data = await response.json()
+      let data
+      try {
+        data = await response.json()
+      } catch (parseError) {
+        const text = await response.text()
+        console.error('[Verified Check] Failed to parse response:', text)
+        throw new Error(`Server error: ${text.substring(0, 100)}`)
+      }
 
       if (data.needsAuth) {
         setTwitterConnected(false)
@@ -158,10 +168,18 @@ export default function VerifiedChecker() {
         setResult({
           verified: data.verified || 0,
           total: data.checked || data.total || 0,
-          message: `✅ Checked ${data.checked || 0} followers via X API. ${data.verified || 0} verified!`
+          message: data.message || `✅ Checked ${data.checked || 0} followers. ${data.verified || 0} verified!`
         })
+        
+        // If there are more to check, show a message
+        if (data.hasMore) {
+          setTimeout(() => {
+            alert(`✅ Batch complete! ${data.remaining} followers remaining. Click the button again to continue.`)
+            setResult(null) // Reset to show button again
+          }, 1000)
+        }
       } else {
-        throw new Error(data.error || 'Verification failed')
+        throw new Error(data.error || data.details || 'Verification failed')
       }
     } catch (err: any) {
       setError(err.message)
@@ -336,7 +354,7 @@ export default function VerifiedChecker() {
             )}
           </button>
           <p className="text-xs text-gray-500 mt-2 text-center">
-            Takes ~13 minutes (787 followers, 1 req/sec) • Uses your X OAuth tokens
+            ~4 min per batch (250 followers max) • Click multiple times for all followers
           </p>
           
           {/* Live Status During Check */}
