@@ -39,9 +39,13 @@ export async function GET(request: NextRequest) {
     const userId = decodedToken.uid
 
     // Check if user has X OAuth tokens stored in x_tokens collection
+    console.log('[Status Check] Checking x_tokens for userId:', userId)
     const xTokensDoc = await adminDb.collection('x_tokens').doc(userId).get()
     
+    console.log('[Status Check] Document exists?', xTokensDoc.exists)
+    
     if (!xTokensDoc.exists) {
+      console.log('[Status Check] No x_tokens document found for user')
       return NextResponse.json({ 
         connected: false,
         authorized: false, 
@@ -50,6 +54,13 @@ export async function GET(request: NextRequest) {
     }
 
     const tokenData = xTokensDoc.data()
+    console.log('[Status Check] Token data:', {
+      hasAccessToken: !!tokenData?.accessToken,
+      hasAccessTokenSecret: !!tokenData?.accessTokenSecret,
+      screenName: tokenData?.screenName,
+      xUserId: tokenData?.xUserId
+    })
+    
     const hasXTokens = tokenData?.accessToken && tokenData?.accessTokenSecret
 
     if (hasXTokens) {

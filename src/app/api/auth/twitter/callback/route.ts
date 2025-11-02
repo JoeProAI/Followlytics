@@ -113,6 +113,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Store X tokens and user info in Firestore (linked to their real account)
+    console.log('[Callback] Storing X tokens for user:', {
+      uid: firebaseUser.uid,
+      email: firebaseUser.email,
+      screenName: accessTokens.screen_name
+    })
+    
     await adminDb.collection('x_tokens').doc(firebaseUser.uid).set({
       accessToken: accessTokens.oauth_token,
       accessTokenSecret: accessTokens.oauth_token_secret,
@@ -122,7 +128,7 @@ export async function GET(request: NextRequest) {
       createdAt: new Date(),
     })
 
-    console.log('✅ OAuth tokens stored successfully for user:', firebaseUser.uid);
+    console.log('✅ OAuth tokens stored successfully in x_tokens/' + firebaseUser.uid);
     
     // Test the OAuth tokens for API access
     try {
