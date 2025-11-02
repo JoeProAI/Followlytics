@@ -135,16 +135,16 @@ export default function VerifiedChecker() {
         throw new Error('No followers found to check')
       }
 
-      console.log(`[Verified Check] Checking ALL ${allFollowers.length} followers in parallel batches...`)
+      console.log(`[Verified Check] Checking ALL ${allFollowers.length} followers via X API...`)
 
-      // Call batch verification endpoint (faster, parallel processing)
-      const response = await fetch('/api/daytona/check-verified-batch', {
+      // Call direct API verification (reliable, uses your X tokens)
+      const response = await fetch('/api/check-verified-direct', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ allFollowers })
+        body: JSON.stringify({ usernames: allFollowers })
       })
 
       const data = await response.json()
@@ -158,7 +158,7 @@ export default function VerifiedChecker() {
         setResult({
           verified: data.verified || 0,
           total: data.checked || data.total || 0,
-          message: `✅ Checked ${data.checked || 0} followers across ${data.batches || 1} parallel batches. ${data.verified || 0} verified!`
+          message: `✅ Checked ${data.checked || 0} followers via X API. ${data.verified || 0} verified!`
         })
       } else {
         throw new Error(data.error || 'Verification failed')
@@ -329,14 +329,14 @@ export default function VerifiedChecker() {
             {checking ? (
               <span className="flex items-center justify-center gap-2">
                 <XSpinner size="md" />
-                🔍 Checking ALL Followers in Parallel...
+                🔍 Checking ALL Followers via X API...
               </span>
             ) : (
-              '⚡ Check ALL Followers for Verified Badges (Fast Parallel Mode)'
+              '✓ Check ALL Followers for Verified Badges (Direct X API)'
             )}
           </button>
           <p className="text-xs text-gray-500 mt-2 text-center">
-            Takes ~2-3 minutes • Uses Daytona browser automation
+            Takes ~13 minutes (787 followers, 1 req/sec) • Uses your X OAuth tokens
           </p>
           
           {/* Live Status During Check */}
