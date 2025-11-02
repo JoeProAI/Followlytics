@@ -265,7 +265,7 @@ export default function VerifiedChecker() {
           <p className="text-sm text-gray-400 mb-4">
             To check verified status, we need to view X profiles using your login (browser automation).
           </p>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button
               onClick={connectTwitter}
               className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all"
@@ -278,9 +278,39 @@ export default function VerifiedChecker() {
             >
               🔄 Refresh
             </button>
+            <button
+              onClick={async () => {
+                if (!user) return
+                console.log('[Manual Fix] Triggering token fix...')
+                try {
+                  const token = await user.getIdToken()
+                  const response = await fetch('/api/auth/twitter/fix-tokens', {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                      'Content-Type': 'application/json'
+                    }
+                  })
+                  const data = await response.json()
+                  console.log('[Manual Fix] Result:', data)
+                  if (data.success) {
+                    alert('Tokens fixed! Click Refresh.')
+                    checkTwitterAuth()
+                  } else {
+                    alert('No tokens found to fix. Try authorizing X first.')
+                  }
+                } catch (err) {
+                  console.error('[Manual Fix] Error:', err)
+                  alert('Failed to fix tokens: ' + err)
+                }
+              }}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all text-sm"
+            >
+              🔧 Fix Tokens
+            </button>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            If you just authorized, click Refresh to update status
+            If you just authorized, click <strong>Fix Tokens</strong> then <strong>Refresh</strong>
           </p>
         </div>
       )}
