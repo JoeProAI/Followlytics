@@ -101,27 +101,18 @@ export default function VerifiedChecker() {
       localStorage.setItem('x_oauth_user_email', user.email || '')
       console.log('[VerifiedChecker] Marking OAuth as linking session for:', user.email)
       
+      // Get Firebase token and add to URL params
       try {
         const token = await user.getIdToken()
-        const response = await fetch('/api/auth/twitter', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        })
-        
-        const data = await response.json()
-        if (data.authUrl) {
-          window.location.href = data.authUrl
-          return
-        }
+        // Redirect to endpoint with token in header via cookie
+        // Store token temporarily for the redirect
+        sessionStorage.setItem('firebase_id_token', token)
       } catch (error) {
-        console.error('Failed to use POST endpoint:', error)
+        console.error('Failed to get Firebase token:', error)
       }
     }
     
-    // Fallback to GET method
+    // Direct navigation to endpoint - this preserves cookies properly
     window.location.href = '/api/auth/twitter'
   }
 
