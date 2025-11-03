@@ -289,11 +289,50 @@ export default function CompleteDashboard() {
                   BULK EXTRACT
                 </button>
                 <button
-                  onClick={() => setVerifying(true)}
-                  disabled={verifying}
+                  onClick={async () => {
+                    if (!user || followers.length === 0) return
+                    setVerifying(true)
+                    try {
+                      const token = await user.getIdToken()
+                      const usernamesToCheck = followers
+                        .filter(f => f.verified === undefined || f.verified === false)
+                        .slice(0, 50)
+                        .map(f => f.username)
+                      
+                      if (usernamesToCheck.length === 0) {
+                        alert('All followers already verified!')
+                        setVerifying(false)
+                        return
+                      }
+                      
+                      const response = await fetch('/api/verify-enrich-apify', {
+                        method: 'POST',
+                        headers: {
+                          'Authorization': `Bearer ${token}`,
+                          'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ usernames: usernamesToCheck })
+                      })
+                      
+                      if (response.ok) {
+                        const data = await response.json()
+                        alert(`✅ Verified & enriched ${data.checked} followers. ${data.verified} verified!`)
+                        await loadDashboard()
+                      } else {
+                        const error = await response.json()
+                        alert(`Error: ${error.error}`)
+                      }
+                    } catch (err) {
+                      console.error('Verification failed:', err)
+                      alert('Verification failed. Check console for details.')
+                    } finally {
+                      setVerifying(false)
+                    }
+                  }}
+                  disabled={verifying || followers.length === 0}
                   className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-700 rounded text-sm font-medium"
                 >
-                  {verifying ? 'CHECKING...' : '✓ CHECK VERIFIED'}
+                  {verifying ? 'CHECKING...' : '✓ VERIFY & ENRICH'}
                 </button>
                 <button
                   onClick={exportToCSV}
