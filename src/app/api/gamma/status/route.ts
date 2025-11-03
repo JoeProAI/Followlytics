@@ -16,12 +16,37 @@ export async function GET(request: NextRequest) {
     const userId = decodedToken.uid
 
     const analysisId = request.nextUrl.searchParams.get('analysisId')
+    const generationId = request.nextUrl.searchParams.get('generationId')
 
+    if (!analysisId && !generationId) {
+      return NextResponse.json({ error: 'Analysis ID or Generation ID required' }, { status: 400 })
+    }
+
+    // If generationId is provided, check gamma_reports collection
+    if (generationId) {
+      const gammaDoc = await adminDb.collection('gamma_reports').doc(generationId).get()
+      
+      if (!gammaDoc.exists) {
+        return NextResponse.json({ error: 'Gamma report not found' }, { status: 404 })
+      }
+
+      const gammaData = gammaDoc.data()
+      
+      if (gammaData?.userId !== userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+      }
+
+      return NextResponse.json({
+        gammaReport: gammaData,
+        message: gammaData?.status === 'completed' ? 'Gamma report ready' : 'Generating...'
+      })
+    }
+
+    // Get the analysis document (analysisId is guaranteed to exist here)
     if (!analysisId) {
       return NextResponse.json({ error: 'Analysis ID required' }, { status: 400 })
     }
 
-    // Get the analysis document
     const analysisDoc = await adminDb
       .collection('users')
       .doc(userId)

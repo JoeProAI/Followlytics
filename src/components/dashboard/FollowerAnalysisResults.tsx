@@ -86,6 +86,9 @@ export default function FollowerAnalysisResults() {
   const [generatingGamma, setGeneratingGamma] = useState(false)
   const [gammaReport, setGammaReport] = useState<any>(null)
   const [pollingGamma, setPollingGamma] = useState(false)
+  const [generatingFollowerGamma, setGeneratingFollowerGamma] = useState<Set<string>>(new Set())
+  const [followerGammaReports, setFollowerGammaReports] = useState<Record<string, any>>({})
+  const [deletingAnalysis, setDeletingAnalysis] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -260,6 +263,120 @@ export default function FollowerAnalysisResults() {
     }
   }
 
+  async function deleteAnalysis(analysisId: string) {
+    if (!user || !confirm('Delete this analysis? This cannot be undone.')) return
+    
+    setDeletingAnalysis(true)
+    try {
+      const token = await user.getIdToken()
+      const response = await fetch(`/api/ai/analyze-followers/${analysisId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        // Remove from local state
+        setAnalyses(analyses.filter(a => a.id !== analysisId))
+        if (selectedAnalysis?.id === analysisId) {
+          setSelectedAnalysis(analyses[0] || null)
+        }
+        alert('✅ Analysis deleted successfully')
+      } else {
+        throw new Error('Failed to delete analysis')
+      }
+    } catch (error: any) {
+      console.error('Delete failed:', error)
+      alert('❌ Failed to delete analysis: ' + error.message)
+    } finally {
+      setDeletingAnalysis(false)
+    }
+  }
+
+  async function generateFollowerGamma(followerUsername: string, followerData: IndividualAnalysis) {
+    if (!user) return
+    
+    setGeneratingFollowerGamma(prev => new Set(prev).add(followerUsername))
+    try {
+      const token = await user.getIdToken()
+      const response = await fetch('/api/gamma/generate-follower', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          follower: followerData,
+          analysisId: selectedAnalysis?.id
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate follower Gamma')
+      }
+      
+      const data = await response.json()
+      
+      // Poll for completion
+      pollFollowerGamma(followerUsername, data.generationId)
+    } catch (error: any) {
+      console.error('Follower Gamma generation failed:', error)
+      alert('❌ Failed to generate Gamma: ' + error.message)
+      setGeneratingFollowerGamma(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(followerUsername)
+        return newSet
+      })
+    }
+  }
+
+  async function pollFollowerGamma(followerUsername: string, generationId: string) {
+    let attempts = 0
+    const maxAttempts = 30
+    
+    const poll = async () => {
+      attempts++
+      
+      try {
+        const token = await user?.getIdToken()
+        const response = await fetch(`/api/gamma/status?generationId=${generationId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          
+          if (data.gammaReport?.status === 'completed' && data.gammaReport?.url) {
+            setFollowerGammaReports(prev => ({
+              ...prev,
+              [followerUsername]: data.gammaReport
+            }))
+            setGeneratingFollowerGamma(prev => {
+              const newSet = new Set(prev)
+              newSet.delete(followerUsername)
+              return newSet
+            })
+            return
+          }
+        }
+      } catch (error) {
+        console.error('Polling error:', error)
+      }
+      
+      if (attempts < maxAttempts) {
+        setTimeout(poll, 10000)
+      } else {
+        setGeneratingFollowerGamma(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(followerUsername)
+          return newSet
+        })
+        alert('⏱️ Gamma generation timed out. Please check back later.')
+      }
+    }
+    
+    setTimeout(poll, 10000)
+  }
+
   async function generateGammaReport() {
     if (!selectedAnalysis || !user) return
     
@@ -371,9 +488,16 @@ export default function FollowerAnalysisResults() {
                 disabled={generatingGamma}
                 className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-700 disabled:to-gray-700 rounded-lg text-sm font-medium transition-all flex items-center gap-2 disabled:opacity-50"
               >
-                {generatingGamma ? '⏳ Starting...' : '🎨 Generate Gamma Report'}
+                {generatingGamma ? '⏳ Starting...' : '🎨 Generate Aggregate Gamma'}
               </button>
             )}
+            <button
+              onClick={() => selectedAnalysis && deleteAnalysis(selectedAnalysis.id)}
+              disabled={deletingAnalysis}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 rounded-lg text-sm font-medium transition-all flex items-center gap-2 disabled:opacity-50"
+            >
+              {deletingAnalysis ? '⏳ Deleting...' : '🗑️ Delete Analysis'}
+            </button>
             <button
               onClick={exportAsJSON}
               className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
@@ -511,9 +635,37 @@ export default function FollowerAnalysisResults() {
                   </div>
                   
                   {/* Action Recommendation */}
-                  <div className="pt-3 border-t border-gray-700">
+                  <div className="pt-3 border-t border-gray-700 mb-3">
                     <div className="text-xs text-gray-500 mb-1">✨ Action:</div>
                     <p className="text-xs text-cyan-400">{follower.actionRecommendation}</p>
+                  </div>
+                  
+                  {/* Per-Follower Gamma */}
+                  <div className="space-y-2">
+                    {followerGammaReports[follower.username] ? (
+                      <a
+                        href={followerGammaReports[follower.username].url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block w-full px-3 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded text-xs font-medium text-center transition-all"
+                      >
+                        🎨 View Gamma Report →
+                      </a>
+                    ) : generatingFollowerGamma.has(follower.username) ? (
+                      <button
+                        disabled
+                        className="w-full px-3 py-2 bg-gray-700 rounded text-xs font-medium opacity-50 cursor-not-allowed"
+                      >
+                        ⏳ Generating Gamma...
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => generateFollowerGamma(follower.username, follower)}
+                        className="w-full px-3 py-2 bg-gradient-to-r from-purple-600/20 to-pink-600/20 hover:from-purple-600/30 hover:to-pink-600/30 border border-purple-500/30 rounded text-xs font-medium transition-all"
+                      >
+                        🎨 Generate Gamma
+                      </button>
+                    )}
                   </div>
                 </div>
               )
