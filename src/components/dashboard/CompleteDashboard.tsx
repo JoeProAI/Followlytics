@@ -12,6 +12,8 @@ export default function CompleteDashboard() {
   const [extracting, setExtracting] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [username, setUsername] = useState('')
+  const [selectedAccount, setSelectedAccount] = useState<string | null>(null)
+  const [selectedUsernames, setSelectedUsernames] = useState<Set<string>>(new Set())
   const [myAccount, setMyAccount] = useState<string | null>(null)
   const [trackedAccounts, setTrackedAccounts] = useState<any[]>([])
   const [activeView, setActiveView] = useState<'overview' | 'verified' | 'influencers' | 'unfollowers'>('overview')
@@ -68,6 +70,7 @@ export default function CompleteDashboard() {
         const withBio = followersList.filter((f: any) => f.bio?.trim()).length
         const highValue = followersList.filter((f: any) => (f.followersCount || 0) > 10000).length
         const microInfluencers = followersList.filter((f: any) => (f.followersCount || 0) >= 1000 && (f.followersCount || 0) <= 100000).length
+        const unfollowers = followersList.filter((f: any) => f.status === 'unfollowed').length
         
         setStats({
           total: followersList.length,
@@ -79,7 +82,8 @@ export default function CompleteDashboard() {
           highValue,
           highValuePct: followersList.length > 0 ? ((highValue / followersList.length) * 100).toFixed(1) : '0',
           microInfluencers,
-          microInfluencersPct: followersList.length > 0 ? ((microInfluencers / followersList.length) * 100).toFixed(1) : '0'
+          microInfluencersPct: followersList.length > 0 ? ((microInfluencers / followersList.length) * 100).toFixed(1) : '0',
+          unfollowers
         })
         
         setMyAccount(data.targetUsername)
@@ -159,6 +163,7 @@ export default function CompleteDashboard() {
 
   const verifiedFollowers = followers.filter(f => f.verified)
   const influencers = followers.filter(f => (f.followersCount || 0) >= 10000).sort((a, b) => (b.followersCount || 0) - (a.followersCount || 0))
+  const unfollowers = followers.filter(f => f.status === 'unfollowed')
 
   return (
     <div className="min-h-screen bg-[#0f1419] text-gray-100">
@@ -203,19 +208,34 @@ export default function CompleteDashboard() {
           <h3 className="text-xs uppercase tracking-wide text-gray-400 mb-3">Account Manager</h3>
           <div className="flex items-center gap-4 mb-4">
             {myAccount && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/30 rounded">
-                <span className="text-xs text-gray-400">My Account:</span>
-                <span className="text-sm font-mono text-blue-400">@{myAccount}</span>
-                <span className="text-xs text-gray-500">({stats?.total || 0} followers tracked)</span>
-              </div>
+              <button
+                onClick={() => setSelectedAccount(null)}
+                className={`flex items-center gap-2 px-3 py-2 rounded cursor-pointer transition-all ${
+                  !selectedAccount 
+                    ? 'bg-blue-500/20 border-2 border-blue-500 text-blue-400' 
+                    : 'bg-blue-500/10 border border-blue-500/30 text-blue-400 hover:bg-blue-500/15'
+                }`}
+              >
+                <span className="text-xs text-gray-400">MY:</span>
+                <span className="text-sm font-mono font-semibold">@{myAccount}</span>
+                <span className="text-xs text-gray-500">({stats?.total || 0} followers) [Tracks unfollows]</span>
+              </button>
             )}
             {trackedAccounts.length > 0 && (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-400">Analyzed:</span>
+                <span className="text-xs text-gray-400">COMPETITORS:</span>
                 {trackedAccounts.map((acc, idx) => (
-                  <span key={idx} className="text-xs px-2 py-1 bg-purple-500/10 border border-purple-500/30 rounded text-purple-400 font-mono">
+                  <button
+                    key={idx}
+                    onClick={() => setSelectedAccount(acc.username)}
+                    className={`text-xs px-3 py-2 rounded cursor-pointer transition-all font-mono ${
+                      selectedAccount === acc.username
+                        ? 'bg-purple-500/20 border-2 border-purple-500 text-purple-400'
+                        : 'bg-purple-500/10 border border-purple-500/30 text-purple-400 hover:bg-purple-500/15'
+                    }`}
+                  >
                     @{acc.username}
-                  </span>
+                  </button>
                 ))}
               </div>
             )}
@@ -281,6 +301,19 @@ export default function CompleteDashboard() {
                 Influencers ({influencers.length})
               </button>
               
+              {!selectedAccount && (
+                <button
+                  onClick={() => setActiveView('unfollowers')}
+                  className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                    activeView === 'unfollowers'
+                      ? 'bg-red-600 text-white'
+                      : 'bg-[#15191e] text-gray-400 hover:text-white border border-gray-800'
+                  }`}
+                >
+                  Unfollowers ({stats.unfollowers || 0})
+                </button>
+              )}
+              
               <div className="ml-auto flex gap-2">
                 <button
                   onClick={() => setShowBulkModal(true)}
@@ -294,10 +327,18 @@ export default function CompleteDashboard() {
                     setVerifying(true)
                     try {
                       const token = await user.getIdToken()
-                      const usernamesToCheck = followers
-                        .filter(f => f.verified === undefined || f.verified === false)
-                        .slice(0, 50)
-                        .map(f => f.username)
+                      
+                      // Check selected users OR all unverified
+                      let usernamesToCheck: string[]
+                      if (selectedUsernames.size > 0) {
+                        usernamesToCheck = Array.from(selectedUsernames)
+                        console.log(`Verifying ${usernamesToCheck.length} SELECTED users`)
+                      } else {
+                        usernamesToCheck = followers
+                          .filter(f => f.verified === undefined || f.verified === false)
+                          .map(f => f.username)
+                        console.log(`Verifying ALL ${usernamesToCheck.length} unverified users`)
+                      }
                       
                       if (usernamesToCheck.length === 0) {
                         alert('All followers already verified!')
@@ -305,23 +346,39 @@ export default function CompleteDashboard() {
                         return
                       }
                       
-                      const response = await fetch('/api/verify-enrich-apify', {
-                        method: 'POST',
-                        headers: {
-                          'Authorization': `Bearer ${token}`,
-                          'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ usernames: usernamesToCheck })
-                      })
+                      // Process in batches of 50
+                      const batchSize = 50
+                      let totalChecked = 0
+                      let totalVerified = 0
                       
-                      if (response.ok) {
-                        const data = await response.json()
-                        alert(`✅ Verified & enriched ${data.checked} followers. ${data.verified} verified!`)
-                        await loadDashboard()
-                      } else {
-                        const error = await response.json()
-                        alert(`Error: ${error.error}`)
+                      for (let i = 0; i < usernamesToCheck.length; i += batchSize) {
+                        const batch = usernamesToCheck.slice(i, i + batchSize)
+                        console.log(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(usernamesToCheck.length/batchSize)}`)
+                        
+                        const response = await fetch('/api/verify-enrich-apify', {
+                          method: 'POST',
+                          headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                          },
+                          body: JSON.stringify({ usernames: batch })
+                        })
+                        
+                        if (response.ok) {
+                          const data = await response.json()
+                          totalChecked += data.checked
+                          totalVerified += data.verified
+                        }
+                        
+                        // Small delay between batches
+                        if (i + batchSize < usernamesToCheck.length) {
+                          await new Promise(resolve => setTimeout(resolve, 2000))
+                        }
                       }
+                      
+                      alert(`✅ Verified & enriched ${totalChecked} followers. ${totalVerified} verified!`)
+                      setSelectedUsernames(new Set())
+                      await loadDashboard()
                     } catch (err) {
                       console.error('Verification failed:', err)
                       alert('Verification failed. Check console for details.')
@@ -332,7 +389,7 @@ export default function CompleteDashboard() {
                   disabled={verifying || followers.length === 0}
                   className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-700 rounded text-sm font-medium"
                 >
-                  {verifying ? 'CHECKING...' : '✓ VERIFY & ENRICH'}
+                  {verifying ? 'CHECKING...' : selectedUsernames.size > 0 ? `✓ VERIFY ${selectedUsernames.size}` : '✓ VERIFY ALL'}
                 </button>
                 <button
                   onClick={exportToCSV}
@@ -550,6 +607,52 @@ export default function CompleteDashboard() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {activeView === 'unfollowers' && (
+              <div className="bg-[#15191e] border border-gray-800 rounded-lg overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-800">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-300">
+                    Recent Unfollowers ({unfollowers.length})
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-1">These users unfollowed you since your last extraction</p>
+                </div>
+                {unfollowers.length === 0 ? (
+                  <div className="p-12 text-center">
+                    <p className="text-gray-500 mb-2">No unfollowers detected</p>
+                    <p className="text-xs text-gray-600">Re-extract your account to detect new unfollows</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-800">
+                    {unfollowers.map((follower, idx) => (
+                      <div key={idx} className="p-6 bg-red-500/5 hover:bg-red-500/10 transition-colors flex items-start gap-4">
+                        <img src={follower.profileImage} alt="" className="w-12 h-12 rounded-full opacity-60" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-white">{follower.name}</span>
+                            {follower.verified && <span className="text-blue-400">✓</span>}
+                            <span className="ml-auto text-xs text-red-400">UNFOLLOWED</span>
+                          </div>
+                          <div className="text-sm text-gray-400 font-mono mb-2">@{follower.username}</div>
+                          <div className="text-sm text-gray-400 mb-2">{follower.bio}</div>
+                          <div className="flex items-center gap-6 text-xs text-gray-500">
+                            <div>
+                              <span>Followers:</span>
+                              <span className="ml-1 font-mono">{(follower.followersCount || 0).toLocaleString()}</span>
+                            </div>
+                            {follower.last_seen && (
+                              <div>
+                                <span>Last seen:</span>
+                                <span className="ml-1">{new Date(follower.last_seen).toLocaleDateString()}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </>
