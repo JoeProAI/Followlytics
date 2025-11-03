@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuth } from 'firebase-admin/auth'
-import getFirebaseAdminApp from '@/lib/firebase-admin'
-import { getFirestore } from 'firebase-admin/firestore'
+import { adminAuth, adminDb } from '@/lib/firebase-admin'
 
-const adminDb = getFirestore(getFirebaseAdminApp())
+// Force dynamic rendering - don't pre-render at build time
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +12,7 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.split('Bearer ')[1]
-    const decodedToken = await getAuth(getFirebaseAdminApp()).verifyIdToken(token)
+    const decodedToken = await adminAuth.verifyIdToken(token)
     const userId = decodedToken.uid
 
     // Get user document

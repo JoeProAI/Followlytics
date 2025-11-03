@@ -1,4 +1,4 @@
-import { posthog } from '@/instrumentation-client';
+import posthog from 'posthog-js';
 
 export const analytics = {
   // Page views

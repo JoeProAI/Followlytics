@@ -4,7 +4,6 @@ import './globals.css'
 import { AuthProvider } from '@/hooks/useAuth'
 import SpeedBackdrop from '@/components/ui/SpeedBackdrop'
 import { PostHogProvider } from '@/components/providers/PostHogProvider'
-import '@/instrumentation-client'
 
 const inter = Inter({ subsets: ['latin'] })
 
