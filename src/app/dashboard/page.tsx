@@ -3,7 +3,7 @@
 import { useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
-import AnalyticsDashboard from '@/components/dashboard/AnalyticsDashboard'
+import CompleteDashboard from '@/components/dashboard/CompleteDashboard'
 import XFireworksLoader from '@/components/ui/XFireworksLoader'
 
 function DashboardContent() {
@@ -94,7 +94,7 @@ function DashboardContent() {
     return null
   }
 
-  return <AnalyticsDashboard />
+  return <CompleteDashboard />
 }
 
 export default function Dashboard() {
