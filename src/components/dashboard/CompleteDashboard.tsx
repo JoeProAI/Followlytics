@@ -14,13 +14,35 @@ export default function CompleteDashboard() {
   const [username, setUsername] = useState('')
   const [myAccount, setMyAccount] = useState<string | null>(null)
   const [trackedAccounts, setTrackedAccounts] = useState<any[]>([])
-  const [activeView, setActiveView] = useState<'overview' | 'verified' | 'influencers'>('overview')
+  const [activeView, setActiveView] = useState<'overview' | 'verified' | 'influencers' | 'unfollowers'>('overview')
+  const [subscription, setSubscription] = useState<any>(null)
+  const [usage, setUsage] = useState<any>(null)
+  const [verifying, setVerifying] = useState(false)
+  const [showBulkModal, setShowBulkModal] = useState(false)
+  const [bulkUsernames, setBulkUsernames] = useState('')
 
   useEffect(() => {
     if (user) {
       loadDashboard()
+      loadSubscription()
     }
   }, [user])
+
+  const loadSubscription = async () => {
+    if (!user) return
+    try {
+      const token = await user.getIdToken()
+      const response = await fetch('/api/subscription', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setSubscription(data)
+      }
+    } catch (err) {
+      console.error('Failed to load subscription:', err)
+    }
+  }
 
   const loadDashboard = async () => {
     if (!user) return
@@ -147,6 +169,23 @@ export default function CompleteDashboard() {
             FOLLOWLYTICS
           </Link>
           <div className="flex items-center gap-6">
+            {subscription && (
+              <div className="flex items-center gap-3">
+                <span className={`text-xs px-3 py-1 rounded uppercase font-semibold ${
+                  subscription.tier === 'enterprise' ? 'bg-purple-500/20 text-purple-400' :
+                  subscription.tier === 'pro' ? 'bg-blue-500/20 text-blue-400' :
+                  subscription.tier === 'starter' ? 'bg-green-500/20 text-green-400' :
+                  'bg-gray-500/20 text-gray-400'
+                }`}>
+                  {subscription.tier}
+                </span>
+                {subscription.tier === 'free' && (
+                  <Link href="/pricing" className="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-white font-medium">
+                    UPGRADE
+                  </Link>
+                )}
+              </div>
+            )}
             <span className="text-sm text-gray-400 font-mono">{user?.email}</span>
             <button
               onClick={logout}
@@ -242,7 +281,20 @@ export default function CompleteDashboard() {
                 Influencers ({influencers.length})
               </button>
               
-              <div className="ml-auto">
+              <div className="ml-auto flex gap-2">
+                <button
+                  onClick={() => setShowBulkModal(true)}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded text-sm font-medium"
+                >
+                  BULK EXTRACT
+                </button>
+                <button
+                  onClick={() => setVerifying(true)}
+                  disabled={verifying}
+                  className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-700 rounded text-sm font-medium"
+                >
+                  {verifying ? 'CHECKING...' : '✓ CHECK VERIFIED'}
+                </button>
                 <button
                   onClick={exportToCSV}
                   disabled={exporting || followers.length === 0}
@@ -252,6 +304,44 @@ export default function CompleteDashboard() {
                 </button>
               </div>
             </div>
+
+            {/* Bulk Modal */}
+            {showBulkModal && (
+              <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                <div className="bg-[#15191e] border border-gray-800 rounded-lg max-w-2xl w-full p-6">
+                  <h3 className="text-lg font-semibold mb-4">Bulk Extract Followers</h3>
+                  <p className="text-sm text-gray-400 mb-4">Enter one username per line (up to 10 accounts)</p>
+                  <textarea
+                    value={bulkUsernames}
+                    onChange={(e) => setBulkUsernames(e.target.value)}
+                    placeholder="elonmusk&#10;BillGates&#10;BarackObama"
+                    className="w-full bg-[#0f1419] border border-gray-700 rounded px-4 py-3 text-sm font-mono mb-4 h-48"
+                  />
+                  <div className="flex gap-3 justify-end">
+                    <button
+                      onClick={() => setShowBulkModal(false)}
+                      className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        const usernames = bulkUsernames.split('\n').map(u => u.trim()).filter(Boolean)
+                        usernames.forEach(async (u) => {
+                          setUsername(u)
+                          await extractFollowers()
+                        })
+                        setShowBulkModal(false)
+                      }}
+                      disabled={!bulkUsernames.trim()}
+                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 rounded text-sm font-medium"
+                    >
+                      Extract All
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Metrics Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
