@@ -3,6 +3,8 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from '@/hooks/useAuth'
 import SpeedBackdrop from '@/components/ui/SpeedBackdrop'
+import { PostHogProvider } from '@/components/providers/PostHogProvider'
+import '@/instrumentation-client'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -19,12 +21,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <div className="min-h-screen bg-background text-foreground relative">
-          <SpeedBackdrop />
-          <AuthProvider>
-            {children}
-          </AuthProvider>
-        </div>
+        <PostHogProvider>
+          <div className="min-h-screen bg-background text-foreground relative">
+            <SpeedBackdrop />
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </div>
+        </PostHogProvider>
       </body>
     </html>
   )
