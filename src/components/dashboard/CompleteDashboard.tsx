@@ -184,6 +184,12 @@ export default function CompleteDashboard() {
                 }`}>
                   {subscription.tier}
                 </span>
+                <div className="text-xs text-gray-400 flex items-center gap-2">
+                  <span className="text-blue-400 font-mono font-semibold">{stats?.total || 0}</span>
+                  <span>/</span>
+                  <span className="text-gray-500">500,000</span>
+                  <span className="text-gray-600">followers</span>
+                </div>
                 {subscription.tier === 'free' && (
                   <Link href="/pricing" className="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-white font-medium">
                     UPGRADE
@@ -242,23 +248,33 @@ export default function CompleteDashboard() {
           </div>
           
           {/* Extract Section */}
-          <div className="flex gap-3">
-            <input
-              type="text"
-              placeholder="Extract followers from any account..."
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && extractFollowers()}
-              className="flex-1 bg-[#0f1419] border border-gray-700 rounded px-4 py-2 text-sm focus:outline-none focus:border-blue-500 transition-colors font-mono"
-              disabled={extracting}
-            />
-            <button
-              onClick={extractFollowers}
-              disabled={extracting || !username.trim()}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded text-sm font-medium transition-colors"
-            >
-              {extracting ? 'EXTRACTING...' : 'EXTRACT'}
-            </button>
+          <div className="space-y-2">
+            <div className="flex gap-3">
+              <input
+                type="text"
+                placeholder="Extract followers from any account (up to 500K)..."
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && extractFollowers()}
+                className="flex-1 bg-[#0f1419] border border-gray-700 rounded px-4 py-2 text-sm focus:outline-none focus:border-blue-500 transition-colors font-mono"
+                disabled={extracting}
+              />
+              <button
+                onClick={extractFollowers}
+                disabled={extracting || !username.trim()}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded text-sm font-medium transition-colors"
+              >
+                {extracting ? 'EXTRACTING...' : 'EXTRACT'}
+              </button>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-500">
+                💎 Extract up to <span className="text-blue-400 font-semibold">500,000 followers</span> from any account • Perfect for analyzing big accounts
+              </span>
+              <Link href="/analysis-results" className="text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1">
+                🎨 Generate AI Reports & Gammas →
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -300,6 +316,12 @@ export default function CompleteDashboard() {
               >
                 Influencers ({influencers.length})
               </button>
+              <Link
+                href="/analysis-results"
+                className="px-4 py-2 rounded text-sm font-medium transition-colors bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white flex items-center gap-2"
+              >
+                🎨 AI Analysis & Gamma Reports
+              </Link>
               
               {!selectedAccount && (
                 <button
