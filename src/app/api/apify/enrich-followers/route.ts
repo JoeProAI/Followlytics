@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuth } from 'firebase-admin/auth'
-import getFirebaseAdminApp from '@/lib/firebase-admin'
-import { getFirestore } from 'firebase-admin/firestore'
+import { adminAuth, adminDb } from '@/lib/firebase-admin'
 import { ApifyClient } from 'apify-client'
 
-const adminDb = getFirestore(getFirebaseAdminApp())
+// Force dynamic rendering - don't pre-render at build time
+export const dynamic = 'force-dynamic'
 
 // Initialize Apify client
 const apifyClient = new ApifyClient({
@@ -21,7 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.split('Bearer ')[1]
-    const decodedToken = await getAuth(getFirebaseAdminApp()).verifyIdToken(token)
+    const decodedToken = await adminAuth.verifyIdToken(token)
     const userId = decodedToken.uid
 
     const body = await request.json()
