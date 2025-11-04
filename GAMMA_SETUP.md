@@ -91,20 +91,39 @@ If you haven't added `GAMMA_API_KEY` yet:
 
 ## API Endpoint
 
-Gamma API URL: `https://api.gamma.app/api/v1/generate`
+**Correct Gamma Public API:** `https://public-api.gamma.app/v0.2/generations`
 
 Request format:
 ```json
 {
-  "text": "# Report Title\n## Content...",
+  "inputText": "# Report Title\n## Content...",
+  "textMode": "preserve",
+  "format": "document",
   "theme": "aurora",
-  "title": "Report Name"
+  "textOptions": {
+    "language": "en"
+  }
 }
 ```
 
+Request headers:
+```
+X-API-Key: your_gamma_api_key
+Content-Type: application/json
+```
+
 Response includes:
-- `url` or `share_url`: Shareable Gamma link
-- `id`: Gamma document ID
+- `id`: Generation ID (use to poll for status)
+- `status`: Generation status (generating, completed, failed)
+
+Poll for completion:
+```
+GET https://public-api.gamma.app/v0.2/generations/{id}
+```
+
+Response when completed:
+- `url`: Shareable Gamma link
+- `status`: "completed"
 
 ## Troubleshooting
 

@@ -105,43 +105,87 @@ ${follower.actionRecommendation}
     // Call Gamma API to actually generate the report
     if (process.env.GAMMA_API_KEY) {
       try {
-        const gammaResponse = await fetch('https://api.gamma.app/api/v1/generate', {
+        // Use Gamma's public API v0.2 endpoint (correct format)
+        const gammaResponse = await fetch('https://public-api.gamma.app/v0.2/generations', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${process.env.GAMMA_API_KEY}`,
+            'X-API-Key': process.env.GAMMA_API_KEY,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            text: markdownContent,
-            theme: selectedTheme,
-            title: `${follower.name || follower.username} - Follower Analysis`
+            inputText: markdownContent,
+            textMode: 'preserve',
+            format: 'document',
+            textOptions: {
+              language: 'en'
+            }
+            // Note: theme selection handled by Gamma's AI
           })
         })
 
         if (gammaResponse.ok) {
           const gammaData = await gammaResponse.json()
+          const generationGammaId = gammaData.id || gammaData.generationId
           
-          // Update with real Gamma URL
+          // Gamma API returns generation ID, need to poll for URL
+          // For now, store generation ID and mark as generating
           await adminDb.collection('gamma_reports').doc(generationId).update({
-            status: 'completed',
-            url: gammaData.url || gammaData.share_url,
-            gammaId: gammaData.id,
-            completedAt: new Date()
+            status: 'generating',
+            gammaGenerationId: generationGammaId,
+            statusUrl: `https://public-api.gamma.app/v0.2/generations/${generationGammaId}`,
+            updatedAt: new Date()
           })
+          
+          // Poll Gamma API for completion (in background)
+          setTimeout(async () => {
+            try {
+              const statusResponse = await fetch(`https://public-api.gamma.app/v0.2/generations/${generationGammaId}`, {
+                headers: { 'X-API-Key': process.env.GAMMA_API_KEY! }
+              })
+              
+              if (statusResponse.ok) {
+                const statusData = await statusResponse.json()
+                if (statusData.status === 'completed' && statusData.url) {
+                  await adminDb.collection('gamma_reports').doc(generationId).update({
+                    status: 'completed',
+                    url: statusData.url,
+                    gammaId: generationGammaId,
+                    completedAt: new Date()
+                  })
+                }
+              }
+            } catch (pollError) {
+              console.error('Gamma polling error:', pollError)
+            }
+          }, 10000) // Poll after 10 seconds
         } else {
-          throw new Error('Gamma API request failed')
+          const errorText = await gammaResponse.text()
+          console.error('[Gamma] API error response:', {
+            status: gammaResponse.status,
+            statusText: gammaResponse.statusText,
+            body: errorText,
+            apiKey: process.env.GAMMA_API_KEY ? 'Present (hidden)' : 'Missing'
+          })
+          throw new Error(`Gamma API request failed: ${gammaResponse.status} - ${errorText}`)
         }
       } catch (gammaError: any) {
-        console.error('Gamma API error:', gammaError)
-        // Fall back to simulation
+        console.error('[Gamma] Generation error:', {
+          message: gammaError.message,
+          stack: gammaError.stack,
+          follower: follower.username
+        })
+        
+        // Fall back to simulation with helpful message
         await adminDb.collection('gamma_reports').doc(generationId).update({
           status: 'completed',
           url: `https://gamma.app/docs/follower-analysis-${follower.username.toLowerCase()}-${generationId}`,
           completedAt: new Date(),
-          note: 'Simulated - Add GAMMA_API_KEY to use real Gamma generation'
+          note: `Simulated (API Error: ${gammaError.message}). This is a demo link. Add valid GAMMA_API_KEY to Vercel environment variables for real Gamma generation.`,
+          isSimulated: true
         })
       }
     } else {
+      console.log('[Gamma] No API key configured - using simulation mode')
       // No API key - simulate generation
       setTimeout(async () => {
         try {
