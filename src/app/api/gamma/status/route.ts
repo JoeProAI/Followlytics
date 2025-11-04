@@ -24,7 +24,8 @@ export async function GET(request: NextRequest) {
 
     // If generationId is provided, check gamma_reports collection
     if (generationId) {
-      const gammaDoc = await adminDb.collection('gamma_reports').doc(generationId).get()
+      const gammaDocRef = adminDb.collection('gamma_reports').doc(generationId)
+      const gammaDoc = await gammaDocRef.get()
       
       if (!gammaDoc.exists) {
         return NextResponse.json({ error: 'Gamma report not found' }, { status: 404 })
@@ -34,6 +35,41 @@ export async function GET(request: NextRequest) {
       
       if (gammaData?.userId !== userId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+      }
+
+      // If still generating and has gammaGenerationId, check actual Gamma API
+      if (gammaData?.status === 'generating' && gammaData?.gammaGenerationId && process.env.GAMMA_API_KEY) {
+        try {
+          const statusResponse = await fetch(
+            `https://public-api.gamma.app/v0.2/generations/${gammaData.gammaGenerationId}`,
+            { headers: { 'X-API-Key': process.env.GAMMA_API_KEY } }
+          )
+          
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json()
+            
+            // If completed, update our database with the URL
+            if (statusData.status === 'completed' && statusData.url) {
+              await gammaDocRef.update({
+                status: 'completed',
+                url: statusData.url,
+                completedAt: new Date()
+              })
+              
+              return NextResponse.json({
+                gammaReport: {
+                  ...gammaData,
+                  status: 'completed',
+                  url: statusData.url
+                },
+                message: 'Gamma report ready!'
+              })
+            }
+          }
+        } catch (pollError) {
+          console.error('[Gamma] Status check error:', pollError)
+          // Continue with current data
+        }
       }
 
       return NextResponse.json({

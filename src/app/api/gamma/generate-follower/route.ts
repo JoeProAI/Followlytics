@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60 // Allow up to 60 seconds for Gamma generation
 
 export async function POST(request: NextRequest) {
   try {
@@ -128,7 +129,7 @@ ${follower.actionRecommendation}
           const generationGammaId = gammaData.id || gammaData.generationId
           
           // Gamma API returns generation ID, need to poll for URL
-          // For now, store generation ID and mark as generating
+          // Store generation ID and let frontend poll for completion
           await adminDb.collection('gamma_reports').doc(generationId).update({
             status: 'generating',
             gammaGenerationId: generationGammaId,
@@ -136,28 +137,15 @@ ${follower.actionRecommendation}
             updatedAt: new Date()
           })
           
-          // Poll Gamma API for completion (in background)
-          setTimeout(async () => {
-            try {
-              const statusResponse = await fetch(`https://public-api.gamma.app/v0.2/generations/${generationGammaId}`, {
-                headers: { 'X-API-Key': process.env.GAMMA_API_KEY! }
-              })
-              
-              if (statusResponse.ok) {
-                const statusData = await statusResponse.json()
-                if (statusData.status === 'completed' && statusData.url) {
-                  await adminDb.collection('gamma_reports').doc(generationId).update({
-                    status: 'completed',
-                    url: statusData.url,
-                    gammaId: generationGammaId,
-                    completedAt: new Date()
-                  })
-                }
-              }
-            } catch (pollError) {
-              console.error('Gamma polling error:', pollError)
-            }
-          }, 10000) // Poll after 10 seconds
+          console.log('[Gamma] Generation started:', {
+            generationId,
+            gammaGenerationId: generationGammaId,
+            follower: follower.username,
+            message: 'Frontend will poll for completion'
+          })
+          
+          // Note: Frontend polls for completion via /api/gamma/status
+          // This allows proper timeout handling and user feedback
         } else {
           const errorText = await gammaResponse.text()
           console.error('[Gamma] API error response:', {

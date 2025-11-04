@@ -331,7 +331,7 @@ export default function FollowerAnalysisResults() {
 
   async function pollFollowerGamma(followerUsername: string, generationId: string) {
     let attempts = 0
-    const maxAttempts = 30
+    const maxAttempts = 60 // 60 attempts * 5 seconds = 5 minutes max
     
     const poll = async () => {
       attempts++
@@ -345,6 +345,12 @@ export default function FollowerAnalysisResults() {
         if (response.ok) {
           const data = await response.json()
           
+          console.log(`[Gamma Poll ${attempts}/${maxAttempts}]:`, {
+            follower: followerUsername,
+            status: data.gammaReport?.status,
+            hasUrl: !!data.gammaReport?.url
+          })
+          
           if (data.gammaReport?.status === 'completed' && data.gammaReport?.url) {
             setFollowerGammaReports(prev => ({
               ...prev,
@@ -355,26 +361,29 @@ export default function FollowerAnalysisResults() {
               newSet.delete(followerUsername)
               return newSet
             })
+            console.log(`[Gamma] ✅ Complete for ${followerUsername}:`, data.gammaReport.url)
             return
           }
         }
       } catch (error) {
-        console.error('Polling error:', error)
+        console.error('[Gamma] Polling error:', error)
       }
       
       if (attempts < maxAttempts) {
-        setTimeout(poll, 10000)
+        setTimeout(poll, 5000) // Poll every 5 seconds
       } else {
         setGeneratingFollowerGamma(prev => {
           const newSet = new Set(prev)
           newSet.delete(followerUsername)
           return newSet
         })
-        alert('⏱️ Gamma generation timed out. Please check back later.')
+        console.error(`[Gamma] ⏱️ Timeout after ${maxAttempts} attempts for ${followerUsername}`)
+        alert('⏱️ Gamma generation is taking longer than expected. The report may still be generating. Please refresh the page in a minute to check if it completed.')
       }
     }
     
-    setTimeout(poll, 10000)
+    // Start polling immediately
+    poll()
   }
 
   async function generateGammaReport() {
