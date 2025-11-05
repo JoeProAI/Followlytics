@@ -98,6 +98,16 @@ export default function CompleteDashboard() {
         const accountsData = await accountsRes.json()
         setTrackedAccounts(accountsData.accounts || [])
       }
+
+      // Load usage data for scan tracking
+      const usageRes = await fetch('/api/usage/current', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (usageRes.ok) {
+        const usageData = await usageRes.json()
+        setUsage(usageData)
+      }
     } catch (err) {
       console.error('Failed to load dashboard:', err)
     } finally {
@@ -175,26 +185,46 @@ export default function CompleteDashboard() {
           </Link>
           <div className="flex items-center gap-6">
             {subscription && (
-              <div className="flex items-center gap-3">
-                <span className={`text-xs px-3 py-1 rounded uppercase font-semibold ${
-                  subscription.tier === 'enterprise' ? 'bg-purple-500/20 text-purple-400' :
-                  subscription.tier === 'pro' ? 'bg-blue-500/20 text-blue-400' :
-                  subscription.tier === 'starter' ? 'bg-green-500/20 text-green-400' :
-                  'bg-gray-500/20 text-gray-400'
-                }`}>
-                  {subscription.tier}
-                </span>
-                <div className="text-xs text-gray-400 flex items-center gap-2">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <span className={`text-xs px-3 py-1 rounded uppercase font-semibold ${
+                    subscription.tier === 'enterprise' ? 'bg-purple-500/20 text-purple-400' :
+                    subscription.tier === 'pro' ? 'bg-blue-500/20 text-blue-400' :
+                    subscription.tier === 'starter' ? 'bg-green-500/20 text-green-400' :
+                    'bg-gray-500/20 text-gray-400'
+                  }`}>
+                    {subscription.tier}
+                  </span>
+                </div>
+                
+                {/* Scan Tracking */}
+                {usage && (
+                  <div className="flex items-center gap-3 border-l border-gray-700 pl-4">
+                    <div className="text-xs text-gray-400">
+                      <span className="text-gray-500">Scans:</span>
+                      <span className="text-blue-400 font-mono font-semibold ml-2">{usage.extractions_count || 0}</span>
+                      <span className="text-gray-600 mx-1">/</span>
+                      <span className="text-gray-500">
+                        {subscription.tier === 'free' ? '5' :
+                         subscription.tier === 'starter' ? '50' :
+                         subscription.tier === 'pro' ? '200' :
+                         'Unlimited'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Follower Limit */}
+                <div className="text-xs text-gray-400 flex items-center gap-2 border-l border-gray-700 pl-4">
                   <span className="text-blue-400 font-mono font-semibold">{stats?.total || 0}</span>
                   <span>/</span>
                   <span className="text-gray-500">500,000</span>
                   <span className="text-gray-600">followers</span>
                 </div>
-                {subscription.tier === 'free' && (
-                  <Link href="/pricing" className="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-white font-medium">
-                    UPGRADE
-                  </Link>
-                )}
+
+                <Link href="/pricing" className="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-white font-medium">
+                  {subscription.tier === 'free' ? 'UPGRADE' : 'VIEW PLANS'}
+                </Link>
               </div>
             )}
             <span className="text-sm text-gray-400 font-mono">{user?.email}</span>
