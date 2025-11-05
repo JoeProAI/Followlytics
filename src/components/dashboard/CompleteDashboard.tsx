@@ -16,7 +16,7 @@ export default function CompleteDashboard() {
   const [selectedUsernames, setSelectedUsernames] = useState<Set<string>>(new Set())
   const [myAccount, setMyAccount] = useState<string | null>(null)
   const [trackedAccounts, setTrackedAccounts] = useState<any[]>([])
-  const [activeView, setActiveView] = useState<'overview' | 'verified' | 'influencers' | 'unfollowers'>('overview')
+  const [activeView, setActiveView] = useState<'overview' | 'verified' | 'influencers' | 'new' | 'unfollowers'>('overview')
   const [subscription, setSubscription] = useState<any>(null)
   const [usage, setUsage] = useState<any>(null)
   const [verifying, setVerifying] = useState(false)
@@ -72,6 +72,15 @@ export default function CompleteDashboard() {
         const microInfluencers = followersList.filter((f: any) => (f.followersCount || 0) >= 1000 && (f.followersCount || 0) <= 100000).length
         const unfollowers = followersList.filter((f: any) => f.status === 'unfollowed').length
         
+        // Detect new followers (first seen within last 7 days)
+        const sevenDaysAgo = new Date()
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+        const newFollowers = followersList.filter((f: any) => {
+          if (!f.first_seen || f.status === 'unfollowed') return false
+          const firstSeenDate = new Date(f.first_seen)
+          return firstSeenDate >= sevenDaysAgo
+        }).length
+        
         setStats({
           total: followersList.length,
           verified,
@@ -83,7 +92,8 @@ export default function CompleteDashboard() {
           highValuePct: followersList.length > 0 ? ((highValue / followersList.length) * 100).toFixed(1) : '0',
           microInfluencers,
           microInfluencersPct: followersList.length > 0 ? ((microInfluencers / followersList.length) * 100).toFixed(1) : '0',
-          unfollowers
+          unfollowers,
+          newFollowers
         })
         
         setMyAccount(data.targetUsername)
@@ -245,6 +255,15 @@ export default function CompleteDashboard() {
   const verifiedFollowers = followers.filter(f => f.verified)
   const influencers = followers.filter(f => (f.followersCount || 0) >= 10000).sort((a, b) => (b.followersCount || 0) - (a.followersCount || 0))
   const unfollowers = followers.filter(f => f.status === 'unfollowed')
+  
+  // New followers (within last 7 days)
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+  const newFollowers = followers.filter(f => {
+    if (!f.first_seen || f.status === 'unfollowed') return false
+    const firstSeenDate = new Date(f.first_seen)
+    return firstSeenDate >= sevenDaysAgo
+  }).sort((a, b) => new Date(b.first_seen).getTime() - new Date(a.first_seen).getTime())
 
   return (
     <div className="min-h-screen bg-[#0f1419] text-gray-100">
@@ -416,6 +435,16 @@ export default function CompleteDashboard() {
                 }`}
               >
                 Influencers ({influencers.length})
+              </button>
+              <button
+                onClick={() => setActiveView('new')}
+                className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                  activeView === 'new'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-[#15191e] text-gray-400 hover:text-white border border-gray-800'
+                }`}
+              >
+                🆕 New Followers ({newFollowers.length})
               </button>
               <Link
                 href="/analysis-results"
@@ -633,7 +662,43 @@ export default function CompleteDashboard() {
                 </div>
                 <div className="text-xs text-gray-500 mt-1">Out of 100</div>
               </div>
+
+              <div className="bg-[#15191e] border border-green-800/30 rounded-lg p-4">
+                <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">🆕 New Followers</div>
+                <div className="text-3xl font-bold font-mono text-green-400">{stats.newFollowers || 0}</div>
+                <div className="text-xs text-gray-500 mt-1">Last 7 days</div>
+              </div>
+
+              <div className="bg-[#15191e] border border-red-800/30 rounded-lg p-4">
+                <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">👋 Unfollowers</div>
+                <div className="text-3xl font-bold font-mono text-red-400">{stats.unfollowers || 0}</div>
+                <div className="text-xs text-gray-500 mt-1">All-time</div>
+              </div>
             </div>
+
+            {/* Follower Count Note */}
+            {stats.total < 794 && (
+              <div className="mb-6 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-yellow-400 text-lg">ℹ️</span>
+                  <div>
+                    <h4 className="text-sm font-semibold text-yellow-400 mb-1">About Follower Count</h4>
+                    <p className="text-xs text-gray-300">
+                      Your X account may show {794} followers, but we extracted {stats.total}. Small differences are normal due to:
+                    </p>
+                    <ul className="text-xs text-gray-400 mt-2 ml-4 space-y-1">
+                      <li>• Private/protected accounts (can't access their data)</li>
+                      <li>• Suspended or deleted accounts</li>
+                      <li>• Very recent follows (real-time delay)</li>
+                      <li>• X's own count caching</li>
+                    </ul>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Re-extract to sync with latest followers!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Content Views */}
             {activeView === 'overview' && (
@@ -749,18 +814,90 @@ export default function CompleteDashboard() {
               </div>
             )}
 
+            {activeView === 'new' && (
+              <div className="bg-[#15191e] border border-gray-800 rounded-lg overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-800">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-300">
+                    🆕 New Followers ({newFollowers.length})
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-1">Followers who started following you in the last 7 days</p>
+                </div>
+                {newFollowers.length === 0 ? (
+                  <div className="p-12 text-center">
+                    <p className="text-gray-500 mb-2">No new followers in the last 7 days</p>
+                    <p className="text-xs text-gray-600">Keep creating great content to attract new followers! 🚀</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-800">
+                    {newFollowers.map((follower, idx) => (
+                      <div key={idx} className="p-6 bg-green-500/5 hover:bg-green-500/10 transition-colors flex items-start gap-4">
+                        <img src={follower.profileImage} alt="" className="w-12 h-12 rounded-full" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-white">{follower.name}</span>
+                            {follower.verified && <span className="text-blue-400">✓</span>}
+                            <span className="ml-auto text-xs px-2 py-1 rounded bg-green-600 text-white font-semibold">NEW</span>
+                          </div>
+                          <div className="text-sm text-gray-400 font-mono mb-2">@{follower.username}</div>
+                          {follower.bio && <div className="text-sm text-gray-300 mb-3">{follower.bio}</div>}
+                          <div className="flex items-center gap-6 text-sm">
+                            <div>
+                              <span className="text-gray-500">Followers:</span>
+                              <span className="ml-2 font-mono text-white font-semibold">
+                                {(follower.followersCount || 0).toLocaleString()}
+                              </span>
+                            </div>
+                            {follower.first_seen && (
+                              <div>
+                                <span className="text-gray-500">Followed you:</span>
+                                <span className="ml-2 text-green-400">
+                                  {new Date(follower.first_seen).toLocaleDateString()}
+                                </span>
+                              </div>
+                            )}
+                            {follower.location && (
+                              <div>
+                                <span className="text-gray-500">Location:</span>
+                                <span className="ml-2 text-gray-300">{follower.location}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {activeView === 'unfollowers' && (
               <div className="bg-[#15191e] border border-gray-800 rounded-lg overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-800">
                   <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-300">
-                    Recent Unfollowers ({unfollowers.length})
+                    👋 All-Time Unfollowers ({unfollowers.length})
                   </h2>
-                  <p className="text-xs text-gray-500 mt-1">These users unfollowed you since your last extraction</p>
+                  <p className="text-xs text-gray-500 mt-1">Complete history of everyone who unfollowed you • Track who comes and goes</p>
+                  {unfollowers.length > 0 && (
+                    <div className="mt-3 flex items-center gap-4 text-xs">
+                      <span className="text-red-400">
+                        Total lost: {unfollowers.length} followers
+                      </span>
+                      <span className="text-gray-500">|</span>
+                      <span className="text-gray-400">
+                        {unfollowers.filter((f: any) => {
+                          if (!f.unfollowed_at) return false
+                          const thirtyDaysAgo = new Date()
+                          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+                          return new Date(f.unfollowed_at) >= thirtyDaysAgo
+                        }).length} in last 30 days
+                      </span>
+                    </div>
+                  )}
                 </div>
                 {unfollowers.length === 0 ? (
                   <div className="p-12 text-center">
-                    <p className="text-gray-500 mb-2">No unfollowers detected</p>
-                    <p className="text-xs text-gray-600">Re-extract your account to detect new unfollows</p>
+                    <p className="text-gray-500 mb-2">🎉 No unfollowers detected - everyone loves you!</p>
+                    <p className="text-xs text-gray-600">Extract regularly to track who unfollows over time</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-gray-800">
@@ -774,16 +911,30 @@ export default function CompleteDashboard() {
                             <span className="ml-auto text-xs text-red-400">UNFOLLOWED</span>
                           </div>
                           <div className="text-sm text-gray-400 font-mono mb-2">@{follower.username}</div>
-                          <div className="text-sm text-gray-400 mb-2">{follower.bio}</div>
+                          {follower.bio && <div className="text-sm text-gray-400 mb-2">{follower.bio}</div>}
                           <div className="flex items-center gap-6 text-xs text-gray-500">
                             <div>
                               <span>Followers:</span>
                               <span className="ml-1 font-mono">{(follower.followersCount || 0).toLocaleString()}</span>
                             </div>
-                            {follower.last_seen && (
+                            {follower.first_seen && (
                               <div>
-                                <span>Last seen:</span>
-                                <span className="ml-1">{new Date(follower.last_seen).toLocaleDateString()}</span>
+                                <span>Followed on:</span>
+                                <span className="ml-1">{new Date(follower.first_seen).toLocaleDateString()}</span>
+                              </div>
+                            )}
+                            {follower.unfollowed_at && (
+                              <div>
+                                <span>Unfollowed:</span>
+                                <span className="ml-1 text-red-400">{new Date(follower.unfollowed_at).toLocaleDateString()}</span>
+                              </div>
+                            )}
+                            {follower.first_seen && follower.unfollowed_at && (
+                              <div>
+                                <span>Duration:</span>
+                                <span className="ml-1">
+                                  {Math.round((new Date(follower.unfollowed_at).getTime() - new Date(follower.first_seen).getTime()) / (1000 * 60 * 60 * 24))} days
+                                </span>
                               </div>
                             )}
                           </div>
