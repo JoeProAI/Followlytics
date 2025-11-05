@@ -221,20 +221,20 @@ export async function POST(request: NextRequest) {
       )
       
       return {
-        username: follower.screen_name || follower.username || follower.user_name,
-        name: follower.name || follower.display_name,
-        bio: follower.description || follower.bio,
+        username: follower.screen_name || follower.username || follower.user_name || 'unknown',
+        name: follower.name || follower.display_name || '',
+        bio: follower.description || follower.bio || '', // Empty string instead of undefined
         followers_count: follower.followers_count || follower.followersCount || 0,
         following_count: follower.friends_count || follower.following_count || follower.followingCount || 0,
         tweet_count: follower.statuses_count || follower.tweet_count || follower.tweetCount || 0,
         verified: isVerified,
         verified_type: follower.verified_type || (isVerified ? 'blue' : null),
         is_blue_verified: follower.is_blue_verified || follower.blue_verified || false,
-        profile_image_url: follower.profile_image_url_https || follower.profile_image_url,
-        location: follower.location,
-        created_at: follower.created_at,
-        url: follower.url,
-        user_id: follower.id_str || follower.id || follower.user_id,
+        profile_image_url: follower.profile_image_url_https || follower.profile_image_url || '',
+        location: follower.location || '', // Empty string instead of undefined
+        created_at: follower.created_at || '', // Empty string instead of undefined
+        url: follower.url || '', // Empty string instead of undefined
+        user_id: follower.id_str || follower.id?.toString() || follower.user_id || '',
         extracted_at: new Date().toISOString()
       }
     })
