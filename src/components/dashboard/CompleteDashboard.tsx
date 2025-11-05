@@ -22,6 +22,9 @@ export default function CompleteDashboard() {
   const [verifying, setVerifying] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [bulkUsernames, setBulkUsernames] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [displayLimit, setDisplayLimit] = useState(50)
+  const [previousExtractionDate, setPreviousExtractionDate] = useState<string | null>(null)
 
   useEffect(() => {
     if (user) {
@@ -72,14 +75,26 @@ export default function CompleteDashboard() {
         const microInfluencers = followersList.filter((f: any) => (f.followersCount || 0) >= 1000 && (f.followersCount || 0) <= 100000).length
         const unfollowers = followersList.filter((f: any) => f.status === 'unfollowed').length
         
-        // Detect new followers (first seen within last 7 days)
-        const sevenDaysAgo = new Date()
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+        // Detect new followers (followers added since last extraction)
+        // If we have a previous extraction date, use that; otherwise fall back to 7 days
+        let newFollowersCutoff = new Date()
+        if (data.lastExtraction && data.lastExtraction !== data.extractedAt) {
+          newFollowersCutoff = new Date(data.lastExtraction)
+          setPreviousExtractionDate(data.lastExtraction)
+        } else {
+          newFollowersCutoff.setDate(newFollowersCutoff.getDate() - 7)
+        }
+        
         const newFollowers = followersList.filter((f: any) => {
           if (!f.first_seen || f.status === 'unfollowed') return false
           const firstSeenDate = new Date(f.first_seen)
-          return firstSeenDate >= sevenDaysAgo
+          return firstSeenDate > newFollowersCutoff
         }).length
+        
+        // Log verification status to console
+        const verifiedList = followersList.filter((f: any) => f.verified === true)
+        console.log(`[Dashboard] Loaded ${followersList.length} followers, ${verified} verified (${Math.round(verified/followersList.length*100)}%)`)
+        console.log('[Dashboard] Sample verified followers:', verifiedList.slice(0, 3).map((f: any) => ({ username: f.username, verified: f.verified, verified_type: f.verified_type })))
         
         setStats({
           total: followersList.length,
@@ -252,18 +267,37 @@ export default function CompleteDashboard() {
     }
   }
 
-  const verifiedFollowers = followers.filter(f => f.verified)
-  const influencers = followers.filter(f => (f.followersCount || 0) >= 10000).sort((a, b) => (b.followersCount || 0) - (a.followersCount || 0))
-  const unfollowers = followers.filter(f => f.status === 'unfollowed')
+  // Search and filter
+  const filteredFollowers = followers.filter(f => {
+    if (!searchQuery) return true
+    const query = searchQuery.toLowerCase()
+    return (
+      f.username?.toLowerCase().includes(query) ||
+      f.name?.toLowerCase().includes(query) ||
+      f.bio?.toLowerCase().includes(query)
+    )
+  })
+
+  const verifiedFollowers = filteredFollowers.filter(f => f.verified)
+  const influencers = filteredFollowers.filter(f => (f.followersCount || 0) >= 10000).sort((a, b) => (b.followersCount || 0) - (a.followersCount || 0))
+  const unfollowers = filteredFollowers.filter(f => f.status === 'unfollowed')
   
-  // New followers (within last 7 days)
-  const sevenDaysAgo = new Date()
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-  const newFollowers = followers.filter(f => {
+  // New followers (since last extraction or within 7 days)
+  let newFollowersCutoff = new Date()
+  if (previousExtractionDate) {
+    newFollowersCutoff = new Date(previousExtractionDate)
+  } else {
+    newFollowersCutoff.setDate(newFollowersCutoff.getDate() - 7)
+  }
+  
+  const newFollowers = filteredFollowers.filter(f => {
     if (!f.first_seen || f.status === 'unfollowed') return false
     const firstSeenDate = new Date(f.first_seen)
-    return firstSeenDate >= sevenDaysAgo
+    return firstSeenDate > newFollowersCutoff
   }).sort((a, b) => new Date(b.first_seen).getTime() - new Date(a.first_seen).getTime())
+  
+  // Paginated display
+  const displayedFollowers = filteredFollowers.slice(0, displayLimit)
 
   return (
     <div className="min-h-screen bg-[#0f1419] text-gray-100">
@@ -666,13 +700,53 @@ export default function CompleteDashboard() {
               <div className="bg-[#15191e] border border-green-800/30 rounded-lg p-4">
                 <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">🆕 New Followers</div>
                 <div className="text-3xl font-bold font-mono text-green-400">{stats.newFollowers || 0}</div>
-                <div className="text-xs text-gray-500 mt-1">Last 7 days</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {previousExtractionDate ? 'Since last scan' : 'Last 7 days'}
+                </div>
               </div>
 
               <div className="bg-[#15191e] border border-red-800/30 rounded-lg p-4">
                 <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">👋 Unfollowers</div>
                 <div className="text-3xl font-bold font-mono text-red-400">{stats.unfollowers || 0}</div>
                 <div className="text-xs text-gray-500 mt-1">All-time</div>
+              </div>
+            </div>
+
+            {/* Search Bar */}
+            <div className="mb-6 bg-[#15191e] border border-gray-800 rounded-lg p-4">
+              <div className="flex items-center gap-4">
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    placeholder="🔍 Search followers by name, username, or bio... (AI-powered instant search)"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value)
+                      setDisplayLimit(50) // Reset display limit on search
+                    }}
+                    className="w-full px-4 py-3 bg-[#0f1419] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => {
+                        setSearchQuery('')
+                        setDisplayLimit(50)
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                <div className="text-sm text-gray-400">
+                  {searchQuery ? (
+                    <span className="text-blue-400 font-semibold">
+                      {filteredFollowers.length} results
+                    </span>
+                  ) : (
+                    <span>{followers.length} total</span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -719,7 +793,7 @@ export default function CompleteDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-800">
-                      {followers.slice(0, 50).map((follower, idx) => (
+                      {displayedFollowers.map((follower, idx) => (
                         <tr key={idx} className="hover:bg-[#1a1f26] transition-colors">
                           <td className="px-6 py-3">
                             <div className="flex items-center gap-3">
@@ -744,6 +818,16 @@ export default function CompleteDashboard() {
                     </tbody>
                   </table>
                 </div>
+                {displayLimit < filteredFollowers.length && (
+                  <div className="px-6 py-4 border-t border-gray-800 flex items-center justify-center">
+                    <button
+                      onClick={() => setDisplayLimit(prev => prev + 50)}
+                      className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      Load More ({filteredFollowers.length - displayLimit} remaining)
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -820,11 +904,18 @@ export default function CompleteDashboard() {
                   <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-300">
                     🆕 New Followers ({newFollowers.length})
                   </h2>
-                  <p className="text-xs text-gray-500 mt-1">Followers who started following you in the last 7 days</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {previousExtractionDate 
+                      ? `Followers who started following since your last scan on ${new Date(previousExtractionDate).toLocaleDateString()}`
+                      : 'Followers who started following you in the last 7 days'
+                    }
+                  </p>
                 </div>
                 {newFollowers.length === 0 ? (
                   <div className="p-12 text-center">
-                    <p className="text-gray-500 mb-2">No new followers in the last 7 days</p>
+                    <p className="text-gray-500 mb-2">
+                      {previousExtractionDate ? 'No new followers since your last scan' : 'No new followers in the last 7 days'}
+                    </p>
                     <p className="text-xs text-gray-600">Keep creating great content to attract new followers! 🚀</p>
                   </div>
                 ) : (

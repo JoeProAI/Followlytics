@@ -213,6 +213,16 @@ export async function POST(request: NextRequest) {
         legacy_verified: sample.legacy_verified,
         blue_verified: sample.blue_verified
       })
+      
+      // Log stats on ALL verification flags
+      const verifiedFlags = {
+        verified: followers.filter((f: any) => f.verified).length,
+        is_blue_verified: followers.filter((f: any) => f.is_blue_verified).length,
+        blue_verified: followers.filter((f: any) => f.blue_verified).length,
+        legacy_verified: followers.filter((f: any) => f.legacy_verified).length,
+        verified_type_present: followers.filter((f: any) => f.verified_type).length
+      }
+      console.log('[Apify] Verification field stats:', verifiedFlags)
     }
 
     // Get existing followers to detect unfollows (scoped by target account)
