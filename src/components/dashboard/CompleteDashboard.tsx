@@ -171,6 +171,77 @@ export default function CompleteDashboard() {
     }
   }
 
+  const exportToJSON = () => {
+    setExporting(true)
+    try {
+      const data = {
+        account: myAccount,
+        exportedAt: new Date().toISOString(),
+        totalFollowers: followers.length,
+        followers: followers.map(f => ({
+          username: f.username,
+          name: f.name,
+          verified: f.verified,
+          followersCount: f.followersCount || 0,
+          followingCount: f.following_count || 0,
+          bio: f.bio || '',
+          location: f.location || '',
+          profileImage: f.profile_image_url || '',
+          url: f.url || '',
+          createdAt: f.created_at || '',
+          extractedAt: f.extracted_at || ''
+        }))
+      }
+      
+      const json = JSON.stringify(data, null, 2)
+      const blob = new Blob([json], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `followlytics-${myAccount || 'export'}-${Date.now()}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('JSON export failed:', err)
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const exportToMarkdown = () => {
+    setExporting(true)
+    try {
+      let markdown = `# Followlytics Export\n\n`
+      markdown += `**Account:** @${myAccount}\n`
+      markdown += `**Exported:** ${new Date().toLocaleString()}\n`
+      markdown += `**Total Followers:** ${followers.length}\n\n`
+      markdown += `---\n\n`
+      markdown += `## Followers\n\n`
+      
+      followers.forEach(f => {
+        markdown += `### @${f.username}\n\n`
+        if (f.name) markdown += `**Name:** ${f.name}\n`
+        if (f.verified) markdown += `**✓ Verified**\n`
+        markdown += `**Followers:** ${f.followersCount || 0} | **Following:** ${f.following_count || 0}\n`
+        if (f.location) markdown += `**Location:** ${f.location}\n`
+        if (f.bio) markdown += `**Bio:** ${f.bio}\n`
+        markdown += `\n---\n\n`
+      })
+      
+      const blob = new Blob([markdown], { type: 'text/markdown' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `followlytics-${myAccount || 'export'}-${Date.now()}.md`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Markdown export failed:', err)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const verifiedFollowers = followers.filter(f => f.verified)
   const influencers = followers.filter(f => (f.followersCount || 0) >= 10000).sort((a, b) => (b.followersCount || 0) - (a.followersCount || 0))
   const unfollowers = followers.filter(f => f.status === 'unfollowed')
@@ -443,13 +514,29 @@ export default function CompleteDashboard() {
                 >
                   {verifying ? 'CHECKING...' : selectedUsernames.size > 0 ? `✓ VERIFY ${selectedUsernames.size}` : '✓ VERIFY ALL'}
                 </button>
-                <button
-                  onClick={exportToCSV}
-                  disabled={exporting || followers.length === 0}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded text-sm font-medium transition-colors"
-                >
-                  {exporting ? 'EXPORTING...' : '↓ EXPORT CSV'}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={exportToCSV}
+                    disabled={exporting || followers.length === 0}
+                    className="px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded text-sm font-medium transition-colors"
+                  >
+                    {exporting ? 'EXPORTING...' : '↓ CSV'}
+                  </button>
+                  <button
+                    onClick={exportToJSON}
+                    disabled={exporting || followers.length === 0}
+                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded text-sm font-medium transition-colors"
+                  >
+                    {exporting ? 'EXPORTING...' : '↓ JSON'}
+                  </button>
+                  <button
+                    onClick={exportToMarkdown}
+                    disabled={exporting || followers.length === 0}
+                    className="px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded text-sm font-medium transition-colors"
+                  >
+                    {exporting ? 'EXPORTING...' : '↓ MD'}
+                  </button>
+                </div>
               </div>
             </div>
 

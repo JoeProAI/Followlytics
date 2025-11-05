@@ -1,9 +1,9 @@
-const DEFAULT_FOLLOWER_LIMIT = 100
+const DEFAULT_FOLLOWER_LIMIT = 1_000
 
 const TIER_FOLLOWER_LIMITS: Record<string, number | null> = {
-  free: 100,
-  beta: 100,
-  starter: 5_000,
+  free: 1_000,
+  beta: 1_000,
+  starter: 10_000,
   pro: 50_000,
   agency: 200_000,
   scale: 200_000,
