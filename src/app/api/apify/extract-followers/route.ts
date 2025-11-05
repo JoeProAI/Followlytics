@@ -48,6 +48,12 @@ export async function POST(request: NextRequest) {
     const month = now.getMonth() + 1
     const year = now.getFullYear()
 
+    // Get user's add-on balance
+    const userRef = adminDb.collection('users').doc(userId)
+    const userDoc = await userRef.get()
+    const userData = userDoc.data() || {}
+    const followerAddons = userData.follower_addons || 0
+
     const usageRef = adminDb
       .collection('users')
       .doc(userId)
@@ -75,33 +81,56 @@ export async function POST(request: NextRequest) {
     }
 
     const usedThisMonth = usageData.followers_extracted || 0
-    const remainingFollowers = limitIsUnlimited
+    const baseRemaining = limitIsUnlimited
       ? Number.POSITIVE_INFINITY
       : Math.max((limitForTier || 0) - usedThisMonth, 0)
+    
+    // Total capacity = base tier limit + add-ons
+    const totalCapacity = limitIsUnlimited 
+      ? Number.POSITIVE_INFINITY 
+      : baseRemaining + followerAddons
+    
+    console.log(`[Apify] Capacity check: Tier limit=${limitForTier}, Used=${usedThisMonth}, Base remaining=${baseRemaining}, Add-ons=${followerAddons}, Total capacity=${totalCapacity}`)
 
-    if (!limitIsUnlimited && remainingFollowers <= 0) {
+    if (!limitIsUnlimited && totalCapacity <= 0) {
       await usageRef.set(usageData, { merge: true })
       return NextResponse.json({
-        error: 'Monthly follower limit reached. Upgrade your plan to extract more followers.',
+        error: 'Monthly follower limit reached. Upgrade your plan or purchase follower add-ons.',
         usage: {
           ...usageData,
           followers_extracted: usedThisMonth,
           limit: limitForTier,
+          addons: followerAddons,
           remaining: 0
-        }
+        },
+        canPurchaseAddons: true,
+        addonPacks: [
+          { name: '50K Followers', followers: 50000, price: 50 },
+          { name: '100K Followers', followers: 100000, price: 90 },
+          { name: '250K Followers', followers: 250000, price: 200 },
+          { name: '500K Followers', followers: 500000, price: 350 }
+        ]
       }, { status: 429 })
     }
 
-    if (!limitIsUnlimited && requestedFollowers > remainingFollowers) {
+    if (!limitIsUnlimited && requestedFollowers > totalCapacity) {
       await usageRef.set(usageData, { merge: true })
       return NextResponse.json({
-        error: `Request exceeds monthly limit. You can extract ${remainingFollowers.toLocaleString()} more followers this month.`,
+        error: `Request exceeds available capacity. You can extract ${totalCapacity.toLocaleString()} more followers (${baseRemaining.toLocaleString()} from plan + ${followerAddons.toLocaleString()} add-ons).`,
         usage: {
           ...usageData,
           followers_extracted: usedThisMonth,
           limit: limitForTier,
-          remaining: remainingFollowers
-        }
+          addons: followerAddons,
+          remaining: totalCapacity
+        },
+        canPurchaseAddons: true,
+        addonPacks: [
+          { name: '50K Followers', followers: 50000, price: 50 },
+          { name: '100K Followers', followers: 100000, price: 90 },
+          { name: '250K Followers', followers: 250000, price: 200 },
+          { name: '500K Followers', followers: 500000, price: 350 }
+        ]
       }, { status: 429 })
     }
 
@@ -493,6 +522,23 @@ export async function POST(request: NextRequest) {
       followersExtracted += followersToPersist.length
       extractionsCount += 1
 
+      // Calculate how much was used from add-ons vs base tier
+      let addonsUsed = 0
+      let currentAddons = followerAddons
+      
+      if (!limitIsUnlimited && followersExtracted > (limitForTier || 0)) {
+        // User went over their base tier limit, deduct from add-ons
+        const overage = followersExtracted - (limitForTier || 0)
+        const previousOverage = Math.max((followersExtracted - followersToPersist.length) - (limitForTier || 0), 0)
+        addonsUsed = overage - previousOverage
+        currentAddons = Math.max(followerAddons - addonsUsed, 0)
+        
+        console.log(`[Apify] Deducting ${addonsUsed} from add-ons. Remaining add-ons: ${currentAddons}`)
+        
+        // Update user's add-on balance
+        transaction.set(userRef, { follower_addons: currentAddons }, { merge: true })
+      }
+
       const updatedUsage = {
         month,
         year,
@@ -508,9 +554,11 @@ export async function POST(request: NextRequest) {
       return {
         ...updatedUsage,
         limit: limitIsUnlimited ? null : limitForTier,
+        addons: currentAddons,
+        addons_used: addonsUsed,
         remaining: limitIsUnlimited
           ? null
-          : Math.max((limitForTier || 0) - followersExtracted, 0)
+          : Math.max((limitForTier || 0) - followersExtracted, 0) + currentAddons
       }
     })
 
