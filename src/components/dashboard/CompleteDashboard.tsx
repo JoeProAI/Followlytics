@@ -25,6 +25,7 @@ export default function CompleteDashboard() {
   const [searchQuery, setSearchQuery] = useState('')
   const [displayLimit, setDisplayLimit] = useState(50)
   const [previousExtractionDate, setPreviousExtractionDate] = useState<string | null>(null)
+  const [generatingGamma, setGeneratingGamma] = useState<string | null>(null)
 
   useEffect(() => {
     if (user) {
@@ -298,6 +299,41 @@ export default function CompleteDashboard() {
   
   // Paginated display
   const displayedFollowers = filteredFollowers.slice(0, displayLimit)
+
+  // Generate Gamma for any follower
+  const generateFollowerGamma = async (followerUsername: string) => {
+    if (!user) return
+    
+    setGeneratingGamma(followerUsername)
+    try {
+      const token = await user.getIdToken()
+      
+      const response = await fetch('/api/gamma/generate-follower', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          username: followerUsername,
+          targetUsername: myAccount || username
+        })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        alert(`✅ Gamma report queued for @${followerUsername}!\n\nCheck the AI Analysis page to view it once generated.`)
+      } else {
+        const error = await response.json()
+        alert(`❌ Failed to generate Gamma: ${error.error || 'Unknown error'}`)
+      }
+    } catch (err) {
+      console.error('Gamma generation error:', err)
+      alert('❌ Failed to generate Gamma report')
+    } finally {
+      setGeneratingGamma(null)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#0f1419] text-gray-100">
@@ -756,7 +792,7 @@ export default function CompleteDashboard() {
                 <div className="flex items-start gap-3">
                   <span className="text-yellow-400 text-lg">🔍</span>
                   <div className="flex-1">
-                    <h4 className="text-sm font-semibold text-yellow-400 mb-2">Missing Followers Detected</h4>
+                    <h4 className="text-sm font-semibold text-yellow-400 mb-2">Count Discrepancy (X Profile vs Extracted)</h4>
                     <div className="bg-[#0f1419] border border-gray-800 rounded-lg p-3 mb-3">
                       <div className="grid grid-cols-3 gap-4 text-center">
                         <div>
@@ -775,31 +811,31 @@ export default function CompleteDashboard() {
                     </div>
                     
                     <p className="text-xs text-gray-300 mb-3">
-                      <strong>Who are the {794 - stats.total} missing followers?</strong> Most likely:
+                      <strong>Why the discrepancy?</strong> X's count is often inaccurate for several reasons:
                     </p>
                     
                     <div className="space-y-2 mb-3">
                       <div className="flex items-start gap-2 text-xs">
                         <span className="text-yellow-400 mt-0.5">🔒</span>
                         <div>
-                          <div className="text-gray-300 font-medium">Private/Protected Accounts (Most Likely)</div>
-                          <div className="text-gray-500">~{Math.min(794 - stats.total, 3)} accounts are private and can't be accessed without authentication</div>
+                          <div className="text-gray-300 font-medium">X Counts Private Accounts</div>
+                          <div className="text-gray-500">~{Math.min(794 - stats.total, 3)} followers are private accounts. X includes them in your count, but they can't be accessed or analyzed without authentication.</div>
                         </div>
                       </div>
                       
                       <div className="flex items-start gap-2 text-xs">
                         <span className="text-red-400 mt-0.5">⛔</span>
                         <div>
-                          <div className="text-gray-300 font-medium">Suspended/Deleted Accounts</div>
-                          <div className="text-gray-500">~1-2 accounts may be suspended or deleted (X still counts them)</div>
+                          <div className="text-gray-300 font-medium">X Counts Suspended/Deleted Accounts</div>
+                          <div className="text-gray-500">~1-2 accounts may be suspended or deleted. X's count is cached and includes accounts that no longer exist.</div>
                         </div>
                       </div>
                       
                       <div className="flex items-start gap-2 text-xs">
-                        <span className="text-blue-400 mt-0.5">⏱️</span>
+                        <span className="text-blue-400 mt-0.5">🔄</span>
                         <div>
-                          <div className="text-gray-300 font-medium">Very Recent Follows</div>
-                          <div className="text-gray-500">Accounts that followed in the last few minutes</div>
+                          <div className="text-gray-300 font-medium">X's Count Lags Behind Reality</div>
+                          <div className="text-gray-500">X caches follower counts and updates slowly. Our real-time extraction is more accurate than X's displayed count.</div>
                         </div>
                       </div>
                     </div>
@@ -835,7 +871,7 @@ export default function CompleteDashboard() {
                         {extracting ? 'Re-extracting...' : '🔄 Re-extract Now'}
                       </button>
                       <span className="text-xs text-gray-500">
-                        Extract 850 followers to capture the missing ones
+                        Our count of {stats.total} active, accessible followers is likely more accurate than X's cached count
                       </span>
                     </div>
                   </div>
@@ -859,6 +895,7 @@ export default function CompleteDashboard() {
                         <th className="px-6 py-3 text-right font-medium font-mono">Followers</th>
                         <th className="px-6 py-3 text-center font-medium">Verified</th>
                         <th className="px-6 py-3 text-left font-medium">Bio</th>
+                        <th className="px-6 py-3 text-center font-medium">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-800">
@@ -881,6 +918,23 @@ export default function CompleteDashboard() {
                           </td>
                           <td className="px-6 py-3 text-gray-400 text-xs truncate max-w-[400px]">
                             {follower.bio || <span className="text-gray-700">No bio</span>}
+                          </td>
+                          <td className="px-6 py-3">
+                            <div className="flex items-center gap-2 justify-center">
+                              <Link
+                                href={`/analysis-results?username=${follower.username}`}
+                                className="px-2 py-1 bg-purple-600 hover:bg-purple-700 rounded text-xs font-medium transition-colors whitespace-nowrap"
+                              >
+                                📊 Analyze
+                              </Link>
+                              <button
+                                onClick={() => generateFollowerGamma(follower.username)}
+                                disabled={generatingGamma === follower.username}
+                                className="px-2 py-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-xs font-medium transition-colors whitespace-nowrap"
+                              >
+                                {generatingGamma === follower.username ? '⏳' : '🎨'} Gamma
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
