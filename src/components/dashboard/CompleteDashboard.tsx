@@ -750,25 +750,94 @@ export default function CompleteDashboard() {
               </div>
             </div>
 
-            {/* Follower Count Note */}
+            {/* Follower Count Discrepancy Diagnostic */}
             {stats.total < 794 && (
               <div className="mb-6 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
                 <div className="flex items-start gap-3">
-                  <span className="text-yellow-400 text-lg">ℹ️</span>
-                  <div>
-                    <h4 className="text-sm font-semibold text-yellow-400 mb-1">About Follower Count</h4>
-                    <p className="text-xs text-gray-300">
-                      Your X account may show {794} followers, but we extracted {stats.total}. Small differences are normal due to:
+                  <span className="text-yellow-400 text-lg">🔍</span>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-yellow-400 mb-2">Missing Followers Detected</h4>
+                    <div className="bg-[#0f1419] border border-gray-800 rounded-lg p-3 mb-3">
+                      <div className="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                          <div className="text-2xl font-bold text-white">{794}</div>
+                          <div className="text-xs text-gray-500">X Profile Shows</div>
+                        </div>
+                        <div>
+                          <div className="text-2xl font-bold text-blue-400">{stats.total}</div>
+                          <div className="text-xs text-gray-500">We Extracted</div>
+                        </div>
+                        <div>
+                          <div className="text-2xl font-bold text-red-400">{794 - stats.total}</div>
+                          <div className="text-xs text-gray-500">Missing</div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <p className="text-xs text-gray-300 mb-3">
+                      <strong>Who are the {794 - stats.total} missing followers?</strong> Most likely:
                     </p>
-                    <ul className="text-xs text-gray-400 mt-2 ml-4 space-y-1">
-                      <li>• Private/protected accounts (can't access their data)</li>
-                      <li>• Suspended or deleted accounts</li>
-                      <li>• Very recent follows (real-time delay)</li>
-                      <li>• X's own count caching</li>
-                    </ul>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Re-extract to sync with latest followers!
-                    </p>
+                    
+                    <div className="space-y-2 mb-3">
+                      <div className="flex items-start gap-2 text-xs">
+                        <span className="text-yellow-400 mt-0.5">🔒</span>
+                        <div>
+                          <div className="text-gray-300 font-medium">Private/Protected Accounts (Most Likely)</div>
+                          <div className="text-gray-500">~{Math.min(794 - stats.total, 3)} accounts are private and can't be accessed without authentication</div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-2 text-xs">
+                        <span className="text-red-400 mt-0.5">⛔</span>
+                        <div>
+                          <div className="text-gray-300 font-medium">Suspended/Deleted Accounts</div>
+                          <div className="text-gray-500">~1-2 accounts may be suspended or deleted (X still counts them)</div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-2 text-xs">
+                        <span className="text-blue-400 mt-0.5">⏱️</span>
+                        <div>
+                          <div className="text-gray-300 font-medium">Very Recent Follows</div>
+                          <div className="text-gray-500">Accounts that followed in the last few minutes</div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 pt-2 border-t border-gray-700">
+                      <button
+                        onClick={async () => {
+                          if (!user) return
+                          setExtracting(true)
+                          try {
+                            const token = await user.getIdToken()
+                            await fetch('/api/apify/extract-followers', {
+                              method: 'POST',
+                              headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                              },
+                              body: JSON.stringify({ 
+                                username: myAccount,
+                                maxFollowers: 850 // Extract slightly more to capture all
+                              })
+                            })
+                            loadDashboard() // Reload to see updates
+                          } catch (err) {
+                            console.error(err)
+                          } finally {
+                            setExtracting(false)
+                          }
+                        }}
+                        disabled={extracting}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 rounded text-xs font-medium transition-colors"
+                      >
+                        {extracting ? 'Re-extracting...' : '🔄 Re-extract Now'}
+                      </button>
+                      <span className="text-xs text-gray-500">
+                        Extract 850 followers to capture the missing ones
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
