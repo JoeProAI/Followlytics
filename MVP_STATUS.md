@@ -185,7 +185,7 @@ You're in the sweet spot where:
 | Starter | $19/mo | Creators & small accounts |
 | Pro | $79/mo | Serious creators & businesses |
 | Agency | $249/mo | Agencies & large brands |
-| Founder | $119 (one-time) | Early adopters |
+| Founder | $299 (one-time) | Early adopters (100 spots only) |
 
 ---
 
@@ -199,11 +199,11 @@ You're in the sweet spot where:
 - 20 Starter ($19) = $380/mo
 - 5 Pro ($79) = $395/mo
 - 1 Agency ($249) = $249/mo
-- 10 Founder ($119 one-time) = $1,190 one-time
+- 10 Founder ($299 one-time) = $2,990 one-time
 
 **Monthly Recurring Revenue (MRR)**: $1,024
 **Annual Run Rate (ARR)**: ~$12,288
-**Plus one-time Founder**: +$1,190
+**Plus one-time Founder**: +$2,990
 
 ---
 
@@ -212,11 +212,11 @@ You're in the sweet spot where:
 - 50 Starter ($19) = $950/mo
 - 20 Pro ($79) = $1,580/mo
 - 3 Agency ($249) = $747/mo
-- 25 Founder ($119) = $2,975 one-time
+- 25 Founder ($299) = $7,475 one-time
 
 **MRR**: $3,277
 **ARR**: ~$39,324
-**Plus one-time**: +$2,975
+**Plus one-time**: +$7,475
 
 ---
 
@@ -225,13 +225,13 @@ You're in the sweet spot where:
 - 100 Starter ($19) = $1,900/mo
 - 50 Pro ($79) = $3,950/mo
 - 8 Agency ($249) = $1,992/mo
-- 50 Founder ($119) = $5,950 one-time
+- 50 Founder ($299) = $14,950 one-time
 
 **MRR**: $7,842
 **ARR**: ~$94,104
-**Plus one-time**: +$5,950
+**Plus one-time**: +$14,950
 
-**YEAR 1 TOTAL REVENUE**: ~$104,000
+**YEAR 1 TOTAL REVENUE**: ~$113,000
 
 ---
 
@@ -243,7 +243,7 @@ You're in the sweet spot where:
 - 80 Starter = $1,520/mo
 - 30 Pro = $2,370/mo
 - 5 Agency = $1,245/mo
-- 30 Founder = $3,570 one-time
+- 30 Founder = $8,970 one-time
 
 **MRR**: $5,135
 **ARR**: ~$61,620
@@ -255,7 +255,7 @@ You're in the sweet spot where:
 - 200 Starter = $3,800/mo
 - 80 Pro = $6,320/mo
 - 12 Agency = $2,988/mo
-- 60 Founder = $7,140 one-time
+- 60 Founder = $17,940 one-time
 
 **MRR**: $13,108
 **ARR**: ~$157,296
@@ -267,13 +267,13 @@ You're in the sweet spot where:
 - 400 Starter = $7,600/mo
 - 150 Pro = $11,850/mo
 - 25 Agency = $6,225/mo
-- 100 Founder = $11,900 one-time
+- 100 Founder (SOLD OUT) = $29,900 one-time
 
 **MRR**: $25,675
 **ARR**: ~$308,100
-**Plus one-time**: +$22,610
+**Plus one-time**: +$56,810
 
-**YEAR 1 TOTAL REVENUE**: ~$330,000
+**YEAR 1 TOTAL REVENUE**: ~$365,000
 
 ---
 
@@ -285,7 +285,7 @@ You're in the sweet spot where:
 - 200 Starter = $3,800/mo
 - 80 Pro = $6,320/mo
 - 15 Agency = $3,735/mo
-- 80 Founder = $9,520 one-time
+- 80 Founder = $23,920 one-time
 
 **MRR**: $13,855
 **ARR**: ~$166,260
@@ -297,13 +297,13 @@ You're in the sweet spot where:
 - 800 Starter = $15,200/mo
 - 300 Pro = $23,700/mo
 - 50 Agency = $12,450/mo
-- 150 Founder (SOLD OUT) = $17,850 total
+- 100 Founder (SOLD OUT) = $29,900 total
 
 **MRR**: $51,350
 **ARR**: ~$616,200
-**Plus one-time**: +$17,850
+**Plus one-time**: +$29,900
 
-**YEAR 1 TOTAL REVENUE**: ~$634,000
+**YEAR 1 TOTAL REVENUE**: ~$646,000
 
 ---
 
@@ -344,9 +344,9 @@ You're in the sweet spot where:
 | Paying Customers | 158 total |
 | MRR by Month 12 | $7,842 |
 | ARR | $94,104 |
-| Founder Sales | $5,950 |
+| Founder Sales | $14,950 |
 | Add-on Revenue | $3,600 |
-| **TOTAL YEAR 1** | **~$103,654** |
+| **TOTAL YEAR 1** | **~$112,654** |
 
 ---
 
@@ -357,16 +357,16 @@ You're in the sweet spot where:
 - 2% convert to paid = 100 customers
 - Average revenue per user (ARPU) = $65/mo
 - 100 × $65 × 12 = $78,000
-- Plus Founder sales: +$6,000
+- Plus Founder sales: +$15,000
 - Plus add-ons: +$4,000
 - Plus enterprise: +$12,000
-- **TOTAL**: $100,000 ✅
+- **TOTAL**: $109,000 ✅
 
 **This is ACHIEVABLE** if you:
 1. Get 5,000 signups in Year 1 (417/month average)
 2. Convert 2% to paid (industry standard)
 3. Retain 85% monthly (good for SaaS)
-4. Sell 50 Founder passes
+4. Sell 50 Founder passes @ $299
 5. Get 2-3 enterprise clients
 
 ---

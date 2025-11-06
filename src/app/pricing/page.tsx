@@ -127,7 +127,7 @@ const tiers = [
   },
   {
     name: 'Founder Lifetime',
-    price: 119,
+    price: 299,
     priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_FOUNDER,
     tier: 'founder',
     description: 'One-time payment, lifetime access',
@@ -135,15 +135,16 @@ const tiers = [
       'Everything in Agency plan',
       'Lifetime access (no monthly fees)',
       'All future updates included',
-      'Founder badge',
+      'Founder badge & priority support',
       'Early access to new features',
       'Exclusive founder community',
-      'Limited to 150 buyers only',
-      'Lock in this price forever'
+      'Limited to 100 buyers only',
+      'Lock in this price forever',
+      'Save $2,688+ vs monthly Agency'
     ],
     cta: 'Claim Your Spot',
     featured: false,
-    badge: 'LIMITED OFFER',
+    badge: 'LIMITED OFFER - 100 SPOTS',
     isLifetime: true
   }
 ]
