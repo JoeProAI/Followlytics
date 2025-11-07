@@ -34,6 +34,13 @@ export default function CompleteDashboard() {
     }
   }, [user])
 
+  // Reload followers when selected account changes
+  useEffect(() => {
+    if (user) {
+      loadFollowersForAccount()
+    }
+  }, [selectedAccount, user])
+
   const loadSubscription = async () => {
     if (!user) return
     try {
@@ -50,13 +57,77 @@ export default function CompleteDashboard() {
     }
   }
 
+  const loadFollowersForAccount = async () => {
+    if (!user) return
+    
+    try {
+      const token = await user.getIdToken()
+      
+      // Determine which account to load
+      const targetAccount = selectedAccount || myAccount
+      if (!targetAccount) return
+      
+      // Load followers for selected account
+      const followersRes = await fetch(`/api/followers/stored?username=${targetAccount}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (followersRes.ok) {
+        const data = await followersRes.json()
+        const followersList = data.followers || []
+        setFollowers(followersList)
+        
+        // Calculate stats for this account
+        const verified = followersList.filter((f: any) => f.verified).length
+        const avgFollowers = followersList.length > 0
+          ? Math.round(followersList.reduce((sum: number, f: any) => sum + (f.followersCount || 0), 0) / followersList.length)
+          : 0
+        const withBio = followersList.filter((f: any) => f.bio?.trim()).length
+        const highValue = followersList.filter((f: any) => (f.followersCount || 0) > 10000).length
+        const microInfluencers = followersList.filter((f: any) => (f.followersCount || 0) >= 1000 && (f.followersCount || 0) <= 100000).length
+        const unfollowers = followersList.filter((f: any) => f.status === 'unfollowed').length
+        
+        let newFollowersCutoff = new Date()
+        if (data.lastExtraction && data.lastExtraction !== data.extractedAt) {
+          newFollowersCutoff = new Date(data.lastExtraction)
+          setPreviousExtractionDate(data.lastExtraction)
+        } else {
+          newFollowersCutoff.setDate(newFollowersCutoff.getDate() - 7)
+        }
+        
+        const newFollowers = followersList.filter((f: any) => {
+          if (!f.first_seen || f.status === 'unfollowed') return false
+          const firstSeenDate = new Date(f.first_seen)
+          return firstSeenDate > newFollowersCutoff
+        }).length
+        
+        setStats({
+          total: followersList.length,
+          verified,
+          verifiedPct: followersList.length > 0 ? ((verified / followersList.length) * 100).toFixed(1) : '0',
+          avgFollowers,
+          withBio,
+          withBioPct: followersList.length > 0 ? ((withBio / followersList.length) * 100).toFixed(1) : '0',
+          highValue,
+          highValuePct: followersList.length > 0 ? ((highValue / followersList.length) * 100).toFixed(1) : '0',
+          microInfluencers,
+          microInfluencersPct: followersList.length > 0 ? ((microInfluencers / followersList.length) * 100).toFixed(1) : '0',
+          unfollowers,
+          newFollowers
+        })
+      }
+    } catch (err) {
+      console.error('Failed to load followers:', err)
+    }
+  }
+
   const loadDashboard = async () => {
     if (!user) return
     
     try {
       const token = await user.getIdToken()
       
-      // Load followers
+      // Load user's main account info
       const followersRes = await fetch('/api/followers/stored', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -113,6 +184,22 @@ export default function CompleteDashboard() {
         })
         
         setMyAccount(data.targetUsername)
+        
+        // Initial stats setup
+        setStats({
+          total: followersList.length,
+          verified,
+          verifiedPct: followersList.length > 0 ? ((verified / followersList.length) * 100).toFixed(1) : '0',
+          avgFollowers,
+          withBio,
+          withBioPct: followersList.length > 0 ? ((withBio / followersList.length) * 100).toFixed(1) : '0',
+          highValue,
+          highValuePct: followersList.length > 0 ? ((highValue / followersList.length) * 100).toFixed(1) : '0',
+          microInfluencers,
+          microInfluencersPct: followersList.length > 0 ? ((microInfluencers / followersList.length) * 100).toFixed(1) : '0',
+          unfollowers,
+          newFollowers
+        })
       }
       
       // Load tracked accounts
@@ -300,6 +387,43 @@ export default function CompleteDashboard() {
   // Paginated display
   const displayedFollowers = filteredFollowers.slice(0, displayLimit)
 
+  // Remove tracked account
+  const removeTrackedAccount = async (username: string) => {
+    if (!user) return
+    
+    if (!confirm(`Remove @${username} from tracked accounts? This will delete all follower data for this account.`)) {
+      return
+    }
+    
+    try {
+      const token = await user.getIdToken()
+      const response = await fetch('/api/tracked-accounts', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username })
+      })
+      
+      if (response.ok) {
+        // Reload tracked accounts list
+        await loadDashboard()
+        // If we were viewing this account, switch back to main
+        if (selectedAccount === username) {
+          setSelectedAccount(null)
+        }
+        alert(`✅ Removed @${username} from tracked accounts`)
+      } else {
+        const error = await response.json()
+        alert(`❌ Failed to remove account: ${error.error || 'Unknown error'}`)
+      }
+    } catch (err) {
+      console.error('Remove account error:', err)
+      alert('❌ Failed to remove account')
+    }
+  }
+
   // Generate Gamma for any follower
   const generateFollowerGamma = async (followerUsername: string) => {
     if (!user) return
@@ -340,9 +464,20 @@ export default function CompleteDashboard() {
       {/* Header */}
       <header className="border-b border-gray-800 bg-[#15191e]">
         <div className="max-w-[1800px] mx-auto px-6 py-3 flex items-center justify-between">
-          <Link href="/" className="text-xl font-semibold tracking-tight text-white">
-            FOLLOWLYTICS
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/" className="text-xl font-semibold tracking-tight text-white">
+              FOLLOWLYTICS
+            </Link>
+            {(selectedAccount || myAccount) && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-blue-500/10 border border-blue-500/30 rounded">
+                <span className="text-xs text-gray-400">Viewing:</span>
+                <span className="text-sm font-mono text-blue-400">@{selectedAccount || myAccount}</span>
+                {selectedAccount && (
+                  <span className="text-xs text-purple-400">(Competitor)</span>
+                )}
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-6">
             {subscription && (
               <div className="flex items-center gap-4">
@@ -421,17 +556,25 @@ export default function CompleteDashboard() {
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-400">COMPETITORS:</span>
                 {trackedAccounts.map((acc, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setSelectedAccount(acc.username)}
-                    className={`text-xs px-3 py-2 rounded cursor-pointer transition-all font-mono ${
-                      selectedAccount === acc.username
-                        ? 'bg-purple-500/20 border-2 border-purple-500 text-purple-400'
-                        : 'bg-purple-500/10 border border-purple-500/30 text-purple-400 hover:bg-purple-500/15'
-                    }`}
-                  >
-                    @{acc.username}
-                  </button>
+                  <div key={idx} className="flex items-center gap-1">
+                    <button
+                      onClick={() => setSelectedAccount(acc.username)}
+                      className={`text-xs px-3 py-2 rounded cursor-pointer transition-all font-mono ${
+                        selectedAccount === acc.username
+                          ? 'bg-purple-500/20 border-2 border-purple-500 text-purple-400'
+                          : 'bg-purple-500/10 border border-purple-500/30 text-purple-400 hover:bg-purple-500/15'
+                      }`}
+                    >
+                      @{acc.username}
+                    </button>
+                    <button
+                      onClick={() => removeTrackedAccount(acc.username)}
+                      className="text-xs px-2 py-2 rounded bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all"
+                      title="Remove this account"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 ))}
               </div>
             )}

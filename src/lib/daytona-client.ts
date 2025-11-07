@@ -1196,9 +1196,10 @@ const puppeteer = require('puppeteer');
     }
   }
   
-  console.log('📜 Starting aggressive scrolling to extract ALL followers (no limits)...');
+  console.log('📜 Starting aggressive scrolling to extract followers...');
   const followers = [];
-  const maxScrolls = 100; // Increased to ensure ALL followers extracted (supports 1000+ followers)
+  const maxScrolls = 50; // Balanced for up to 1000 followers (each scroll ~20-30 followers)
+  const targetFollowerCount = 1000; // Safe limit to prevent sandbox timeouts
   
   for (let i = 0; i < maxScrolls; i++) {
     console.log(\`📜 Scroll \${i + 1}/\${maxScrolls}\`);
@@ -1335,8 +1336,11 @@ const puppeteer = require('puppeteer');
     
     console.log(\`Found \${newFollowers.length} new followers (total: \${followers.length})\`);
     
-    // Continue scrolling - no artificial follower count limit
-    // Will stop naturally when no new followers found
+    // Stop if we've reached target count to prevent timeout
+    if (followers.length >= targetFollowerCount) {
+      console.log(\`✅ Reached target of \${targetFollowerCount} followers, stopping extraction\`);
+      break;
+    }
     
     // Scroll down aggressively
     await page.evaluate(() => {
@@ -1346,9 +1350,9 @@ const puppeteer = require('puppeteer');
     // Wait for new content (reduced wait time) - using setTimeout
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Stop if no new followers for several scrolls (but keep trying longer)
-    if (newFollowers.length === 0 && i > 15) {
-      console.log('No new followers found after 15+ scrolls, stopping...');
+    // Stop if no new followers for several scrolls
+    if (newFollowers.length === 0 && i > 10) {
+      console.log('✅ No new followers found after 10+ scrolls, extraction complete');
       break;
     }
   }

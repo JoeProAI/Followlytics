@@ -16,11 +16,54 @@ export async function POST(request: NextRequest) {
     const userId = decodedToken.uid
 
     const body = await request.json()
-    const { follower, analysisId } = body
+    const { follower, analysisId, username, targetUsername } = body
 
-    if (!follower || !follower.username) {
+    // Handle two cases:
+    // 1. Full follower object from analysis (has category, influenceScore, etc)
+    // 2. Just username from dashboard (need to fetch follower data)
+    let followerData: any
+
+    if (follower && follower.username) {
+      // Case 1: Full analysis data provided
+      followerData = follower
+    } else if (username) {
+      // Case 2: Just username provided - fetch from database
+      try {
+        const followersRef = adminDb.collection('users').doc(userId).collection('followers')
+        const query = followersRef.where('username', '==', username.toLowerCase()).limit(1)
+        const snapshot = await query.get()
+        
+        if (snapshot.empty) {
+          return NextResponse.json({ 
+            error: `Follower @${username} not found in your database` 
+          }, { status: 404 })
+        }
+        
+        const followerDoc = snapshot.docs[0].data()
+        
+        // Create basic follower data from database record
+        followerData = {
+          username: followerDoc.username || username,
+          name: followerDoc.name || followerDoc.display_name || username,
+          category: 'Follower',
+          influenceScore: Math.min(10, Math.floor((followerDoc.followersCount || 0) / 1000)),
+          engagementValue: followerDoc.followersCount > 10000 ? 'HIGH' : followerDoc.followersCount > 1000 ? 'MEDIUM' : 'LOW',
+          priority: followerDoc.followersCount > 10000 ? 'HIGH' : followerDoc.followersCount > 1000 ? 'MEDIUM' : 'LOW',
+          strategicValue: followerDoc.bio || `@${username} is one of your followers`,
+          actionRecommendation: followerDoc.followersCount > 10000 ? 'Engage with this high-value follower' : 'Monitor for engagement opportunities',
+          followerCount: followerDoc.followersCount || 0,
+          verified: followerDoc.verified || false,
+          bio: followerDoc.bio || ''
+        }
+      } catch (err) {
+        console.error('Error fetching follower:', err)
+        return NextResponse.json({ 
+          error: 'Failed to fetch follower data' 
+          }, { status: 500 })
+      }
+    } else {
       return NextResponse.json({ 
-        error: 'Missing follower data' 
+        error: 'Missing follower data or username' 
       }, { status: 400 })
     }
 
@@ -45,22 +88,23 @@ export async function POST(request: NextRequest) {
       return 'minimal'
     }
 
-    const selectedTheme = getThemeForFollower(follower.category, follower.priority)
+    const selectedTheme = getThemeForFollower(followerData.category, followerData.priority)
 
     // Create rich markdown content for Gamma
-    const markdownContent = `# 📊 ${follower.name || follower.username}
+    const markdownContent = `# 📊 ${followerData.name || followerData.username}
 ## Follower Analysis Report
 
-**@${follower.username}**
+**@${followerData.username}**${followerData.verified ? ' ✓ Verified' : ''}
 
 ---
 
 ## 🎯 Overview
 
-**Influence Score:** ${follower.influenceScore}/10  
-**Category:** ${follower.category}  
-**Priority:** ${follower.priority}  
-**Engagement Level:** ${follower.engagementValue}
+**Influence Score:** ${followerData.influenceScore}/10  
+**Category:** ${followerData.category}  
+**Priority:** ${followerData.priority}  
+**Engagement Level:** ${followerData.engagementValue}
+${followerData.followerCount ? `**Followers:** ${followerData.followerCount.toLocaleString()}` : ''}
 
 ---
 
@@ -68,22 +112,30 @@ export async function POST(request: NextRequest) {
 
 | Metric | Value |
 |--------|-------|
-| Influence Score | ${follower.influenceScore}/10 |
-| Category | ${follower.category} |
-| Priority Level | ${follower.priority} |
-| Engagement Value | ${follower.engagementValue} |
+| Influence Score | ${followerData.influenceScore}/10 |
+| Category | ${followerData.category} |
+| Priority Level | ${followerData.priority} |
+| Engagement Value | ${followerData.engagementValue} |
+${followerData.followerCount ? `| Follower Count | ${followerData.followerCount.toLocaleString()} |` : ''}
+${followerData.verified ? '| Verified | ✓ Yes |' : ''}
 
 ---
 
-## 💡 Why They Matter
+${followerData.bio ? `## 📝 Bio
 
-${follower.strategicValue}
+${followerData.bio}
+
+---
+
+` : ''}## 💡 Why They Matter
+
+${followerData.strategicValue}
 
 ---
 
 ## ✨ Recommended Action
 
-${follower.actionRecommendation}
+${followerData.actionRecommendation}
 
 ---
 
@@ -95,8 +147,8 @@ ${follower.actionRecommendation}
     await adminDb.collection('gamma_reports').doc(generationId).set({
       userId,
       analysisId: analysisId || null,
-      followerUsername: follower.username,
-      followerData: follower,
+      followerUsername: followerData.username,
+      followerData: followerData,
       theme: selectedTheme,
       status: 'generating',
       createdAt: new Date(),
@@ -140,7 +192,7 @@ ${follower.actionRecommendation}
           console.log('[Gamma] Generation started:', {
             generationId,
             gammaGenerationId: generationGammaId,
-            follower: follower.username,
+            follower: followerData.username,
             message: 'Frontend will poll for completion'
           })
           
@@ -160,13 +212,13 @@ ${follower.actionRecommendation}
         console.error('[Gamma] Generation error:', {
           message: gammaError.message,
           stack: gammaError.stack,
-          follower: follower.username
+          follower: followerData.username
         })
         
         // Fall back to simulation with helpful message
         await adminDb.collection('gamma_reports').doc(generationId).update({
           status: 'completed',
-          url: `https://gamma.app/docs/follower-analysis-${follower.username.toLowerCase()}-${generationId}`,
+          url: `https://gamma.app/docs/follower-analysis-${followerData.username.toLowerCase()}-${generationId}`,
           completedAt: new Date(),
           note: `Simulated (API Error: ${gammaError.message}). This is a demo link. Add valid GAMMA_API_KEY to Vercel environment variables for real Gamma generation.`,
           isSimulated: true
@@ -179,7 +231,7 @@ ${follower.actionRecommendation}
         try {
           await adminDb.collection('gamma_reports').doc(generationId).update({
             status: 'completed',
-            url: `https://gamma.app/docs/follower-analysis-${follower.username.toLowerCase()}-${generationId}`,
+            url: `https://gamma.app/docs/follower-analysis-${followerData.username.toLowerCase()}-${generationId}`,
             completedAt: new Date(),
             note: 'Simulated - Add GAMMA_API_KEY to Vercel environment variables for real Gamma generation'
           })
