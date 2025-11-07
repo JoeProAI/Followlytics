@@ -936,13 +936,12 @@ async function scanWithStrategy(strategy, username, accessToken, accessTokenSecr
         consecutiveEmptyScrolls = 0;
         console.log(\`📜 \${strategy.name} scroll \${i + 1}: found \${uniqueNewFollowers.length} new followers (total: \${followers.length})\`);
         
-        // Early termination to prevent Daytona API timeout
+        // No artificial limits - extract ALL followers
         if (followers.length >= 100) {
-          console.log(\`✅ Good progress: Found \${followers.length} followers, continuing\`);
+          console.log(\`✅ Good progress: Found \${followers.length} followers, continuing...\`);
         }
-        if (followers.length >= 200) {
-          console.log(\`✅ Substantial result: Found \${followers.length} followers, stopping to avoid timeout\`);
-          break;
+        if (followers.length >= 500) {
+          console.log(\`✅ Substantial progress: Found \${followers.length} followers, continuing...\`);
         }
       } else {
         consecutiveEmptyScrolls++;
@@ -1197,9 +1196,9 @@ const puppeteer = require('puppeteer');
     }
   }
   
-  console.log('📜 Starting aggressive scrolling for ALL 872 followers...');
+  console.log('📜 Starting aggressive scrolling to extract ALL followers (no limits)...');
   const followers = [];
-  const maxScrolls = 50; // Increased to get ALL followers (872 total)
+  const maxScrolls = 100; // Increased to ensure ALL followers extracted (supports 1000+ followers)
   
   for (let i = 0; i < maxScrolls; i++) {
     console.log(\`📜 Scroll \${i + 1}/\${maxScrolls}\`);
@@ -1336,11 +1335,8 @@ const puppeteer = require('puppeteer');
     
     console.log(\`Found \${newFollowers.length} new followers (total: \${followers.length})\`);
     
-    // Stop if we have all followers
-    if (followers.length >= 872) {
-      console.log('🎯 Reached ALL 872 followers target!');
-      break;
-    }
+    // Continue scrolling - no artificial follower count limit
+    // Will stop naturally when no new followers found
     
     // Scroll down aggressively
     await page.evaluate(() => {
