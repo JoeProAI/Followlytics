@@ -22,13 +22,39 @@ export async function POST(request: NextRequest) {
     }
 
     const { userId, subscription } = gateResult
-    const { idea, variations = 10, voice = 'viral' } = await request.json()
+    const { idea, variations = 10, voice = 'viral', username } = await request.json()
 
     if (!idea) {
       return NextResponse.json({ error: 'Idea is required' }, { status: 400 })
     }
 
-    console.log(`🤖 Generating ${variations} ${voice} tweet variations for user: ${userId}`)
+    console.log(`🤖 Generating ${variations} ${voice} post variations for user: ${userId}`)
+
+    // Analyze follower preferences if username provided
+    let followerInsights = ''
+    if (username) {
+      try {
+        const { adminDb } = await import('@/lib/firebase-admin')
+        const followersSnapshot = await adminDb
+          .collection('users')
+          .doc(userId)
+          .collection('followers')
+          .where('target_username', '==', username.toLowerCase())
+          .limit(100)
+          .get()
+        
+        const followerBios = followersSnapshot.docs
+          .map(doc => doc.data().bio)
+          .filter(Boolean)
+          .slice(0, 50)
+        
+        if (followerBios.length > 0) {
+          followerInsights = `\n\nYour followers are interested in: ${followerBios.join(' | ').slice(0, 1000)}\n\nTailor the content to resonate with these interests while staying authentic to your voice.`
+        }
+      } catch (err) {
+        console.log('Could not analyze followers, continuing without insights')
+      }
+    }
 
     // Get viral tweet patterns from X API if available
     let viralContext = ''
@@ -104,44 +130,52 @@ export async function POST(request: NextRequest) {
 
     // Build messages once
     const messages = [
-      { role: 'system' as const, content: `You write high-signal posts that spread on X. Output must read human—precise, specific, confident. No filler.
+      { role: 'system' as const, content: `You write 100% BANGER posts that spread on X. Write like a real human, not a corporate bot.
 
-NEVER USE:
-- Phrases like "Unlocking the power of...", "In today's digital landscape", "Let's dive in", "Here's the thing about"
+CRITICAL - NEVER USE:
+- Hashtags (they're dead, old news, cringy)
+- Dashes or bullets in the text (—, –, -, •)
+- Perfect grammar with semicolons and formal punctuation
+- Phrases like "Unlocking the power of...", "In today's digital landscape", "Let's dive in"
 - Generic motivational quotes or corporate tone
 - Hedging or AI disclaimers (no "As an AI")
+- Emojis of any kind
 
-ALWAYS USE:
-- A concrete hook in the first 5 words
+ALWAYS DO:
+- Write naturally like you're texting a friend
+- Use casual grammar (fragments are fine, contractions are good)
+- Hook in first 5 words - make them stop scrolling
 - One sharp point per post
-- Specific numbers and stakes; verbs over adjectives
-- Pattern interrupt or tension that invites replies
-- Natural line breaks for emphasis (no hashtags unless they truly fit)
+- Specific numbers and real stakes
+- Pattern interrupts that invite replies
+- Natural line breaks for rhythm and emphasis
+- Sound confident, not perfect
 
 Style guidance:
-${voiceInstruction}
+${voiceInstruction}${followerInsights}
 
-Generate ${variations} variations for the topic below.${viralContext}
+Generate ${variations} BANGER variations for the topic below.${viralContext}
 
 Rules:
 - Max 280 characters
-- No emojis
-- No hashtags unless essential
-- Do not mention "Twitter"; say "X" only when necessary
+- Zero hashtags, zero dashes, zero emojis
+- Natural conversational grammar
+- Write like a human, not a marketing team
+- Every post must be a potential viral banger
 
 Return ONLY a JSON array:
 [
   {
-    "text": "the post (<=280 chars)",
+    "text": "the post (<=280 chars, natural grammar, no hashtags/dashes)",
     "tone": "controversial|funny|inspiring|data-driven|personal",
     "viralScore": 1-100,
     "estimatedReach": "1K|10K|100K|1M",
     "sentiment": "positive|neutral|negative",
     "hooks": ["pattern interrupt used", "emotional trigger"],
-    "why": "1-sentence reason this could spread"
+    "why": "1-sentence reason this will spread"
   }
 ]` },
-      { role: 'user' as const, content: `Topic: ${idea}\n\nVoice: ${voice}\n\nGenerate ${variations} BANGER tweets that people will actually want to share. No generic AI slop.` }
+      { role: 'user' as const, content: `Topic: ${idea}\n\nVoice: ${voice}\n\nGenerate ${variations} BANGER posts that will actually spread. Write naturally, no hashtags, no dashes, no corporate speak. Just authentic fire content that makes people want to share.` }
     ]
 
     // xAI first

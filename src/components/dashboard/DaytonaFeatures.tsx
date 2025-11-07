@@ -3,30 +3,34 @@
 import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 
-export default function DaytonaFeatures() {
+interface DaytonaFeaturesProps {
+  username?: string
+}
+
+export default function DaytonaFeatures({ username }: DaytonaFeaturesProps) {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
-  const [tweetIdea, setTweetIdea] = useState('')
-  const [generatedTweets, setGeneratedTweets] = useState<any[]>([])
+  const [postIdea, setPostIdea] = useState('')
+  const [generatedPosts, setGeneratedPosts] = useState<any[]>([])
   const [selectedVoice, setSelectedVoice] = useState('viral')
 
-  const generateTweets = async () => {
-    if (!user || !tweetIdea.trim()) return
+  const generatePosts = async () => {
+    if (!user || !postIdea.trim()) return
     
     setLoading(true)
     setError('')
-    setGeneratedTweets([])
-    setStatus('🏗️ Creating AI sandbox...')
+    setGeneratedPosts([])
+    setStatus('🧠 Analyzing what your followers like to read...')
     
     try {
       const token = await user.getIdToken()
       
       // Simulate progressive status updates
-      setTimeout(() => setStatus('🤖 Warming up AI models...'), 1000)
-      setTimeout(() => setStatus('✍️ Generating post variations...'), 2000)
-      setTimeout(() => setStatus('📊 Analyzing viral potential...'), 4000)
+      setTimeout(() => setStatus('🤖 Warming up AI models...'), 1500)
+      setTimeout(() => setStatus('✍️ Generating 10 banger variations...'), 3000)
+      setTimeout(() => setStatus('🔥 Optimizing for viral potential...'), 5000)
       
       const response = await fetch('/api/daytona/generate-tweets', {
         method: 'POST',
@@ -35,17 +39,18 @@ export default function DaytonaFeatures() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
-          idea: tweetIdea,
+          idea: postIdea,
           variations: 10,
-          voice: selectedVoice
+          voice: selectedVoice,
+          username: username // Pass username for follower analysis
         })
       })
       
       const data = await response.json()
       
       if (response.ok && data.tweets) {
-        setGeneratedTweets(data.tweets)
-        setStatus(`✅ Generated ${data.tweets.length} optimized posts!`)
+        setGeneratedPosts(data.tweets)
+        setStatus(`✅ Generated ${data.tweets.length} BANGERS tailored to what your followers love!`)
       } else {
         setError(data.error || 'Failed to generate posts')
         setStatus('')
@@ -59,7 +64,7 @@ export default function DaytonaFeatures() {
   }
 
   const analyzeContent = async () => {
-    if (!user || !tweetIdea.trim()) return
+    if (!user || !postIdea.trim()) return
     
     setLoading(true)
     setError('')
@@ -77,7 +82,7 @@ export default function DaytonaFeatures() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ content: tweetIdea })
+        body: JSON.stringify({ content: postIdea })
       })
       
       const data = await response.json()
@@ -123,7 +128,7 @@ export default function DaytonaFeatures() {
               </span>
             </h3>
             <p className="text-sm text-gray-400">
-              Generate viral-optimized posts in seconds. Choose your voice, get 10 variations, pick the best one.
+              AI analyzes what your followers love to read and generates 10 banger variations. No hashtags, no corporate speak, just authentic fire.
             </p>
           </div>
         </div>
@@ -141,8 +146,8 @@ export default function DaytonaFeatures() {
           What do you want to post about?
         </label>
         <textarea
-          value={tweetIdea}
-          onChange={(e) => setTweetIdea(e.target.value)}
+          value={postIdea}
+          onChange={(e) => setPostIdea(e.target.value)}
           placeholder="e.g., 'The future of AI in social media marketing' or 'Why developer tools are eating the world'"
           className="w-full bg-black/40 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 resize-none"
           rows={3}
@@ -196,36 +201,36 @@ export default function DaytonaFeatures() {
       {/* Action Buttons */}
       <div className="grid md:grid-cols-2 gap-3 mb-6">
         <button
-          onClick={generateTweets}
-          disabled={loading || !tweetIdea.trim()}
+          onClick={generatePosts}
+          disabled={loading || !postIdea.trim()}
           className="px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:from-gray-700 disabled:to-gray-700 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? 'Generating...' : '✨ Generate 10 post Variations'}
+          {loading ? 'Generating...' : '🔥 Generate 10 Bangers'}
         </button>
         
         <button
           onClick={analyzeContent}
-          disabled={loading || !tweetIdea.trim()}
+          disabled={loading || !postIdea.trim()}
           className="px-6 py-3 bg-black/60 border border-purple-500/50 hover:bg-purple-500/10 disabled:border-gray-700 text-purple-300 disabled:text-gray-500 rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? 'Analyzing...' : '📊 Predict Viral Score'}
         </button>
       </div>
 
-      {/* Generated posts Display */}
-      {generatedTweets.length > 0 && (
+      {/* Generated Posts Display */}
+      {generatedPosts.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
               <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-              {generatedTweets.length} Bangers Generated
+              {generatedPosts.length} Bangers Generated
             </h4>
             <span className="text-xs text-gray-500">
               Fetched viral patterns from X API ✓
             </span>
           </div>
           <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
-            {generatedTweets.map((post, idx) => (
+            {generatedPosts.map((post, idx) => (
               <div key={idx} className="bg-black/60 border border-gray-700 hover:border-purple-500/50 rounded-lg p-4 transition-all group">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -294,9 +299,9 @@ export default function DaytonaFeatures() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div className="text-xs text-gray-400 space-y-1">
-            <p><strong className="text-gray-300">How it works:</strong> Enter your topic or idea, get multiple AI-generated post variations optimized for engagement.</p>
-            <p><strong className="text-gray-300">Why it works:</strong> Choose from viral-tested options before you post. Save hours of writing and rewriting.</p>
-            <p><strong className="text-gray-300">Processing time:</strong> 5-10 seconds per batch.</p>
+            <p><strong className="text-gray-300">How it works:</strong> AI analyzes your followers' interests and generates posts they'll actually want to read.</p>
+            <p><strong className="text-gray-300">Why it works:</strong> No hashtags, no dashes, no corporate speak. Just natural, authentic content that spreads.</p>
+            <p><strong className="text-gray-300">100% bangers:</strong> Every post is optimized for engagement based on what your audience loves.</p>
           </div>
         </div>
       </div>
