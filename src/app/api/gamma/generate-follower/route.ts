@@ -29,37 +29,67 @@ export async function POST(request: NextRequest) {
     } else if (username) {
       // Case 2: Just username provided - fetch from database
       try {
+        console.log('[Gamma] Fetching follower data for:', username)
         const followersRef = adminDb.collection('users').doc(userId).collection('followers')
-        const query = followersRef.where('username', '==', username.toLowerCase()).limit(1)
-        const snapshot = await query.get()
         
-        if (snapshot.empty) {
-          return NextResponse.json({ 
-            error: `Follower @${username} not found in your database` 
-          }, { status: 404 })
+        // Try direct document access first (since doc ID = username)
+        const followerDoc = await followersRef.doc(username).get()
+        
+        if (!followerDoc.exists) {
+          console.log('[Gamma] Follower not found by doc ID, trying query...')
+          // Fall back to query in case usernames don't match doc IDs
+          const query = followersRef.where('username', '==', username).limit(1)
+          const snapshot = await query.get()
+          
+          if (snapshot.empty) {
+            console.error('[Gamma] Follower not found:', { username, userId })
+            return NextResponse.json({ 
+              error: `Follower @${username} not found in your database. Try re-scanning followers.` 
+            }, { status: 404 })
+          }
+          
+          const dbFollowerData = snapshot.docs[0].data()
+          console.log('[Gamma] Found follower via query:', dbFollowerData.username)
+          
+          // Create basic follower data from database record
+          followerData = {
+            username: dbFollowerData.username || username,
+            name: dbFollowerData.name || dbFollowerData.display_name || username,
+            category: 'Follower',
+            influenceScore: Math.min(10, Math.floor((dbFollowerData.followersCount || 0) / 1000)),
+            engagementValue: dbFollowerData.followersCount > 10000 ? 'HIGH' : dbFollowerData.followersCount > 1000 ? 'MEDIUM' : 'LOW',
+            priority: dbFollowerData.followersCount > 10000 ? 'HIGH' : dbFollowerData.followersCount > 1000 ? 'MEDIUM' : 'LOW',
+            strategicValue: dbFollowerData.bio || `@${username} is one of your followers`,
+            actionRecommendation: dbFollowerData.followersCount > 10000 ? 'Engage with this high-value follower' : 'Monitor for engagement opportunities',
+            followerCount: dbFollowerData.followersCount || 0,
+            verified: dbFollowerData.verified || false,
+            bio: dbFollowerData.bio || ''
+          }
+        } else {
+          const followerDocData = followerDoc.data()
+          console.log('[Gamma] Found follower via doc ID:', followerDocData?.username)
+          
+          // Create basic follower data from database record
+          followerData = {
+            username: followerDocData?.username || username,
+            name: followerDocData?.name || followerDocData?.display_name || username,
+            category: 'Follower',
+            influenceScore: Math.min(10, Math.floor((followerDocData?.followersCount || 0) / 1000)),
+            engagementValue: followerDocData?.followersCount > 10000 ? 'HIGH' : followerDocData?.followersCount > 1000 ? 'MEDIUM' : 'LOW',
+            priority: followerDocData?.followersCount > 10000 ? 'HIGH' : followerDocData?.followersCount > 1000 ? 'MEDIUM' : 'LOW',
+            strategicValue: followerDocData?.bio || `@${username} is one of your followers`,
+            actionRecommendation: followerDocData?.followersCount > 10000 ? 'Engage with this high-value follower' : 'Monitor for engagement opportunities',
+            followerCount: followerDocData?.followersCount || 0,
+            verified: followerDocData?.verified || false,
+            bio: followerDocData?.bio || ''
+          }
         }
-        
-        const followerDoc = snapshot.docs[0].data()
-        
-        // Create basic follower data from database record
-        followerData = {
-          username: followerDoc.username || username,
-          name: followerDoc.name || followerDoc.display_name || username,
-          category: 'Follower',
-          influenceScore: Math.min(10, Math.floor((followerDoc.followersCount || 0) / 1000)),
-          engagementValue: followerDoc.followersCount > 10000 ? 'HIGH' : followerDoc.followersCount > 1000 ? 'MEDIUM' : 'LOW',
-          priority: followerDoc.followersCount > 10000 ? 'HIGH' : followerDoc.followersCount > 1000 ? 'MEDIUM' : 'LOW',
-          strategicValue: followerDoc.bio || `@${username} is one of your followers`,
-          actionRecommendation: followerDoc.followersCount > 10000 ? 'Engage with this high-value follower' : 'Monitor for engagement opportunities',
-          followerCount: followerDoc.followersCount || 0,
-          verified: followerDoc.verified || false,
-          bio: followerDoc.bio || ''
-        }
-      } catch (err) {
-        console.error('Error fetching follower:', err)
+      } catch (err: any) {
+        console.error('[Gamma] Error fetching follower:', err)
         return NextResponse.json({ 
-          error: 'Failed to fetch follower data' 
-          }, { status: 500 })
+          error: 'Failed to fetch follower data',
+          details: err.message
+        }, { status: 500 })
       }
     } else {
       return NextResponse.json({ 
