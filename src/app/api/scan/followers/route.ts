@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase-admin'
 import { DaytonaSandboxManager, SandboxConfig } from '@/lib/daytona-client'
 import { v4 as uuidv4 } from 'uuid'
+import { checkCredits, deductCredits, getCreditBalances } from '@/lib/credits'
+import { getTierConfig } from '@/config/tiers'
 
 // Set maximum duration to 10 minutes for follower scanning
 export const maxDuration = 600
@@ -59,6 +61,26 @@ export async function POST(request: NextRequest) {
     const userData = userDoc.data()
     if (!userData?.xConnected) {
       return NextResponse.json({ error: 'X account not connected' }, { status: 400 })
+    }
+
+    // Check user's credit balance for follower extraction
+    console.log('Checking credit balance for user:', userId)
+    const credits = await getCreditBalances(userId)
+    const tier = userData.subscription?.tier || 'beta'
+    const tierConfig = getTierConfig(tier)
+    
+    // Estimate follower count (we'll deduct actual amount after extraction)
+    // For now, show available credits and tier limits
+    console.log(`User has ${credits.followers.available} follower credits available (Tier: ${tier})`)
+    
+    if (credits.followers.available <= 0) {
+      return NextResponse.json({ 
+        error: 'Insufficient follower credits',
+        details: `You have 0 follower credits remaining. Your ${tier} plan includes ${tierConfig.credits.followers.toLocaleString()} followers per month. Please wait for your next billing cycle or upgrade your plan.`,
+        available: credits.followers.available,
+        tier: tier,
+        upgrade_url: '/pricing'
+      }, { status: 402 })
     }
 
     // Generate unique session ID for this scan
@@ -125,12 +147,52 @@ export async function POST(request: NextRequest) {
       console.log('🔐 Using OAuth tokens for authentication')
       const result = await DaytonaSandboxManager.executeFollowerScan(sandbox, xUsername, oauthTokens.accessToken, oauthTokens.accessTokenSecret)
       
+      // Deduct credits based on actual followers extracted
+      const extractedCount = result.followerCount || 0
+      if (extractedCount > 0) {
+        console.log(`Deducting ${extractedCount} follower credits for user ${userId}`)
+        await deductCredits(userId, 'followers', extractedCount, {
+          description: `Follower scan for @${xUsername}`,
+          endpoint: '/api/scan/followers',
+          username: xUsername
+        })
+        console.log(`✅ Deducted ${extractedCount} credits successfully`)
+      }
+      
+      // Store extracted followers to user's collection for unfollower tracking
+      if (result.followers && result.followers.length > 0) {
+        console.log(`Storing ${result.followers.length} followers to database...`)
+        const batch = adminDb.batch()
+        const followersRef = adminDb.collection('users').doc(userId).collection('followers')
+        
+        for (const follower of result.followers) {
+          const followerDoc = followersRef.doc(follower.username)
+          batch.set(followerDoc, {
+            ...follower,
+            target_username: xUsername.toLowerCase(),
+            scan_id: scanId,
+            extracted_at: new Date(),
+            first_seen: new Date(), // Will be preserved if already exists via merge
+            status: 'active'
+          }, { merge: true })
+        }
+        
+        await batch.commit()
+        console.log(`✅ Stored ${result.followers.length} followers to database`)
+      }
+      
+      // Check for unfollowers if this is a re-scan
+      const followerUsernames = (result.followers || []).map((f: any) => f.username)
+      await checkForUnfollowers(userId, xUsername, followerUsernames, scanId)
+      
       // Update scan with results - filter out undefined values
       const updateData: any = {
         status: result.status || 'completed',
-        followers: result.followers || [],
+        followers: followerUsernames, // Store only usernames, not full objects
         followerCount: result.followerCount || 0,
-        completedAt: new Date()
+        completedAt: new Date(),
+        twitterUsername: xUsername,
+        creditsUsed: extractedCount
       }
       
       if (result.error) {
@@ -227,7 +289,7 @@ async function startFollowerScan(
       progress: 100,
       followers: scanResult.followers,
       followerCount: scanResult.followerCount,
-      completedAt: scanResult.scanDate,
+      completedAt: new Date(),
     })
 
     // Check for unfollowers if this isn't the first scan

@@ -26,6 +26,7 @@ export default function CompleteDashboard() {
   const [displayLimit, setDisplayLimit] = useState(50)
   const [previousExtractionDate, setPreviousExtractionDate] = useState<string | null>(null)
   const [generatingGamma, setGeneratingGamma] = useState<string | null>(null)
+  const [credits, setCredits] = useState<any>(null)
 
   useEffect(() => {
     if (user) {
@@ -51,6 +52,16 @@ export default function CompleteDashboard() {
       if (response.ok) {
         const data = await response.json()
         setSubscription(data)
+      }
+      
+      // Also load credit balances
+      const creditsResponse = await fetch('/api/credits/balance', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (creditsResponse.ok) {
+        const creditsData = await creditsResponse.json()
+        setCredits(creditsData)
+        console.log('[Dashboard] Credit balances:', creditsData)
       }
     } catch (err) {
       console.error('Failed to load subscription:', err)
@@ -534,6 +545,52 @@ export default function CompleteDashboard() {
       </header>
 
       <main className="max-w-[1800px] mx-auto px-6 py-6">
+        {/* Follower Usage Display - ALWAYS VISIBLE */}
+        {stats && (
+          <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-lg p-5 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                  👥 Follower Extraction Usage
+                  {subscription?.tier && (
+                    <span className="text-xs px-2 py-1 bg-blue-500/20 border border-blue-500/40 rounded text-blue-400 uppercase">
+                      {subscription.tier}
+                    </span>
+                  )}
+                </h3>
+                <div className="space-y-1">
+                  <p className="text-sm text-gray-300">
+                    <span className="text-2xl font-bold text-blue-400">{stats.total.toLocaleString()}</span>
+                    <span className="text-gray-500 ml-2">followers extracted</span>
+                  </p>
+                  {subscription?.limits && (
+                    <p className="text-xs text-gray-400">
+                      {subscription.tier === 'free' && 'Free: 1,000 followers/month'}
+                      {subscription.tier === 'starter' && 'Starter: 10,000 followers/month'}
+                      {subscription.tier === 'pro' && 'Pro: 50,000 followers/month'}
+                      {subscription.tier === 'agency' && 'Agency: 200,000 followers/month'}
+                      {subscription.tier === 'enterprise' && 'Enterprise: Unlimited'}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-3xl font-bold text-green-400">✓</div>
+                <div className="text-xs text-gray-400 mt-1">All Tracked</div>
+              </div>
+            </div>
+            
+            {/* Show clear explanation */}
+            <div className="mt-4 pt-4 border-t border-gray-700/50">
+              <p className="text-xs text-gray-400 leading-relaxed">
+                💡 <span className="text-gray-300 font-semibold">How it works:</span> Each time you scan an account, all followers are extracted and counted toward your monthly limit. 
+                Your current account has <span className="text-blue-400 font-bold">{stats.total.toLocaleString()}</span> followers tracked. 
+                Re-scanning will NOT use additional quota - only NEW followers count toward your limit.
+              </p>
+            </div>
+          </div>
+        )}
+        
         {/* Account Tracker */}
         <div className="bg-[#15191e] border border-gray-800 rounded-lg p-4 mb-6">
           <h3 className="text-xs uppercase tracking-wide text-gray-400 mb-3">Account Manager</h3>
@@ -1025,10 +1082,17 @@ export default function CompleteDashboard() {
             {/* Content Views */}
             {activeView === 'overview' && (
               <div className="bg-[#15191e] border border-gray-800 rounded-lg overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-800">
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-300">
-                    All Followers ({followers.length.toLocaleString()})
-                  </h2>
+                <div className="px-6 py-4 border-b border-gray-800 bg-[#0f1419]">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-300">
+                      All Followers ({followers.length.toLocaleString()} total)
+                    </h2>
+                    {displayLimit < filteredFollowers.length && (
+                      <div className="text-xs text-yellow-400 bg-yellow-400/10 px-3 py-1 rounded border border-yellow-400/30">
+                        📊 Showing {displayLimit} of {filteredFollowers.length.toLocaleString()} - Scroll down to load more
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -1085,12 +1149,24 @@ export default function CompleteDashboard() {
                   </table>
                 </div>
                 {displayLimit < filteredFollowers.length && (
-                  <div className="px-6 py-4 border-t border-gray-800 flex items-center justify-center">
+                  <div className="px-6 py-6 border-t-2 border-yellow-400/30 bg-gradient-to-r from-yellow-400/5 to-orange-400/5 flex flex-col items-center justify-center gap-3">
+                    <div className="text-center">
+                      <p className="text-yellow-400 font-bold mb-1">⬇️ More Followers Below ⬇️</p>
+                      <p className="text-xs text-gray-400">
+                        Showing {displayLimit} of {filteredFollowers.length.toLocaleString()} followers
+                      </p>
+                    </div>
                     <button
-                      onClick={() => setDisplayLimit(prev => prev + 50)}
-                      className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors"
+                      onClick={() => setDisplayLimit(prev => prev + 100)}
+                      className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg text-sm font-bold transition-all transform hover:scale-105 shadow-lg"
                     >
-                      Load More ({filteredFollowers.length - displayLimit} remaining)
+                      📥 Load 100 More Followers ({filteredFollowers.length - displayLimit} remaining)
+                    </button>
+                    <button
+                      onClick={() => setDisplayLimit(filteredFollowers.length)}
+                      className="text-xs text-gray-400 hover:text-blue-400 underline transition-colors"
+                    >
+                      or click here to load ALL {filteredFollowers.length.toLocaleString()} at once
                     </button>
                   </div>
                 )}

@@ -1196,10 +1196,10 @@ const puppeteer = require('puppeteer');
     }
   }
   
-  console.log('📜 Starting aggressive scrolling to extract followers...');
+  console.log('📜 Starting aggressive scrolling to extract ALL followers...');
   const followers = [];
-  const maxScrolls = 50; // Balanced for up to 1000 followers (each scroll ~20-30 followers)
-  const targetFollowerCount = 1000; // Safe limit to prevent sandbox timeouts
+  const maxScrolls = 150; // Increased to handle large accounts (804+ followers)
+  // NO artificial follower cap - users pay for credits, extract everything available
   
   for (let i = 0; i < maxScrolls; i++) {
     console.log(\`📜 Scroll \${i + 1}/\${maxScrolls}\`);
@@ -1336,11 +1336,8 @@ const puppeteer = require('puppeteer');
     
     console.log(\`Found \${newFollowers.length} new followers (total: \${followers.length})\`);
     
-    // Stop if we've reached target count to prevent timeout
-    if (followers.length >= targetFollowerCount) {
-      console.log(\`✅ Reached target of \${targetFollowerCount} followers, stopping extraction\`);
-      break;
-    }
+    // Continue extracting - user's credit limit will be enforced by API
+    // No artificial caps here - unfollower detection needs complete lists
     
     // Scroll down aggressively
     await page.evaluate(() => {
@@ -1350,10 +1347,15 @@ const puppeteer = require('puppeteer');
     // Wait for new content (reduced wait time) - using setTimeout
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Stop if no new followers for several scrolls
-    if (newFollowers.length === 0 && i > 10) {
-      console.log('✅ No new followers found after 10+ scrolls, extraction complete');
+    // Stop if no new followers for several scrolls (be patient for complete extraction)
+    if (newFollowers.length === 0 && i > 20) {
+      console.log('✅ No new followers found after 20+ scrolls, extraction complete');
       break;
+    }
+    
+    // Also log progress every 10 scrolls
+    if (i % 10 === 0 && i > 0) {
+      console.log('📊 Progress: ' + followers.length + ' followers extracted after ' + i + ' scrolls');
     }
   }
   
