@@ -164,21 +164,40 @@ export async function POST(request: NextRequest) {
         console.log(`Storing ${result.followers.length} followers to database...`)
         const batch = adminDb.batch()
         const followersRef = adminDb.collection('users').doc(userId).collection('followers')
+        const now = new Date()
+        
+        // Check which followers already exist to preserve their first_seen date
+        const existingFollowersSnapshot = await followersRef
+          .where('target_username', '==', xUsername.toLowerCase())
+          .get()
+        
+        const existingFollowers = new Set(
+          existingFollowersSnapshot.docs.map(doc => doc.data().username)
+        )
         
         for (const follower of result.followers) {
           const followerDoc = followersRef.doc(follower.username)
-          batch.set(followerDoc, {
+          const isExistingFollower = existingFollowers.has(follower.username)
+          
+          const followerData: any = {
             ...follower,
             target_username: xUsername.toLowerCase(),
             scan_id: scanId,
-            extracted_at: new Date(),
-            first_seen: new Date(), // Will be preserved if already exists via merge
+            extracted_at: now,
+            last_seen: now,
             status: 'active'
-          }, { merge: true })
+          }
+          
+          // Only set first_seen for NEW followers
+          if (!isExistingFollower) {
+            followerData.first_seen = now
+          }
+          
+          batch.set(followerDoc, followerData, { merge: true })
         }
         
         await batch.commit()
-        console.log(`✅ Stored ${result.followers.length} followers to database`)
+        console.log(`✅ Stored ${result.followers.length} followers (${result.followers.length - existingFollowers.size} new)`)
       }
       
       // Check for unfollowers if this is a re-scan

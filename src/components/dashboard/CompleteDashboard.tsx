@@ -3,6 +3,7 @@
 import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import FollowerDetailModal from './FollowerDetailModal'
 
 export default function CompleteDashboard() {
   const { user, logout } = useAuth()
@@ -27,6 +28,7 @@ export default function CompleteDashboard() {
   const [previousExtractionDate, setPreviousExtractionDate] = useState<string | null>(null)
   const [generatingGamma, setGeneratingGamma] = useState<string | null>(null)
   const [credits, setCredits] = useState<any>(null)
+  const [selectedFollower, setSelectedFollower] = useState<any | null>(null)
 
   useEffect(() => {
     if (user) {
@@ -1147,7 +1149,11 @@ export default function CompleteDashboard() {
                     </thead>
                     <tbody className="divide-y divide-gray-800">
                       {displayedFollowers.map((follower, idx) => (
-                        <tr key={idx} className="hover:bg-[#1a1f26] transition-colors">
+                        <tr 
+                          key={idx} 
+                          className="hover:bg-[#1a1f26] transition-colors cursor-pointer"
+                          onClick={() => setSelectedFollower(follower)}
+                        >
                           <td className="px-6 py-3">
                             <div className="flex items-center gap-3">
                               <img src={follower.profileImage} alt="" className="w-8 h-8 rounded-full" />
@@ -1167,13 +1173,13 @@ export default function CompleteDashboard() {
                             {follower.bio || <span className="text-gray-700">No bio</span>}
                           </td>
                           <td className="px-6 py-3">
-                            <div className="flex items-center gap-2 justify-center">
-                              <Link
-                                href={`/analysis-results?username=${follower.username}`}
-                                className="px-2 py-1 bg-purple-600 hover:bg-purple-700 rounded text-xs font-medium transition-colors whitespace-nowrap"
+                            <div className="flex items-center gap-2 justify-center" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={() => setSelectedFollower(follower)}
+                                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-xs font-medium transition-colors whitespace-nowrap"
                               >
-                                📊 Analyze
-                              </Link>
+                                👁️ View Details
+                              </button>
                               <button
                                 onClick={() => generateFollowerGamma(follower.username)}
                                 disabled={generatingGamma === follower.username}
@@ -1421,6 +1427,15 @@ export default function CompleteDashboard() {
           </>
         )}
       </main>
+      
+      {/* Follower Detail Modal */}
+      {selectedFollower && (
+        <FollowerDetailModal
+          follower={selectedFollower}
+          onClose={() => setSelectedFollower(null)}
+          targetUsername={selectedAccount || myAccount || undefined}
+        />
+      )}
     </div>
   )
 }
