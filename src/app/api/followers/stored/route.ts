@@ -16,7 +16,11 @@ export async function GET(request: NextRequest) {
     const decodedToken = await adminAuth.verifyIdToken(idToken)
     const userId = decodedToken.uid
 
-    console.log(`[Stored Followers] Loading for user: ${userId}`)
+    // Check if requesting specific account (for competitor switching)
+    const { searchParams } = new URL(request.url)
+    const requestedUsername = searchParams.get('username')?.toLowerCase()
+    
+    console.log(`[Stored Followers] Loading for user: ${userId}${requestedUsername ? `, account: @${requestedUsername}` : ''}`)
 
     // Get user metadata
     const userDoc = await adminDb.collection('users').doc(userId).get()
@@ -52,8 +56,8 @@ export async function GET(request: NextRequest) {
     const followersUsed = usageData.followers_extracted || 0
     const remainingFollowers = limit === null ? null : Math.max((limit || 0) - followersUsed, 0)
 
-    // Get target username from user doc
-    const targetUsername = userData?.target_username?.toLowerCase() || null
+    // Use requested username if provided, otherwise fall back to user's main account
+    const targetUsername = requestedUsername || userData?.target_username?.toLowerCase() || null
 
     // Get all stored followers for this target account
     const followersSnapshot = targetUsername
@@ -74,10 +78,11 @@ export async function GET(request: NextRequest) {
           .get()
 
     if (followersSnapshot.empty) {
+      console.log(`[Stored Followers] No followers found for @${targetUsername || 'unknown'}`)
       return NextResponse.json({
         followers: [],
         total: 0,
-        targetUsername: null,
+        targetUsername: targetUsername, // Return the account we tried to load
         usage: {
           month,
           year,
@@ -127,7 +132,7 @@ export async function GET(request: NextRequest) {
       success: true,
       followers,
       total: followers.length,
-      targetUsername: userData?.target_username || null,
+      targetUsername: targetUsername, // Return the account we actually loaded
       stats,
       usage: {
         month,
