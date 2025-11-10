@@ -1,8 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase-admin'
+import { getGammaClient } from '@/lib/gamma-enhanced'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60 // Allow up to 60 seconds for Gamma generation
+
+// Background polling for Gamma completion
+async function pollGammaCompletion(
+  reportId: string,
+  gammaGenerationId: string,
+  gammaClient: any
+) {
+  try {
+    const result = await gammaClient.waitForCompletion(gammaGenerationId, {
+      maxWaitTime: 180000, // 3 minutes
+      pollInterval: 5000, // 5 seconds
+      onProgress: (status: any) => {
+        console.log('[Gamma] Progress:', { reportId, status: status.status })
+      }
+    })
+    
+    // Update Firebase with completion
+    await adminDb.collection('gamma_reports').doc(reportId).update({
+      status: 'completed',
+      url: result.urls?.gamma,
+      pdfUrl: result.urls?.pdf,
+      pptxUrl: result.urls?.pptx,
+      completedAt: new Date(),
+      warnings: result.warnings || []
+    })
+    
+    console.log('[Gamma] Completed:', { reportId, urls: result.urls })
+    
+  } catch (error: any) {
+    console.error('[Gamma] Polling failed:', error)
+    await adminDb.collection('gamma_reports').doc(reportId).update({
+      status: 'failed',
+      error: error.message,
+      updatedAt: new Date()
+    })
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,9 +54,13 @@ export async function POST(request: NextRequest) {
     const userId = decodedToken.uid
 
     const body = await request.json()
-    const { follower, analysisId, username, targetUsername, customPrompt } = body
+    const { follower, analysisId, username, targetUsername, customPrompt, format, exportAs } = body
     
-    console.log('[Gamma] Custom prompt:', customPrompt || 'Using default analysis')
+    console.log('[Gamma] Request:', { 
+      customPrompt: customPrompt || 'default',
+      format: format || 'presentation',
+      exportAs: exportAs || 'none'
+    })
 
     // Handle two cases:
     // 1. Full follower object from analysis (has category, influenceScore, etc)
@@ -235,59 +277,83 @@ ${followerData.actionRecommendation}
       analysisType: customPrompt ? 'custom' : 'standard'
     })
 
-    // Call Gamma API to actually generate the report
+    // Call Gamma API with FULL v1.0 capabilities
     if (process.env.GAMMA_API_KEY) {
       try {
-        // Use Gamma's public API v0.2 endpoint (correct format)
-        const gammaResponse = await fetch('https://public-api.gamma.app/v0.2/generations', {
-          method: 'POST',
-          headers: {
-            'X-API-Key': process.env.GAMMA_API_KEY,
-            'Content-Type': 'application/json'
+        const gamma = getGammaClient()
+        
+        // Determine format based on user request
+        const requestedFormat = format || 'presentation' // presentation, document, social, webpage
+        
+        // Generate with enhanced options
+        const result = await gamma.generate({
+          inputText: markdownContent,
+          textMode: customPrompt ? 'generate' : 'preserve',
+          format: requestedFormat,
+          numCards: requestedFormat === 'presentation' ? 10 : undefined,
+          
+          // AI Image generation with professional style
+          imageOptions: {
+            source: 'aiGenerated',
+            model: 'flux-1-pro',
+            style: `professional, vibrant, modern, ${followerData.category.toLowerCase()}-themed, high quality`
           },
-          body: JSON.stringify({
-            inputText: markdownContent,
-            textMode: 'preserve',
-            format: 'document',
-            textOptions: {
-              language: 'en'
-            }
-            // Note: theme selection handled by Gamma's AI
-          })
+          
+          // Text customization
+          textOptions: {
+            amount: 'medium',
+            tone: customPrompt ? 'engaging, informative' : 'professional',
+            audience: 'business professionals, marketers, content creators',
+            language: 'en'
+          },
+          
+          // Card dimensions based on format
+          cardOptions: requestedFormat === 'social' ? {
+            dimensions: '1:1' // Square for social media
+          } : requestedFormat === 'webpage' ? {
+            dimensions: '16:9'
+          } : undefined,
+          
+          // Export options
+          exportAs: exportAs || undefined, // 'pdf', 'pptx', or 'both'
+          
+          // Additional customization
+          additionalInstructions: customPrompt ? 
+            `Focus the analysis on: ${customPrompt}. Use engaging visuals that match the ${followerData.category} category.` :
+            `Create a professional follower analysis report with data visualizations.`,
+          
+          // Sharing settings
+          sharingOptions: {
+            workspaceAccess: 'view',
+            externalAccess: 'view'
+          }
         })
-
-        if (gammaResponse.ok) {
-          const gammaData = await gammaResponse.json()
-          const generationGammaId = gammaData.id || gammaData.generationId
-          
-          // Gamma API returns generation ID, need to poll for URL
-          // Store generation ID and let frontend poll for completion
-          await adminDb.collection('gamma_reports').doc(generationId).update({
-            status: 'generating',
-            gammaGenerationId: generationGammaId,
-            statusUrl: `https://public-api.gamma.app/v0.2/generations/${generationGammaId}`,
-            updatedAt: new Date()
-          })
-          
-          console.log('[Gamma] Generation started:', {
-            generationId,
-            gammaGenerationId: generationGammaId,
-            follower: followerData.username,
-            message: 'Frontend will poll for completion'
-          })
-          
-          // Note: Frontend polls for completion via /api/gamma/status
-          // This allows proper timeout handling and user feedback
-        } else {
-          const errorText = await gammaResponse.text()
-          console.error('[Gamma] API error response:', {
-            status: gammaResponse.status,
-            statusText: gammaResponse.statusText,
-            body: errorText,
-            apiKey: process.env.GAMMA_API_KEY ? 'Present (hidden)' : 'Missing'
-          })
-          throw new Error(`Gamma API request failed: ${gammaResponse.status} - ${errorText}`)
-        }
+        
+        // Store generation info
+        await adminDb.collection('gamma_reports').doc(generationId).update({
+          status: 'generating',
+          gammaGenerationId: result.id,
+          format: requestedFormat,
+          exportAs: exportAs || null,
+          warnings: result.warnings || [],
+          updatedAt: new Date()
+        })
+        
+        console.log('[Gamma] Enhanced generation started:', {
+          generationId,
+          gammaGenerationId: result.id,
+          follower: followerData.username,
+          format: requestedFormat,
+          exportAs: exportAs || 'none',
+          warnings: result.warnings?.length || 0
+        })
+        
+        // Start background polling for completion
+        // This runs async without blocking the response
+        pollGammaCompletion(generationId, result.id, gamma).catch(err => {
+          console.error('[Gamma] Polling error:', err)
+        })
+        
       } catch (gammaError: any) {
         console.error('[Gamma] Generation error:', {
           message: gammaError.message,
@@ -295,12 +361,12 @@ ${followerData.actionRecommendation}
           follower: followerData.username
         })
         
-        // Fall back to simulation with helpful message
+        // Fall back to simulation
         await adminDb.collection('gamma_reports').doc(generationId).update({
           status: 'completed',
           url: `https://gamma.app/docs/follower-analysis-${followerData.username.toLowerCase()}-${generationId}`,
           completedAt: new Date(),
-          note: `Simulated (API Error: ${gammaError.message}). This is a demo link. Add valid GAMMA_API_KEY to Vercel environment variables for real Gamma generation.`,
+          note: `Simulated (API Error: ${gammaError.message}). Add valid GAMMA_API_KEY to Vercel.`,
           isSimulated: true
         })
       }

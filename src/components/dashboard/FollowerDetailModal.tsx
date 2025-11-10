@@ -14,6 +14,8 @@ export default function FollowerDetailModal({ follower, onClose, targetUsername 
   const [generatingGamma, setGeneratingGamma] = useState(false)
   const [gammaPrompt, setGammaPrompt] = useState('Analyze this user\'s influence and engagement potential')
   const [showPromptInput, setShowPromptInput] = useState(false)
+  const [gammaFormat, setGammaFormat] = useState<'presentation' | 'document' | 'social' | 'webpage'>('presentation')
+  const [gammaExport, setGammaExport] = useState<'pdf' | 'pptx' | 'both' | null>(null)
   
   const generateGamma = async () => {
     if (!user) return
@@ -31,12 +33,23 @@ export default function FollowerDetailModal({ follower, onClose, targetUsername 
         body: JSON.stringify({ 
           username: follower.username,
           targetUsername: targetUsername || follower.username,
-          customPrompt: gammaPrompt
+          customPrompt: gammaPrompt,
+          format: gammaFormat,
+          exportAs: gammaExport
         })
       })
       
       if (response.ok) {
-        alert(`✅ Gamma report queued for @${follower.username}!\n\nPrompt: "${gammaPrompt}"\n\n⏰ This will take a few minutes to generate.\nCheck the AI Analysis page when done!`)
+        const formatName = {
+          presentation: 'Presentation',
+          document: 'Document',
+          social: 'Social Media Post',
+          webpage: 'Webpage'
+        }[gammaFormat]
+        
+        const exportInfo = gammaExport ? `\nExporting as: ${gammaExport.toUpperCase()}` : ''
+        
+        alert(`✅ Gamma ${formatName} queued for @${follower.username}!\n\nPrompt: "${gammaPrompt}"${exportInfo}\n\n⏰ This will take 2-3 minutes to generate.\nCheck the AI Analysis page when done!`)
         onClose()
       } else {
         const error = await response.json()
@@ -192,7 +205,7 @@ export default function FollowerDetailModal({ follower, onClose, targetUsername 
           </button>
           
           {showPromptInput && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
                   What should the Gamma analyze?
@@ -233,6 +246,94 @@ export default function FollowerDetailModal({ follower, onClose, targetUsername 
                     className="px-3 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded text-xs text-gray-300 transition-colors"
                   >
                     🤝 Partnership Fit
+                  </button>
+                </div>
+              </div>
+              
+              {/* Format Selection */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                  🎨 Output Format
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setGammaFormat('presentation')}
+                    className={`px-3 py-2 border rounded text-sm transition-colors ${
+                      gammaFormat === 'presentation'
+                        ? 'bg-purple-600 border-purple-500 text-white'
+                        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+                    }`}
+                  >
+                    📊 Presentation
+                  </button>
+                  <button
+                    onClick={() => setGammaFormat('document')}
+                    className={`px-3 py-2 border rounded text-sm transition-colors ${
+                      gammaFormat === 'document'
+                        ? 'bg-purple-600 border-purple-500 text-white'
+                        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+                    }`}
+                  >
+                    📄 Document
+                  </button>
+                  <button
+                    onClick={() => setGammaFormat('social')}
+                    className={`px-3 py-2 border rounded text-sm transition-colors ${
+                      gammaFormat === 'social'
+                        ? 'bg-purple-600 border-purple-500 text-white'
+                        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+                    }`}
+                  >
+                    📱 Social Post
+                  </button>
+                  <button
+                    onClick={() => setGammaFormat('webpage')}
+                    className={`px-3 py-2 border rounded text-sm transition-colors ${
+                      gammaFormat === 'webpage'
+                        ? 'bg-purple-600 border-purple-500 text-white'
+                        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+                    }`}
+                  >
+                    🌐 Webpage
+                  </button>
+                </div>
+              </div>
+              
+              {/* Export Options */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                  📥 Export Options (Optional)
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setGammaExport(gammaExport === 'pdf' ? null : 'pdf')}
+                    className={`flex-1 px-3 py-2 border rounded text-sm transition-colors ${
+                      gammaExport === 'pdf'
+                        ? 'bg-blue-600 border-blue-500 text-white'
+                        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+                    }`}
+                  >
+                    PDF
+                  </button>
+                  <button
+                    onClick={() => setGammaExport(gammaExport === 'pptx' ? null : 'pptx')}
+                    className={`flex-1 px-3 py-2 border rounded text-sm transition-colors ${
+                      gammaExport === 'pptx'
+                        ? 'bg-blue-600 border-blue-500 text-white'
+                        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+                    }`}
+                  >
+                    PPTX
+                  </button>
+                  <button
+                    onClick={() => setGammaExport(gammaExport === 'both' ? null : 'both')}
+                    className={`flex-1 px-3 py-2 border rounded text-sm transition-colors ${
+                      gammaExport === 'both'
+                        ? 'bg-blue-600 border-blue-500 text-white'
+                        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+                    }`}
+                  >
+                    Both
                   </button>
                 </div>
               </div>
