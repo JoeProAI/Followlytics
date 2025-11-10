@@ -4,6 +4,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import FollowerDetailModal from './FollowerDetailModal'
+import SubscriptionBadge from './SubscriptionBadge'
+import TierCapabilities from './TierCapabilities'
 
 export default function CompleteDashboard() {
   const { user, logout } = useAuth()
@@ -551,16 +553,7 @@ export default function CompleteDashboard() {
           <div className="flex items-center gap-6">
             {subscription && (
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-3">
-                  <span className={`text-xs px-3 py-1 rounded uppercase font-semibold ${
-                    subscription.tier === 'enterprise' ? 'bg-purple-500/20 text-purple-400' :
-                    subscription.tier === 'pro' ? 'bg-blue-500/20 text-blue-400' :
-                    subscription.tier === 'starter' ? 'bg-green-500/20 text-green-400' :
-                    'bg-gray-500/20 text-gray-400'
-                  }`}>
-                    {subscription.tier}
-                  </span>
-                </div>
+                <SubscriptionBadge tier={subscription.tier} showUpgrade={true} />
                 
                 {/* Scan Tracking */}
                 {usage && (
@@ -570,7 +563,7 @@ export default function CompleteDashboard() {
                       <span className="text-blue-400 font-mono font-semibold ml-2">{usage.extractions_count || 0}</span>
                       <span className="text-gray-600 mx-1">/</span>
                       <span className="text-gray-500">
-                        {subscription.tier === 'free' ? '5' :
+                        {subscription.tier === 'free' || subscription.tier === 'beta' ? '5' :
                          subscription.tier === 'starter' ? '50' :
                          subscription.tier === 'pro' ? '200' :
                          'Unlimited'}
@@ -578,18 +571,6 @@ export default function CompleteDashboard() {
                     </div>
                   </div>
                 )}
-
-                {/* Follower Limit */}
-                <div className="text-xs text-gray-400 flex items-center gap-2 border-l border-gray-700 pl-4">
-                  <span className="text-blue-400 font-mono font-semibold">{stats?.total || 0}</span>
-                  <span>/</span>
-                  <span className="text-gray-500">500,000</span>
-                  <span className="text-gray-600">followers</span>
-                </div>
-
-                <Link href="/pricing" className="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-white font-medium">
-                  {subscription.tier === 'free' ? 'UPGRADE' : 'VIEW PLANS'}
-                </Link>
               </div>
             )}
             <span className="text-sm text-gray-400 font-mono">{user?.email}</span>
@@ -647,6 +628,29 @@ export default function CompleteDashboard() {
                 Re-scanning will NOT use additional quota - only NEW followers count toward your limit.
               </p>
             </div>
+          </div>
+        )}
+
+        {/* Tier Capabilities Card - Shows what user can do with their plan */}
+        {subscription && credits && (
+          <div className="mb-6">
+            <TierCapabilities 
+              tier={subscription.tier} 
+              credits={{
+                followers: {
+                  used: credits.followers?.used || 0,
+                  total: credits.followers?.total || 2000
+                },
+                ai_analysis: {
+                  used: credits.ai_analysis?.used || 0,
+                  total: credits.ai_analysis?.total || 10
+                },
+                tweet_generation: {
+                  used: credits.tweet_generation?.used || 0,
+                  total: credits.tweet_generation?.total || 5
+                }
+              }}
+            />
           </div>
         )}
         
