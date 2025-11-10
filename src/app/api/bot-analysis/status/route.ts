@@ -45,6 +45,10 @@ export async function GET(request: NextRequest) {
       status: scanData?.status,
       progress: scanData?.progress,
       analysis: scanData?.analysis || null, // ONLY aggregate statistics
+      gammaUrl: scanData?.gammaUrl || null,
+      gammaPdfUrl: scanData?.gammaPdfUrl || null,
+      gammaPptxUrl: scanData?.gammaPptxUrl || null,
+      gammaStatus: scanData?.gammaStatus || null,
       createdAt: scanData?.createdAt?.toDate?.().toISOString(),
       completedAt: scanData?.completedAt?.toDate?.().toISOString(),
       error: scanData?.error

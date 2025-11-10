@@ -25,6 +25,8 @@ export default function BotAnalysisCard() {
   const [username, setUsername] = useState('')
   const [result, setResult] = useState<BotAnalysisResult | null>(null)
   const [error, setError] = useState('')
+  const [generateGamma, setGenerateGamma] = useState(false)
+  const [gammaUrl, setGammaUrl] = useState('')
 
   const startAnalysis = async () => {
     if (!username.trim()) {
@@ -46,7 +48,10 @@ export default function BotAnalysisCard() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ username: username.replace('@', '') })
+        body: JSON.stringify({ 
+          username: username.replace('@', ''),
+          generateGamma
+        })
       })
 
       if (!response.ok) {
@@ -76,6 +81,9 @@ export default function BotAnalysisCard() {
             if (statusData.status === 'completed' && statusData.analysis) {
               clearInterval(pollInterval)
               setResult(statusData.analysis)
+              if (statusData.gammaUrl) {
+                setGammaUrl(statusData.gammaUrl)
+              }
               setAnalyzing(false)
             } else if (statusData.status === 'failed') {
               clearInterval(pollInterval)
@@ -121,7 +129,7 @@ export default function BotAnalysisCard() {
         </div>
         <div>
           <h3 className="text-xl font-bold text-white">Bot Detection</h3>
-          <p className="text-sm text-gray-400">Analyze audience quality</p>
+          <p className="text-sm text-gray-400">Analyze ANY public account</p>
         </div>
       </div>
 
@@ -129,14 +137,14 @@ export default function BotAnalysisCard() {
       <div className="space-y-4 mb-6">
         <div>
           <label className="block text-sm font-medium text-gray-400 mb-2">
-            Username to analyze
+            Username to analyze (any public account)
           </label>
           <div className="flex gap-2">
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="@username"
+              placeholder="@elonmusk"
               className="flex-1 px-4 py-2 bg-[#0f1419] border border-gray-700 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500"
               disabled={analyzing}
             />
@@ -148,6 +156,21 @@ export default function BotAnalysisCard() {
               {analyzing ? 'Analyzing...' : 'Analyze'}
             </button>
           </div>
+        </div>
+        
+        {/* Gamma Report Option */}
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="generateGamma"
+            checked={generateGamma}
+            onChange={(e) => setGenerateGamma(e.target.checked)}
+            disabled={analyzing}
+            className="w-4 h-4 bg-[#0f1419] border-gray-700 rounded text-purple-600 focus:ring-purple-500"
+          />
+          <label htmlFor="generateGamma" className="text-sm text-gray-300 cursor-pointer">
+            🎨 Also generate Gamma presentation report (+2 min)
+          </label>
         </div>
 
         {error && (
@@ -258,17 +281,25 @@ export default function BotAnalysisCard() {
             </div>
           )}
 
-          {/* Generate Gamma Report Button */}
-          <div className="pt-4 border-t border-gray-800">
-            <button
-              className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-medium rounded-lg transition-all"
-              onClick={() => {
-                alert('🎨 Gamma report generation coming soon! This will create a beautiful presentation of your bot analysis.')
-              }}
-            >
-              🎨 Generate Gamma Report
-            </button>
-          </div>
+          {/* Gamma Report */}
+          {gammaUrl ? (
+            <div className="pt-4 border-t border-gray-800">
+              <a
+                href={gammaUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-medium rounded-lg transition-all text-center"
+              >
+                🎨 View Gamma Presentation Report →
+              </a>
+            </div>
+          ) : generateGamma && !analyzing ? (
+            <div className="pt-4 border-t border-gray-800">
+              <div className="text-sm text-gray-400 text-center">
+                ⏳ Gamma report is being generated...
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
 

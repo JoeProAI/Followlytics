@@ -23,13 +23,14 @@ export async function POST(request: NextRequest) {
     const decodedToken = await adminAuth.verifyIdToken(idToken)
     const userId = decodedToken.uid
 
-    const { username } = await request.json()
+    const { username, generateGamma } = await request.json()
 
     if (!username) {
       return NextResponse.json({ error: 'Username is required' }, { status: 400 })
     }
 
     console.log(`[Bot Analysis] Starting scan for @${username}`)
+    console.log(`[Bot Analysis] Generate Gamma report: ${generateGamma ? 'YES' : 'NO'}`)
 
     // Check credit balance (uses follower credits - 1000 followers analyzed)
     const hasCredits = await checkCredits(userId, 'followers', 1000)
@@ -49,16 +50,17 @@ export async function POST(request: NextRequest) {
       userId,
       username: username.toLowerCase(),
       status: 'analyzing',
+      generateGamma: generateGamma || false,
       createdAt: new Date(),
       progress: {
-        phase: 'extracting',
-        percentage: 10,
-        message: 'Extracting follower data for analysis...'
+        phase: 'initializing',
+        percentage: 0,
+        message: 'Starting bot analysis...'
       }
     })
 
     // Start analysis in background
-    analyzeBots(userId, username, scanId).catch(err => {
+    analyzeBots(userId, username, scanId, generateGamma).catch(err => {
       console.error('[Bot Analysis] Background analysis failed:', err)
     })
 
@@ -79,7 +81,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Background analysis function
-async function analyzeBots(userId: string, username: string, scanId: string) {
+async function analyzeBots(userId: string, username: string, scanId: string, generateGamma: boolean = false) {
   const scanRef = adminDb.collection('users').doc(userId).collection('bot_scans').doc(scanId)
   
   try {
@@ -165,17 +167,64 @@ async function analyzeBots(userId: string, username: string, scanId: string) {
     console.log(`[Bot Analysis] Scan ${scanId} completed successfully`)
 
     // Step 4: Generate Gamma report with bot analysis
-    if (process.env.GAMMA_API_KEY) {
+    if (generateGamma && process.env.GAMMA_API_KEY) {
       try {
         console.log('[Bot Analysis] Generating Gamma report...')
         
+        const { getGammaClient } = await import('@/lib/gamma-enhanced')
+        const gamma = getGammaClient()
+        
         const reportMarkdown = BotDetector.generateBotReport(analysis)
         
-        // This will be handled by a separate endpoint
-        // Just log for now
-        console.log('[Bot Analysis] Gamma report would be generated here')
-      } catch (gammaError) {
+        // Generate Gamma presentation with bot analysis
+        const gammaResult = await gamma.generate({
+          inputText: reportMarkdown,
+          textMode: 'preserve',
+          format: 'presentation',
+          numCards: 8,
+          
+          imageOptions: {
+            source: 'aiGenerated',
+            model: 'flux-1-pro',
+            style: 'professional, cybersecurity, data visualization, modern, high-tech'
+          },
+          
+          textOptions: {
+            amount: 'medium',
+            tone: 'professional, analytical',
+            audience: 'business professionals, security analysts',
+            language: 'en'
+          },
+          
+          additionalInstructions: `Create a professional bot detection report for @${username}. 
+            Focus on security insights and data visualization. 
+            Use charts and graphs to illustrate the bot percentages and risk scores.`,
+          
+          sharingOptions: {
+            workspaceAccess: 'view',
+            externalAccess: 'view'
+          }
+        })
+        
+        console.log('[Bot Analysis] Gamma generation started:', gammaResult.id)
+        
+        // Store Gamma generation ID
+        await scanRef.update({
+          gammaGenerationId: gammaResult.id,
+          gammaStatus: 'generating'
+        })
+        
+        // Poll for Gamma completion (background)
+        pollGammaCompletion(scanId, gammaResult.id, gamma, userId).catch((err: any) => {
+          console.error('[Bot Analysis] Gamma polling failed:', err)
+        })
+        
+      } catch (gammaError: any) {
         console.error('[Bot Analysis] Gamma generation failed:', gammaError)
+        await scanRef.update({
+          gammaStatus: 'failed',
+          gammaError: gammaError.message
+        })
       }
     }
 
@@ -192,5 +241,49 @@ async function analyzeBots(userId: string, username: string, scanId: string) {
         message: `❌ Analysis failed: ${error.message}`
       }
     })
+  }
+}
+
+// Poll for Gamma completion
+async function pollGammaCompletion(
+  scanId: string,
+  gammaGenerationId: string,
+  gammaClient: any,
+  userId: string
+) {
+  try {
+    const result = await gammaClient.waitForCompletion(gammaGenerationId, {
+      maxWaitTime: 180000, // 3 minutes
+      pollInterval: 5000 // 5 seconds
+    })
+    
+    // Update scan with Gamma URLs
+    await adminDb
+      .collection('users')
+      .doc(userId)
+      .collection('bot_scans')
+      .doc(scanId)
+      .update({
+        gammaStatus: 'completed',
+        gammaUrl: result.urls?.gamma,
+        gammaPdfUrl: result.urls?.pdf,
+        gammaPptxUrl: result.urls?.pptx,
+        gammaCompletedAt: new Date()
+      })
+    
+    console.log('[Bot Analysis] Gamma report completed:', result.urls?.gamma)
+    
+  } catch (error: any) {
+    console.error('[Bot Analysis] Gamma polling error:', error)
+    
+    await adminDb
+      .collection('users')
+      .doc(userId)
+      .collection('bot_scans')
+      .doc(scanId)
+      .update({
+        gammaStatus: 'failed',
+        gammaError: error.message
+      })
   }
 }
