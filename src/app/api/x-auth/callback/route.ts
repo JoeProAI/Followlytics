@@ -73,6 +73,16 @@ export async function GET(request: NextRequest) {
       last_sync: new Date().toISOString()
     })
 
+    // Update user document with X connection status and username
+    await db.collection('users').doc(userId).update({
+      xConnected: true,
+      xUsername: userData.data?.username,
+      xUserId: userData.data?.id,
+      xConnectedAt: new Date().toISOString()
+    })
+
+    console.log(`✅ X OAuth complete for user ${userId} (@${userData.data?.username})`)
+
     // Delete used state
     await db.collection('x_oauth_states').doc(state).delete()
 

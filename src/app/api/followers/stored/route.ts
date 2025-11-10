@@ -56,8 +56,32 @@ export async function GET(request: NextRequest) {
     const followersUsed = usageData.followers_extracted || 0
     const remainingFollowers = limit === null ? null : Math.max((limit || 0) - followersUsed, 0)
 
-    // Use requested username if provided, otherwise fall back to user's main account
-    const targetUsername = requestedUsername || userData?.target_username?.toLowerCase() || null
+    // Determine target username with priority:
+    // 1. Requested username (for competitor switching)
+    // 2. X OAuth username (authenticated main account)
+    // 3. target_username field (manually set)
+    // 4. null (no account set yet)
+    let targetUsername: string | null = requestedUsername || null
+    
+    if (!targetUsername) {
+      // Try to get X OAuth username (most reliable)
+      if (userData?.xConnected && userData?.xUsername) {
+        targetUsername = userData.xUsername.toLowerCase()
+        console.log('[Stored Followers] Using X OAuth username as main account:', targetUsername)
+      } 
+      // Fall back to manually set target_username
+      else if (userData?.target_username) {
+        targetUsername = userData.target_username.toLowerCase()
+        console.log('[Stored Followers] Using target_username field as main account:', targetUsername)
+      }
+      // No main account set
+      else {
+        targetUsername = null
+        console.log('[Stored Followers] No main account detected - user needs to connect X or set target_username')
+      }
+    } else {
+      console.log('[Stored Followers] Using requested username (competitor view):', targetUsername)
+    }
 
     // Get all stored followers for this target account
     const followersSnapshot = targetUsername
