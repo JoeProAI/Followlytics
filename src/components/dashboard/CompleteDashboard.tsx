@@ -6,6 +6,7 @@ import Link from 'next/link'
 import FollowerDetailModal from './FollowerDetailModal'
 import SubscriptionBadge from './SubscriptionBadge'
 import TierCapabilities from './TierCapabilities'
+import SetMainAccount from './SetMainAccount'
 
 export default function CompleteDashboard() {
   const { user, logout } = useAuth()
@@ -628,6 +629,9 @@ export default function CompleteDashboard() {
             </div>
           </div>
         )}
+
+        {/* Set Main Account - Let user lock their main Twitter account */}
+        <SetMainAccount currentMainAccount={myAccount || undefined} />
 
         {/* Tier Capabilities Card - Shows what user can do with their plan */}
         {subscription && credits && (
