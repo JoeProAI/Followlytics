@@ -100,11 +100,39 @@ export default function CompleteDashboard() {
         const microInfluencers = followersList.filter((f: any) => (f.followersCount || 0) >= 1000 && (f.followersCount || 0) <= 100000).length
         const unfollowers = followersList.filter((f: any) => f.status === 'unfollowed').length
         
+        // Calculate "new followers" by finding the previous scan date from first_seen timestamps
         let newFollowersCutoff = new Date()
-        if (data.lastExtraction && data.lastExtraction !== data.extractedAt) {
-          newFollowersCutoff = new Date(data.lastExtraction)
-          setPreviousExtractionDate(data.lastExtraction)
+        const lastExtractionDate = data.usage?.last_extraction
+        
+        if (lastExtractionDate && followersList.length > 0) {
+          // Get all unique first_seen dates (these represent scan dates)
+          const scanDates = followersList
+            .filter((f: any) => f.first_seen)
+            .map((f: any) => new Date(f.first_seen).getTime())
+            .sort((a: number, b: number) => b - a) // Sort descending (newest first)
+          
+          // Find the second most recent scan date (previous scan)
+          if (scanDates.length > 1) {
+            const latestScanTime = scanDates[0]
+            // Find first scan that's at least 1 minute earlier than latest
+            const previousScanTime = scanDates.find((time: number) => time < latestScanTime - 60000)
+            
+            if (previousScanTime) {
+              newFollowersCutoff = new Date(previousScanTime)
+              setPreviousExtractionDate(new Date(previousScanTime).toISOString())
+              console.log('[Dashboard] Using previous scan date for new followers:', new Date(previousScanTime).toISOString())
+            } else {
+              // All followers from same scan, use 7 days
+              newFollowersCutoff.setDate(newFollowersCutoff.getDate() - 7)
+              console.log('[Dashboard] All followers from same scan, using 7 days')
+            }
+          } else {
+            // Only one scan date found
+            newFollowersCutoff.setDate(newFollowersCutoff.getDate() - 7)
+            console.log('[Dashboard] Only one scan found, using 7 days')
+          }
         } else {
+          // No extraction history, use 7 days
           newFollowersCutoff.setDate(newFollowersCutoff.getDate() - 7)
         }
         
@@ -113,6 +141,8 @@ export default function CompleteDashboard() {
           const firstSeenDate = new Date(f.first_seen)
           return firstSeenDate > newFollowersCutoff
         }).length
+        
+        console.log('[Dashboard] New followers count:', newFollowers, 'Cutoff:', newFollowersCutoff.toISOString())
         
         setStats({
           total: followersList.length,
@@ -161,12 +191,39 @@ export default function CompleteDashboard() {
         const unfollowers = followersList.filter((f: any) => f.status === 'unfollowed').length
         
         // Detect new followers (followers added since last extraction)
-        // If we have a previous extraction date, use that; otherwise fall back to 7 days
+        // Use the earliest first_seen date as the cutoff for "new"
         let newFollowersCutoff = new Date()
-        if (data.lastExtraction && data.lastExtraction !== data.extractedAt) {
-          newFollowersCutoff = new Date(data.lastExtraction)
-          setPreviousExtractionDate(data.lastExtraction)
+        const lastExtractionDate = data.usage?.last_extraction
+        
+        if (lastExtractionDate && followersList.length > 0) {
+          // Get all unique first_seen dates (these represent scan dates)
+          const scanDates = followersList
+            .filter((f: any) => f.first_seen)
+            .map((f: any) => new Date(f.first_seen).getTime())
+            .sort((a: number, b: number) => b - a) // Sort descending (newest first)
+          
+          // Find the second most recent scan date (previous scan)
+          if (scanDates.length > 1) {
+            const latestScanTime = scanDates[0]
+            // Find first scan that's at least 1 minute earlier than latest
+            const previousScanTime = scanDates.find((time: number) => time < latestScanTime - 60000)
+            
+            if (previousScanTime) {
+              newFollowersCutoff = new Date(previousScanTime)
+              setPreviousExtractionDate(new Date(previousScanTime).toISOString())
+              console.log('[Dashboard] (loadDashboard) Using previous scan date:', new Date(previousScanTime).toISOString())
+            } else {
+              // All followers from same scan, use 7 days
+              newFollowersCutoff.setDate(newFollowersCutoff.getDate() - 7)
+              console.log('[Dashboard] (loadDashboard) All followers from same scan, using 7 days')
+            }
+          } else {
+            // Only one scan date found
+            newFollowersCutoff.setDate(newFollowersCutoff.getDate() - 7)
+            console.log('[Dashboard] (loadDashboard) Only one scan found, using 7 days')
+          }
         } else {
+          // No extraction history, use 7 days
           newFollowersCutoff.setDate(newFollowersCutoff.getDate() - 7)
         }
         

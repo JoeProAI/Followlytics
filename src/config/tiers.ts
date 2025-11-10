@@ -48,7 +48,7 @@ export const TIER_CONFIGS: Record<TierName, TierConfig> = {
     stripePriceId: '', // No Stripe price for free tier
     
     credits: {
-      followers: 5_000,
+      followers: 2_000,  // 2,000/month allows few extractions without spam
       ai_analysis: 10,
       tweet_generation: 5,
     },
