@@ -20,20 +20,19 @@ export default function TierCapabilities({ tier, credits }: TierCapabilitiesProp
     upgradeMessage?: string
   }> = {
     beta: {
-      name: 'Free (Beta)',
-      followers: '2,000/month',
-      aiAnalysis: '10/month',
-      tweetGen: '5/month',
+      name: 'Beta (Pro Access)',
+      followers: '500,000/month',
+      aiAnalysis: '500/month',
+      tweetGen: '100/month',
       features: [
-        '✅ Track your followers',
-        '✅ Detect unfollowers',
-        '✅ Basic analytics',
-        '❌ No competitor tracking',
-        '❌ No email extraction',
-        '❌ No API access'
+        '✅ Track unlimited followers',
+        '✅ Growth tracking & trends',
+        '✅ Track 10 competitors',
+        '✅ Priority support',
+        '✅ API access',
+        '✅ Email extraction'
       ],
-      color: 'border-gray-700 bg-gray-800/50',
-      upgradeMessage: 'Upgrade to Starter for 50K followers/month + competitor tracking!'
+      color: 'border-purple-700 bg-purple-800/20'
     },
     free: {
       name: 'Free',

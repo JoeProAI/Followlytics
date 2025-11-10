@@ -9,9 +9,9 @@ interface SubscriptionBadgeProps {
 export default function SubscriptionBadge({ tier, className = '', showUpgrade = false }: SubscriptionBadgeProps) {
   const tierConfig = {
     beta: {
-      label: 'FREE',
-      color: 'bg-gray-500/20 text-gray-300 border-gray-500/40',
-      icon: '🆓'
+      label: 'BETA PRO',
+      color: 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-300 border-purple-500/40',
+      icon: '🚀'
     },
     free: {
       label: 'FREE',
@@ -48,7 +48,7 @@ export default function SubscriptionBadge({ tier, className = '', showUpgrade = 
         <span className="mr-1.5">{config.icon}</span>
         {config.label}
       </span>
-      {showUpgrade && (tier === 'free' || tier === 'beta') && (
+      {showUpgrade && tier === 'free' && (
         <a
           href="/pricing"
           className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg text-xs font-bold text-white uppercase tracking-wide transition-all transform hover:scale-105"

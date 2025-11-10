@@ -12,6 +12,8 @@ interface FollowerDetailModalProps {
 export default function FollowerDetailModal({ follower, onClose, targetUsername }: FollowerDetailModalProps) {
   const { user } = useAuth()
   const [generatingGamma, setGeneratingGamma] = useState(false)
+  const [gammaPrompt, setGammaPrompt] = useState('Analyze this user\'s influence and engagement potential')
+  const [showPromptInput, setShowPromptInput] = useState(false)
   
   const generateGamma = async () => {
     if (!user) return
@@ -28,12 +30,13 @@ export default function FollowerDetailModal({ follower, onClose, targetUsername 
         },
         body: JSON.stringify({ 
           username: follower.username,
-          targetUsername: targetUsername || follower.username
+          targetUsername: targetUsername || follower.username,
+          customPrompt: gammaPrompt
         })
       })
       
       if (response.ok) {
-        alert(`✅ Gamma report queued for @${follower.username}!\n\nCheck the AI Analysis page to view it once generated.`)
+        alert(`✅ Gamma report queued for @${follower.username}!\n\nPrompt: "${gammaPrompt}"\n\n⏰ This will take a few minutes to generate.\nCheck the AI Analysis page when done!`)
         onClose()
       } else {
         const error = await response.json()
@@ -177,6 +180,64 @@ export default function FollowerDetailModal({ follower, onClose, targetUsername 
               {follower.status === 'active' ? '✓ Following You' : '⚠️ Unfollowed'}
             </div>
           </div>
+        </div>
+        
+        {/* Custom Prompt Section */}
+        <div className="px-6 pb-4">
+          <button
+            onClick={() => setShowPromptInput(!showPromptInput)}
+            className="text-sm text-blue-400 hover:text-blue-300 underline mb-2"
+          >
+            {showPromptInput ? '↑ Hide' : '✏️ Customize Gamma Prompt'}
+          </button>
+          
+          {showPromptInput && (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                  What should the Gamma analyze?
+                </label>
+                <textarea
+                  value={gammaPrompt}
+                  onChange={(e) => setGammaPrompt(e.target.value)}
+                  placeholder="e.g., How cool is this user? What business opportunities exist?"
+                  className="w-full px-4 py-3 bg-[#0f1419] border border-gray-700 rounded-lg text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500 resize-none"
+                  rows={3}
+                />
+              </div>
+              
+              {/* Quick Prompt Templates */}
+              <div>
+                <div className="text-xs text-gray-500 mb-2">Quick templates:</div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setGammaPrompt('How cool and influential is this user?')}
+                    className="px-3 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded text-xs text-gray-300 transition-colors"
+                  >
+                    😎 Coolness Factor
+                  </button>
+                  <button
+                    onClick={() => setGammaPrompt('What business or collaboration opportunities exist with this user?')}
+                    className="px-3 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded text-xs text-gray-300 transition-colors"
+                  >
+                    💼 Business Potential
+                  </button>
+                  <button
+                    onClick={() => setGammaPrompt('Analyze this user\'s engagement style and audience demographics')}
+                    className="px-3 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded text-xs text-gray-300 transition-colors"
+                  >
+                    📊 Audience Analysis
+                  </button>
+                  <button
+                    onClick={() => setGammaPrompt('Is this user a potential brand partner or influencer?')}
+                    className="px-3 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded text-xs text-gray-300 transition-colors"
+                  >
+                    🤝 Partnership Fit
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         
         {/* Footer Actions */}

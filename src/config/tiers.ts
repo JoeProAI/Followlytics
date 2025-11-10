@@ -43,37 +43,37 @@ export interface TierConfig {
 export const TIER_CONFIGS: Record<TierName, TierConfig> = {
   beta: {
     name: 'beta',
-    displayName: 'Beta (Free)',
+    displayName: 'Beta (Free with Pro Access)',
     price: 0,
     stripePriceId: '', // No Stripe price for free tier
     
     credits: {
-      followers: 2_000,  // 2,000/month allows few extractions without spam
-      ai_analysis: 10,
-      tweet_generation: 5,
+      followers: 500_000,  // Same as Pro - beta testers get full access
+      ai_analysis: 500,    // Same as Pro
+      tweet_generation: 100, // Same as Pro
     },
     
     overageRates: {
-      followers: 2.00,      // Encourage upgrade
-      ai_analysis: 0.20,
-      tweet_generation: 1.00,
+      followers: 1.00,      // Same as Pro
+      ai_analysis: 0.10,
+      tweet_generation: 0.50,
     },
     
     features: {
-      growthTracking: false,
-      competitorAnalysis: false,
-      emailExtraction: false,
-      apiAccess: false,
-      teamSeats: 1,
-      prioritySupport: false,
+      growthTracking: true,      // Same as Pro
+      competitorAnalysis: true,  // Same as Pro
+      emailExtraction: true,     // Same as Pro
+      apiAccess: true,           // Same as Pro
+      teamSeats: 3,              // Same as Pro
+      prioritySupport: true,     // Same as Pro
       whiteLabel: false,
       customIntegrations: false,
     },
     
     limits: {
-      maxCompetitors: 0,
-      apiCallsPerDay: 0,
-      sandboxHoursPerMonth: 0,
+      maxCompetitors: 10,         // Same as Pro
+      apiCallsPerDay: 1000,       // Same as Pro
+      sandboxHoursPerMonth: 10,   // Same as Pro
     },
   },
   
