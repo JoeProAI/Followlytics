@@ -53,9 +53,14 @@ export default function CompleteDashboard() {
       const response = await fetch('/api/subscription', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
+      
+      let subscriptionData = null
       if (response.ok) {
-        const data = await response.json()
-        setSubscription(data)
+        subscriptionData = await response.json()
+        setSubscription(subscriptionData)
+        console.log('[Dashboard] Subscription loaded:', subscriptionData)
+      } else {
+        console.error('[Dashboard] Failed to load subscription:', response.status)
       }
       
       // Also load credit balances
@@ -66,6 +71,9 @@ export default function CompleteDashboard() {
         const creditsData = await creditsResponse.json()
         setCredits(creditsData)
         console.log('[Dashboard] Credit balances:', creditsData)
+        console.log('[Dashboard] TierCapabilities should show:', !!(subscriptionData && creditsData))
+      } else {
+        console.error('[Dashboard] Failed to load credits:', creditsResponse.status)
       }
     } catch (err) {
       console.error('Failed to load subscription:', err)
@@ -255,35 +263,25 @@ export default function CompleteDashboard() {
           newFollowers
         })
         
-        setMyAccount(data.targetUsername)
+        const mainAccountUsername = data.targetUsername
+        setMyAccount(mainAccountUsername)
         
-        // Initial stats setup
-        setStats({
-          total: followersList.length,
-          verified,
-          verifiedPct: followersList.length > 0 ? ((verified / followersList.length) * 100).toFixed(1) : '0',
-          avgFollowers,
-          withBio,
-          withBioPct: followersList.length > 0 ? ((withBio / followersList.length) * 100).toFixed(1) : '0',
-          highValue,
-          highValuePct: followersList.length > 0 ? ((highValue / followersList.length) * 100).toFixed(1) : '0',
-          microInfluencers,
-          microInfluencersPct: followersList.length > 0 ? ((microInfluencers / followersList.length) * 100).toFixed(1) : '0',
-          unfollowers,
-          newFollowers
+        // Load tracked accounts
+        const accountsRes = await fetch('/api/accounts/tracked', {
+          headers: { 'Authorization': `Bearer ${token}` }
         })
+        
+        if (accountsRes.ok) {
+          const accountsData = await accountsRes.json()
+          // Filter out the main account from tracked accounts (competitors only)
+          const competitors = (accountsData.accounts || []).filter(
+            (acc: any) => acc.username.toLowerCase() !== mainAccountUsername?.toLowerCase()
+          )
+          setTrackedAccounts(competitors)
+          console.log('[Dashboard] Main account:', mainAccountUsername, '| Competitors:', competitors.map((a: any) => a.username))
+        }
       }
       
-      // Load tracked accounts
-      const accountsRes = await fetch('/api/accounts/tracked', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      
-      if (accountsRes.ok) {
-        const accountsData = await accountsRes.json()
-        setTrackedAccounts(accountsData.accounts || [])
-      }
-
       // Load usage data for scan tracking
       const usageRes = await fetch('/api/usage/current', {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -544,7 +542,7 @@ export default function CompleteDashboard() {
               <div className="flex items-center gap-2 px-3 py-1 bg-blue-500/10 border border-blue-500/30 rounded">
                 <span className="text-xs text-gray-400">Viewing:</span>
                 <span className="text-sm font-mono text-blue-400">@{selectedAccount || myAccount}</span>
-                {selectedAccount && (
+                {selectedAccount && selectedAccount !== myAccount && (
                   <span className="text-xs text-purple-400">(Competitor)</span>
                 )}
               </div>
