@@ -121,7 +121,7 @@ export const TIER_CONFIGS: Record<TierName, TierConfig> = {
     popular: true,
     
     credits: {
-      followers: 300_000,
+      followers: 500_000,
       ai_analysis: 500,
       tweet_generation: 100,
     },

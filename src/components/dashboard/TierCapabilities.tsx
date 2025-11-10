@@ -68,7 +68,7 @@ export default function TierCapabilities({ tier, credits }: TierCapabilitiesProp
     },
     pro: {
       name: 'Pro',
-      followers: '200,000/month',
+      followers: '500,000/month',
       aiAnalysis: '500/month',
       tweetGen: '100/month',
       features: [
