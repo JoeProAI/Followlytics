@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import BotAnalysisCard from '@/components/dashboard/BotAnalysisCard'
 import RecentScansCard from '@/components/dashboard/RecentScansCard'
+import FollowerExportCard from '@/components/dashboard/FollowerExportCard'
 
 export default function BotDetectionDashboard() {
   const { user, loading } = useAuth()
@@ -122,6 +123,12 @@ export default function BotDetectionDashboard() {
           <div>
             <RecentScansCard />
           </div>
+        </div>
+
+        {/* Follower Export Section */}
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold text-white mb-4">Export Follower Lists</h2>
+          <FollowerExportCard />
         </div>
 
         {/* Info Section */}

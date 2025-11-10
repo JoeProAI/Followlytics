@@ -27,6 +27,8 @@ export default function BotAnalysisCard() {
   const [error, setError] = useState('')
   const [generateGamma, setGenerateGamma] = useState(false)
   const [gammaUrl, setGammaUrl] = useState('')
+  const [analysisFocus, setAnalysisFocus] = useState('')
+  const [useGrokDeepDive, setUseGrokDeepDive] = useState(false)
 
   const startAnalysis = async () => {
     if (!username.trim()) {
@@ -50,7 +52,9 @@ export default function BotAnalysisCard() {
         },
         body: JSON.stringify({ 
           username: username.replace('@', ''),
-          generateGamma
+          generateGamma,
+          analysisFocus: analysisFocus.trim() || undefined,
+          useGrokDeepDive
         })
       })
 
@@ -158,19 +162,58 @@ export default function BotAnalysisCard() {
           </div>
         </div>
         
-        {/* Gamma Report Option */}
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="generateGamma"
-            checked={generateGamma}
-            onChange={(e) => setGenerateGamma(e.target.checked)}
-            disabled={analyzing}
-            className="w-4 h-4 bg-[#0f1419] border-gray-700 rounded text-purple-600 focus:ring-purple-500"
-          />
-          <label htmlFor="generateGamma" className="text-sm text-gray-300 cursor-pointer">
-            🎨 Also generate Gamma presentation report (+2 min)
+        {/* Analysis Focus */}
+        <div>
+          <label className="block text-sm font-medium text-gray-400 mb-2">
+            What do you want to analyze? (optional)
           </label>
+          <textarea
+            value={analysisFocus}
+            onChange={(e) => setAnalysisFocus(e.target.value)}
+            placeholder="e.g., Is this influencer good for a partnership? Focus on engagement quality and brand safety."
+            className="w-full px-4 py-2 bg-[#0f1419] border border-gray-700 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 text-sm"
+            rows={3}
+            disabled={analyzing}
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Tell us what you want to know about this account - the report will be customized to your needs
+          </p>
+        </div>
+        
+        {/* Options */}
+        <div className="space-y-2">
+          {/* Gamma Report Option */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="generateGamma"
+              checked={generateGamma}
+              onChange={(e) => setGenerateGamma(e.target.checked)}
+              disabled={analyzing}
+              className="w-4 h-4 bg-[#0f1419] border-gray-700 rounded text-purple-600 focus:ring-purple-500"
+            />
+            <label htmlFor="generateGamma" className="text-sm text-gray-300 cursor-pointer">
+              🎨 Generate Gamma presentation report (+2 min)
+            </label>
+          </div>
+          
+          {/* Grok Deep Dive Option */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="useGrokDeepDive"
+              checked={useGrokDeepDive}
+              onChange={(e) => setUseGrokDeepDive(e.target.checked)}
+              disabled={analyzing}
+              className="w-4 h-4 bg-[#0f1419] border-gray-700 rounded text-blue-600 focus:ring-blue-500"
+            />
+            <label htmlFor="useGrokDeepDive" className="text-sm text-gray-300 cursor-pointer">
+              🤖 Grok AI deep dive research (+1 min)
+            </label>
+          </div>
+          <p className="text-xs text-gray-500 ml-6">
+            Grok will research the account with real-time web access and provide strategic insights
+          </p>
         </div>
 
         {error && (

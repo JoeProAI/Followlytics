@@ -49,8 +49,8 @@ export class ApifyFollowerExtractor {
       console.log(`[Apify] Max followers: ${options?.maxFollowers || 1000}`)
       
       // Use Apify's Twitter Follower Scraper actor
-      // Actor ID: quacker/twitter-followers
-      const run = await this.client.actor('quacker/twitter-followers').call({
+      // Actor ID: curious_coder/twitter-scraper (correct actor name)
+      const run = await this.client.actor('curious_coder/twitter-scraper').call({
         handles: [username],
         maxItems: options?.maxFollowers || 1000,
         
