@@ -44,27 +44,39 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // STEP 2: No data → Get follower count from Apify (X API free tier too limited!)
-    console.log(`[Eligibility] Getting follower count for @${cleanUsername} from Apify`)
+    // STEP 2: No data → Get EXACT follower count with Daytona profile scraper
+    console.log(`[Eligibility] Getting EXACT follower count for @${cleanUsername}`)
     
-    const { getDataProvider } = await import('@/lib/data-provider')
-    const provider = getDataProvider()
+    const { DaytonaClient } = await import('@/lib/daytona-profile-scraper')
+    const client = new DaytonaClient()
     
-    // Get profile info using Apify (returns follower count from profile)
-    const profile = await provider.getUserProfile(cleanUsername)
+    // Quick profile scrape - get exact follower count in ~15 seconds
+    const profileResult = await client.getFollowerCount(cleanUsername)
     
-    if (!profile) {
+    if (!profileResult.success) {
       return NextResponse.json({ 
-        error: 'Account not found',
-        details: 'This X account does not exist, is private, or is suspended'
+        error: 'Account not found or private',
+        details: profileResult.error || 'Unable to access profile'
       }, { status: 404 })
     }
     
-    const followerCount = profile.followersCount || 0
+    const followerCount = profileResult.followerCount || 0
     
-    console.log(`[Eligibility] @${cleanUsername} has ${followerCount} followers`)
+    console.log(`[Eligibility] @${cleanUsername} has EXACTLY ${followerCount} followers`)
     
-    // Store minimal info (no followers yet - will extract after payment)
+    // Store in X database for analytics
+    const { xDatabase } = await import('@/lib/firebase-x-database')
+    await xDatabase.upsertProfile(cleanUsername, {
+      displayName: profileResult.name || cleanUsername,
+      followerCount: followerCount,
+      verified: profileResult.verified || false,
+      bio: profileResult.bio || '',
+      botScore: 0,
+      botFlags: [],
+      isLikelyBot: false
+    })
+    
+    // Store minimal info in follower_database (for extraction workflow)
     await adminDb.collection('follower_database').doc(cleanUsername).set({
       username: cleanUsername,
       followers: [], // Empty - will extract after payment
@@ -79,7 +91,7 @@ export async function POST(request: NextRequest) {
       }
     })
     
-    console.log(`[Eligibility] Stored placeholder for @${cleanUsername}`)
+    console.log(`[Eligibility] Stored profile in X database and follower_database`)
 
     const { isFree, price, tier } = calculatePricing(followerCount)
 
