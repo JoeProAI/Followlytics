@@ -107,16 +107,20 @@ export default function Home() {
                 <div className="text-2xl font-light">$5</div>
               </div>
               <div className="flex justify-between items-center border-b border-gray-900 pb-4">
-                <div className="text-gray-500">2,000 – 5,000</div>
-                <div className="text-2xl font-light">$15</div>
+                <div className="text-gray-500">2,000 – 10,000</div>
+                <div className="text-2xl font-light">$10 – $20</div>
               </div>
               <div className="flex justify-between items-center border-b border-gray-900 pb-4">
-                <div className="text-gray-500">5,000 – 10,000</div>
-                <div className="text-2xl font-light">$30</div>
+                <div className="text-gray-500">10,000 – 50,000</div>
+                <div className="text-2xl font-light">$35 – $50</div>
+              </div>
+              <div className="flex justify-between items-center border-b border-gray-900 pb-4">
+                <div className="text-gray-500">50,000 – 250,000</div>
+                <div className="text-2xl font-light">$100 – $150</div>
               </div>
               <div className="flex justify-between items-center pb-4">
-                <div className="text-gray-500">10,000+</div>
-                <div className="text-2xl font-light">$75+</div>
+                <div className="text-gray-500">250,000+</div>
+                <div className="text-2xl font-light">$200</div>
               </div>
             </div>
 

@@ -37,20 +37,26 @@ export async function POST(request: NextRequest) {
             price = 5
             tier = '500-2,000 followers'
           } else if (followerCount < 5000) {
-            price = 15
+            price = 10
             tier = '2,000-5,000 followers'
           } else if (followerCount < 10000) {
-            price = 30
+            price = 20
             tier = '5,000-10,000 followers'
+          } else if (followerCount < 20000) {
+            price = 35
+            tier = '10,000-20,000 followers'
           } else if (followerCount < 50000) {
-            price = 75
-            tier = '10,000-50,000 followers'
+            price = 50
+            tier = '20,000-50,000 followers'
           } else if (followerCount < 100000) {
-            price = 150
+            price = 100
             tier = '50,000-100,000 followers'
+          } else if (followerCount < 250000) {
+            price = 150
+            tier = '100,000-250,000 followers'
           } else {
-            price = 300
-            tier = '100,000+ followers'
+            price = 200
+            tier = '250,000+ followers'
           }
         }
 
@@ -82,7 +88,7 @@ export async function POST(request: NextRequest) {
     const followerCount = profile.followersCount || 0
     const isFree = followerCount < 500
 
-    // Calculate pricing
+    // Calculate pricing - AGGRESSIVE for bread & butter (20K-50K)
     let price = 0
     let tier = 'FREE (Under 500 followers)'
 
@@ -91,20 +97,26 @@ export async function POST(request: NextRequest) {
         price = 5
         tier = '500-2,000 followers'
       } else if (followerCount < 5000) {
-        price = 15
+        price = 10
         tier = '2,000-5,000 followers'
       } else if (followerCount < 10000) {
-        price = 30
+        price = 20
         tier = '5,000-10,000 followers'
+      } else if (followerCount < 20000) {
+        price = 35
+        tier = '10,000-20,000 followers'
       } else if (followerCount < 50000) {
-        price = 75
-        tier = '10,000-50,000 followers'
+        price = 50  // BREAD & BUTTER - super competitive
+        tier = '20,000-50,000 followers'
       } else if (followerCount < 100000) {
-        price = 150
+        price = 100
         tier = '50,000-100,000 followers'
+      } else if (followerCount < 250000) {
+        price = 150
+        tier = '100,000-250,000 followers'
       } else {
-        price = 300
-        tier = '100,000+ followers'
+        price = 200  // Beat CircleBoom pricing
+        tier = '250,000+ followers'
       }
     }
 
