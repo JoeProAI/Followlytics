@@ -37,11 +37,11 @@ class DataProvider {
       const { ApifyClient } = await import('apify-client')
       const client = new ApifyClient({ token: this.apiKey })
       
-      // Use YOUR premium actor - extract minimum to verify account exists
+      // Use YOUR premium actor - extract 1000 sample for eligibility check
       const run = await client.actor('kaitoeasyapi/premium-x-follower-scraper-following-data').call({
         user_names: [username],
         user_ids: [],
-        maxFollowers: 200, // Minimum required
+        maxFollowers: 1000, // Sample 1000 to verify and estimate count
         maxFollowings: 200,
         getFollowers: true,
         getFollowing: false
@@ -57,28 +57,24 @@ class DataProvider {
       const firstFollower = dataset.items[0] as any
       const targetUsername = firstFollower.target_username
       
-      // Count total followers extracted
-      const extractedCount = dataset.items.length
+      // Count sample extracted
+      const sampleCount = dataset.items.length
       
-      // Get profile info from a follower who has good data
-      let bestFollower = firstFollower
-      for (const item of dataset.items) {
-        const follower = item as any
-        if (follower.name && follower.description) {
-          bestFollower = follower
-          break
-        }
-      }
+      // Estimate total based on whether we hit the limit
+      // If we got 1000, user likely has WAY more
+      const estimatedCount = sampleCount >= 1000 
+        ? sampleCount * 10 // Conservative estimate
+        : sampleCount
       
-      console.log(`[DataProvider] Found ${extractedCount} followers for @${targetUsername}`)
+      console.log(`[DataProvider] Sampled ${sampleCount} followers for @${targetUsername} - estimated ${estimatedCount}`)
       
       // Return profile using target username and estimated count
       return {
         username: targetUsername || username,
         name: targetUsername,
-        bio: `Twitter user with ${extractedCount}+ followers`,
+        bio: `Twitter user`,
         verified: false,
-        followersCount: extractedCount, // Use extracted count as indicator
+        followersCount: estimatedCount,
         followingCount: 0,
         profileImageUrl: undefined,
         location: ''
@@ -103,11 +99,14 @@ class DataProvider {
       const { ApifyClient } = await import('apify-client')
       const client = new ApifyClient({ token: this.apiKey })
       
+      // Set max based on account size - actor max is 210k, but we'll try up to 500k
+      const maxToExtract = Math.min(options?.maxFollowers || 500000, 500000)
+      
       const run = await client.actor('kaitoeasyapi/premium-x-follower-scraper-following-data').call({
         user_names: [username],
         user_ids: [],
-        maxFollowers: options?.maxFollowers || 1000,
-        maxFollowings: 0,
+        maxFollowers: maxToExtract,
+        maxFollowings: 200,
         getFollowers: true,
         getFollowing: false
       })
