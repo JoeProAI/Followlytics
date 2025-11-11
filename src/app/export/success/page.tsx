@@ -4,6 +4,14 @@ import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
+interface ExtractionProgress {
+  status: string
+  message: string
+  percentage: number
+  estimatedTimeRemaining?: string
+  duration?: string
+}
+
 interface DownloadData {
   username: string
   followerCount: number
@@ -11,6 +19,7 @@ interface DownloadData {
   jsonUrl?: string
   excelUrl?: string
   ready: boolean
+  progress?: ExtractionProgress
 }
 
 function SuccessContent() {
@@ -172,21 +181,40 @@ function SuccessContent() {
             </p>
           )}
           
-          {downloadData && !downloadData.ready && (
-            <div className="space-y-2">
-              <p className="text-yellow-400 text-sm font-medium animate-pulse">
-                ⏳ Extracting followers... This page will update automatically
-              </p>
-              <p className="text-xs text-gray-500">
-                Large accounts may take 10-15 minutes. We'll email you when ready.
+          {downloadData && !downloadData.ready && downloadData.progress && (
+            <div className="space-y-4 max-w-md mx-auto mt-6">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-yellow-400 font-medium">{downloadData.progress.message}</span>
+                  <span className="text-gray-400">{downloadData.progress.percentage}%</span>
+                </div>
+                <div className="w-full bg-gray-900 rounded-full h-3 overflow-hidden">
+                  <div 
+                    className="bg-gradient-to-r from-yellow-500 to-yellow-400 h-full transition-all duration-500 ease-out"
+                    style={{ width: `${downloadData.progress.percentage}%` }}
+                  />
+                </div>
+                {downloadData.progress.estimatedTimeRemaining && (
+                  <p className="text-xs text-gray-500 text-center">
+                    Estimated time: {downloadData.progress.estimatedTimeRemaining}
+                  </p>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 text-center">
+                This page updates automatically. Don't refresh.
               </p>
             </div>
           )}
           
           {!downloadData && !loading && !error && (
-            <p className="text-yellow-400 text-sm font-medium animate-pulse">
-              ⏳ Starting extraction... Please wait
-            </p>
+            <div className="space-y-4 max-w-md mx-auto mt-6">
+              <p className="text-yellow-400 text-sm font-medium animate-pulse text-center">
+                ⏳ Starting extraction... Please wait
+              </p>
+              <div className="w-full bg-gray-900 rounded-full h-3 overflow-hidden">
+                <div className="bg-gradient-to-r from-yellow-500 to-yellow-400 h-full w-1/4 animate-pulse" />
+              </div>
+            </div>
           )}
           
           {!free && (

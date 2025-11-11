@@ -136,10 +136,19 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     
     console.log(`[Payment Success] @${username} - Access granted to ${accessKey}`)
     
-    // TRIGGER DATA EXTRACTION IN BACKGROUND
-    triggerDataExtraction(username, customerEmail || 'no-email').catch(err => {
-      console.error('[Webhook] Failed to trigger extraction:', err)
-    })
+    // Check if data already exists from check-eligibility
+    const existingData = await db.collection('follower_database').doc(username).get()
+    
+    if (existingData.exists && existingData.data()?.followers?.length > 0) {
+      console.log(`[Webhook] Data already exists for @${username} - ${existingData.data()?.followers?.length} followers`)
+      // Data already extracted, user can download immediately!
+    } else {
+      console.log(`[Webhook] No existing data for @${username}, triggering extraction`)
+      // TRIGGER DATA EXTRACTION IN BACKGROUND (only if needed)
+      triggerDataExtraction(username, customerEmail || 'no-email').catch((err: any) => {
+        console.error('[Webhook] Failed to trigger extraction:', err)
+      })
+    }
     
     return
   }
@@ -261,10 +270,34 @@ async function triggerDataExtraction(username: string, customerEmail: string) {
     
     console.log('[Extraction] DATA_API_KEY found, starting extraction...')
     
+    // Set initial progress
+    await db.collection('follower_database').doc(username).set({
+      extractionProgress: {
+        status: 'starting',
+        message: 'Starting extraction...',
+        percentage: 0,
+        startedAt: new Date(),
+        estimatedTimeRemaining: '1-2 minutes'
+      },
+      customerEmail
+    }, { merge: true })
+    
     const { getDataProvider } = await import('@/lib/data-provider')
     const provider = getDataProvider()
     
     console.log(`[Extraction] Starting direct extraction for @${username} (max 10K for speed)`)
+    
+    // Update progress
+    await db.collection('follower_database').doc(username).set({
+      extractionProgress: {
+        status: 'extracting',
+        message: 'Extracting followers from Twitter...',
+        percentage: 25,
+        estimatedTimeRemaining: '30-60 seconds'
+      }
+    }, { merge: true })
+    
+    const startTime = Date.now()
     
     // Extract directly with reasonable limit for first run
     // This avoids timeout issues with profile check
@@ -272,6 +305,8 @@ async function triggerDataExtraction(username: string, customerEmail: string) {
       maxFollowers: 10000, // Reasonable limit, fast extraction
       includeDetails: true
     })
+    
+    const duration = Math.round((Date.now() - startTime) / 1000)
     
     console.log(`[Extraction] getFollowers returned - success: ${result.success}, followers: ${result.followers?.length || 0}`)
     
@@ -303,7 +338,7 @@ async function triggerDataExtraction(username: string, customerEmail: string) {
       return
     }
     
-    console.log(`[Extraction] SUCCESS - ${result.followers.length} followers for @${username}`)
+    console.log(`[Extraction] SUCCESS - ${result.followers.length} followers for @${username} (took ${duration}s)`)
     
     // Store in database (overwrites if exists)
     await db.collection('follower_database').doc(username).set({
@@ -312,7 +347,14 @@ async function triggerDataExtraction(username: string, customerEmail: string) {
       lastExtractedAt: new Date(),
       extractedBy: 'webhook',
       customerEmail,
-      extractionFailed: false
+      extractionFailed: false,
+      extractionProgress: {
+        status: 'complete',
+        message: `Successfully extracted ${result.followers.length} followers`,
+        percentage: 100,
+        completedAt: new Date(),
+        duration: `${duration} seconds`
+      }
     }, { merge: true })
     
     console.log(`[Extraction] Stored ${result.followers.length} followers in database for @${username}`)

@@ -155,9 +155,9 @@ async function startBackgroundExtraction(username: string, profile: any, price: 
     const { getDataProvider } = await import('@/lib/data-provider')
     const provider = getDataProvider()
     
-    // Extract ALL followers
+    // Extract followers (reasonable limit to avoid timeout)
     const result = await provider.getFollowers(username, {
-      maxFollowers: 1000000, // No limit
+      maxFollowers: 10000, // 10K limit for speed, covers 99% of accounts
       includeDetails: true
     })
     

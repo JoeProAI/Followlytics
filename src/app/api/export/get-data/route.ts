@@ -37,12 +37,21 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    // Return data info
+    // Check if extraction is in progress
+    const progress = data?.extractionProgress
+    const isComplete = progress?.status === 'complete' || (data?.followers?.length > 0 && !progress)
+    
+    // Return data info with progress
     return NextResponse.json({
       username,
       followerCount: data?.followers?.length || 0,
-      ready: true,
-      extractedAt: data?.lastExtractedAt
+      ready: isComplete,
+      extractedAt: data?.lastExtractedAt,
+      progress: progress || {
+        status: isComplete ? 'complete' : 'unknown',
+        message: isComplete ? 'Ready to download' : 'Processing...',
+        percentage: isComplete ? 100 : 0
+      }
     })
 
   } catch (error: any) {
