@@ -76,10 +76,10 @@ export async function POST(request: NextRequest) {
     }
 
     // STEP 2: Not cached or too old → Get profile and start extraction
-    const { ApifyFollowerExtractor } = await import('@/lib/apify-client')
-    const apify = new ApifyFollowerExtractor()
+    const { getDataProvider } = await import('@/lib/data-provider')
+    const provider = getDataProvider()
     
-    const profile = await apify.extractProfile(cleanUsername)
+    const profile = await provider.getUserProfile(cleanUsername)
     
     if (!profile) {
       return NextResponse.json({ error: 'Could not find account' }, { status: 404 })
@@ -169,11 +169,11 @@ async function startBackgroundExtraction(username: string, profile: any, price: 
   try {
     console.log(`[Smart Extract] Starting background extraction for @${username}`)
     
-    const { ApifyFollowerExtractor } = await import('@/lib/apify-client')
-    const apify = new ApifyFollowerExtractor()
+    const { getDataProvider } = await import('@/lib/data-provider')
+    const provider = getDataProvider()
     
     // Extract ALL followers
-    const result = await apify.extractFollowers(username, {
+    const result = await provider.getFollowers(username, {
       maxFollowers: 1000000, // No limit
       includeDetails: true
     })
@@ -203,7 +203,7 @@ async function startBackgroundExtraction(username: string, profile: any, price: 
         extractedAt: new Date(),
         extractedBy: 'system',
         followerCount: result.followers.length,
-        cost: estimateApifyCost(result.followers.length),
+        cost: estimateDataCost(result.followers.length),
         tier: price
       }],
       totalRequests: 1,
@@ -227,8 +227,8 @@ function estimateExtractionTime(followerCount: number): string {
   return '40-60 min'
 }
 
-// Estimate Apify cost
-function estimateApifyCost(followerCount: number): number {
-  // Apify charges ~$0.15 per 1,000 followers
+// Estimate data extraction cost
+function estimateDataCost(followerCount: number): number {
+  // Internal cost calculation
   return (followerCount / 1000) * 0.15
 }
