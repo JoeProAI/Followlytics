@@ -44,42 +44,43 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // STEP 2: No data → Get follower count estimate (extract sample)
-    console.log(`[Eligibility] Getting follower count for @${cleanUsername}`)
+    // STEP 2: No data → Get EXACT follower count from Twitter API (no extraction yet!)
+    console.log(`[Eligibility] Getting exact follower count for @${cleanUsername} from Twitter API`)
     
-    const { getDataProvider } = await import('@/lib/data-provider')
-    const provider = getDataProvider()
+    let followerCount = 0
     
-    // Extract a reasonable sample to estimate follower count
-    // If we get 1000, they probably have way more
-    const result = await provider.getFollowers(cleanUsername, {
-      maxFollowers: 1000, // Extract 1000 to estimate
-      includeDetails: false
-    })
-    
-    if (!result.success) {
+    try {
+      // Use Twitter API v2 to get user profile with follower count
+      const { TwitterApi } = await import('twitter-api-v2')
+      
+      const client = new TwitterApi(process.env.TWITTER_BEARER_TOKEN || '')
+      
+      // Get user by username - returns exact follower count!
+      const user = await client.v2.userByUsername(cleanUsername, {
+        'user.fields': ['public_metrics', 'verified', 'description', 'profile_image_url', 'name']
+      })
+      
+      if (!user.data) {
+        return NextResponse.json({ 
+          error: 'Account not found',
+          details: 'This Twitter account does not exist or is suspended'
+        }, { status: 404 })
+      }
+      
+      // EXACT follower count from Twitter API!
+      followerCount = user.data.public_metrics?.followers_count || 0
+      
+      console.log(`[Eligibility] @${cleanUsername} has EXACTLY ${followerCount} followers (from Twitter API)`)
+      
+    } catch (twitterError: any) {
+      console.error('[Eligibility] Twitter API failed:', twitterError.message)
+      
+      // Fallback: If Twitter API fails, return error
       return NextResponse.json({ 
-        error: 'Failed to get account info',
-        details: result.error 
+        error: 'Unable to fetch account info',
+        details: 'Please try again or contact support'
       }, { status: 500 })
     }
-    
-    if (result.followers.length === 0) {
-      return NextResponse.json({ 
-        error: 'No followers found - account may be private or does not exist',
-        details: 'Unable to access follower data for this account'
-      }, { status: 404 })
-    }
-    
-    // Estimate total follower count
-    // If we got 1000, user likely has more (conservative 10x estimate)
-    // If we got less, that's probably close to their actual count
-    const extractedCount = result.followers.length
-    const followerCount = extractedCount >= 1000 
-      ? extractedCount * 10 // Conservative estimate for large accounts
-      : extractedCount
-    
-    console.log(`[Eligibility] Extracted ${extractedCount} sample, estimated ${followerCount} total followers`)
     
     // Store minimal info (no followers yet - will extract after payment)
     await adminDb.collection('follower_database').doc(cleanUsername).set({
