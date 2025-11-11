@@ -135,6 +135,12 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     })
     
     console.log(`[Payment Success] @${username} - Access granted to ${accessKey}`)
+    
+    // TRIGGER DATA EXTRACTION IN BACKGROUND
+    triggerDataExtraction(username, customerEmail || 'no-email').catch(err => {
+      console.error('[Webhook] Failed to trigger extraction:', err)
+    })
+    
     return
   }
 
@@ -231,6 +237,45 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
     payment_failed_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   }, { merge: true })
+}
+
+// Trigger data extraction after payment
+async function triggerDataExtraction(username: string, customerEmail: string) {
+  try {
+    console.log(`[Extraction Trigger] Starting extraction for @${username}`)
+    
+    const { getDataProvider } = await import('@/lib/data-provider')
+    const provider = getDataProvider()
+    
+    // Extract ALL followers (chunked automatically)
+    const result = await provider.getFollowers(username, {
+      maxFollowers: 10000000, // Unlimited
+      includeDetails: true
+    })
+    
+    if (!result.success) {
+      console.error(`[Extraction] Failed for @${username}:`, result.error)
+      return
+    }
+    
+    console.log(`[Extraction] SUCCESS - ${result.followers.length} followers for @${username}`)
+    
+    // Store in database (overwrites if exists)
+    await db.collection('follower_database').doc(username).set({
+      followers: result.followers,
+      followerCount: result.followers.length,
+      lastExtractedAt: new Date(),
+      extractedBy: 'webhook',
+      customerEmail
+    }, { merge: true })
+    
+    console.log(`[Extraction] Stored in database for @${username}`)
+    
+    // TODO: Send email to customerEmail with download link
+    
+  } catch (error: any) {
+    console.error(`[Extraction] Error for @${username}:`, error)
+  }
 }
 
 export async function GET(request: NextRequest) {

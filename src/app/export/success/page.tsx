@@ -52,6 +52,14 @@ function SuccessContent() {
 
         const data = await res.json()
 
+        if (res.status === 202) {
+          // Data not ready yet - poll again
+          setTimeout(verifyAndGetData, 5000) // Check again in 5 seconds
+          setLoading(false)
+          setDownloadData({ ...data, ready: false })
+          return
+        }
+
         if (!res.ok) {
           setError(data.error || 'Failed to get download links')
           setLoading(false)
@@ -158,9 +166,15 @@ function SuccessContent() {
             Follower data for <span className="text-white">@{username}</span>
           </p>
           
-          {downloadData && (
-            <p className="text-gray-500 text-sm">
-              {downloadData.followerCount.toLocaleString()} followers extracted
+          {downloadData && downloadData.ready && (
+            <p className="text-green-400 text-sm font-medium">
+              ✓ {downloadData.followerCount.toLocaleString()} followers ready to download
+            </p>
+          )}
+          
+          {downloadData && !downloadData.ready && (
+            <p className="text-yellow-400 text-sm font-medium animate-pulse">
+              ⏳ Extracting followers... This page will update automatically
             </p>
           )}
           
