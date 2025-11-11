@@ -37,32 +37,52 @@ class DataProvider {
       const { ApifyClient } = await import('apify-client')
       const client = new ApifyClient({ token: this.apiKey })
       
-      // Use curious_coder - fast profile scraper
-      const run = await client.actor('curious_coder/twitter-scraper').call({
-        handle: [username],
-        maxTweets: 0
+      // Use YOUR premium actor - extract minimum to verify account exists
+      const run = await client.actor('kaitoeasyapi/premium-x-follower-scraper-following-data').call({
+        user_names: [username],
+        user_ids: [],
+        maxFollowers: 200, // Minimum required
+        maxFollowings: 200,
+        getFollowers: true,
+        getFollowing: false
       })
       
       const dataset = await client.dataset(run.defaultDatasetId).listItems()
       
-      if (dataset.items.length > 0) {
-        const profile = dataset.items[0] as any
-        
-        console.log('[DataProvider] Profile:', profile.username, '-', profile.followers, 'followers')
-        
-        return {
-          username: profile.username || username,
-          name: profile.name || profile.username,
-          bio: profile.bio || '',
-          verified: profile.verified || false,
-          followersCount: profile.followers || 0,
-          followingCount: profile.following || 0,
-          profileImageUrl: profile.avatar,
-          location: profile.location || ''
+      if (dataset.items.length === 0) {
+        return null
+      }
+      
+      // Get target user info from first follower
+      const firstFollower = dataset.items[0] as any
+      const targetUsername = firstFollower.target_username
+      
+      // Count total followers extracted
+      const extractedCount = dataset.items.length
+      
+      // Get profile info from a follower who has good data
+      let bestFollower = firstFollower
+      for (const item of dataset.items) {
+        const follower = item as any
+        if (follower.name && follower.description) {
+          bestFollower = follower
+          break
         }
       }
       
-      return null
+      console.log(`[DataProvider] Found ${extractedCount} followers for @${targetUsername}`)
+      
+      // Return profile using target username and estimated count
+      return {
+        username: targetUsername || username,
+        name: targetUsername,
+        bio: `Twitter user with ${extractedCount}+ followers`,
+        verified: false,
+        followersCount: extractedCount, // Use extracted count as indicator
+        followingCount: 0,
+        profileImageUrl: undefined,
+        location: ''
+      }
       
     } catch (error: any) {
       console.error('[DataProvider] Profile fetch failed:', error)
