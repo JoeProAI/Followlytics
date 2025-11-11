@@ -70,6 +70,22 @@ export async function POST(request: NextRequest) {
       line_items: lineItems,
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/export/success?session_id={CHECKOUT_SESSION_ID}&username=${username}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/export?username=${username}`,
+      // Custom branding
+      custom_text: {
+        submit: {
+          message: 'Get instant access to your follower data after payment'
+        }
+      },
+      invoice_creation: {
+        enabled: true,
+        invoice_data: {
+          description: `Follower Data Export for @${username}`,
+          metadata: {
+            username,
+            product: 'follower_export'
+          }
+        }
+      },
       metadata: {
         username,
         includeGamma: includeGamma ? 'true' : 'false',

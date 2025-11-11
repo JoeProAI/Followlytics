@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminDb as db } from '@/lib/firebase-admin'
+import { FieldValue } from 'firebase-admin/firestore'
 import Stripe from 'stripe'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -70,9 +71,54 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+  // Check if this is a follower export payment or subscription payment
+  const username = session.metadata?.username
   const userId = session.metadata?.userId
   const tier = session.metadata?.tier
 
+  // FOLLOWER EXPORT PAYMENT
+  if (username) {
+    console.log(`[Checkout Completed] Follower export payment for @${username}`)
+    
+    const amount = parseFloat(session.metadata?.amount || '0')
+    const includeGamma = session.metadata?.includeGamma === 'true'
+    const gammaStyle = session.metadata?.gammaStyle || ''
+    const customInstructions = session.metadata?.customInstructions || ''
+    
+    // Grant access to follower data
+    await db.collection('follower_database').doc(username).set({
+      accessGranted: FieldValue.arrayUnion(session.customer_email || session.id),
+      paidAccess: FieldValue.arrayUnion({
+        sessionId: session.id,
+        email: session.customer_email,
+        amount,
+        includeGamma,
+        gammaStyle,
+        customInstructions,
+        paidAt: new Date().toISOString()
+      })
+    }, { merge: true })
+    
+    // Store payment record
+    await db.collection('payments').doc(session.id).set({
+      type: 'follower_export',
+      username,
+      amount,
+      includeGamma,
+      gammaStyle,
+      customInstructions,
+      sessionId: session.id,
+      customerId: session.customer,
+      customerEmail: session.customer_email,
+      status: 'completed',
+      createdAt: new Date().toISOString()
+    })
+    
+    console.log(`[Payment Success] @${username} - Access granted to ${session.customer_email}`)
+    return
+  }
+
+  // SUBSCRIPTION PAYMENT
   if (!userId || !tier) {
     console.error('Missing userId or tier in session metadata')
     return
