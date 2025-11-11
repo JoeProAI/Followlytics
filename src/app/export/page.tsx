@@ -137,12 +137,12 @@ function ExportContent() {
               </div>
               <div className="text-right">
                 {pricing.isFree ? (
-                  <div className="text-4xl font-light text-green-400">Free</div>
+                  <div className="text-4xl font-light">Free</div>
                 ) : isLaunchWeek() ? (
                   <div>
                     <div className="text-2xl font-light text-gray-500 line-through">${pricing.price}</div>
-                    <div className="text-4xl font-light text-green-400">${getLaunchDiscount(pricing.price)}</div>
-                    <div className="text-sm text-green-400 mt-1">🚀 Launch Week - 50% OFF</div>
+                    <div className="text-4xl font-light">${getLaunchDiscount(pricing.price)}</div>
+                    <div className="text-sm text-gray-500 mt-1">Launch Week - 50% off</div>
                   </div>
                 ) : (
                   <div className="text-4xl font-light">${pricing.price}</div>
@@ -231,16 +231,16 @@ function ExportContent() {
               <button className="w-full bg-white text-black py-4 rounded font-medium hover:bg-gray-200 transition-colors">
                 {(() => {
                   const isFreeGamma = pricing.followerCount < 5000
-                  const gammaCharge = isFreeGamma ? 0 : (isLaunchWeek() ? 25 : 50) // Gamma also 50% off
+                  const gammaCharge = isFreeGamma ? 0 : (isLaunchWeek() ? 25 : 50)
                   const basePrice = isLaunchWeek() ? getLaunchDiscount(pricing.price) : pricing.price
                   const total = basePrice + (addGamma ? gammaCharge : 0)
                   
                   if (addGamma && isFreeGamma) {
-                    return `Pay $${basePrice} (Gamma FREE)${isLaunchWeek() ? ' 🚀 50% OFF' : ''}`
+                    return `Pay $${basePrice} (Gamma FREE)`
                   } else if (addGamma) {
-                    return `Pay $${total} (Data + Gamma)${isLaunchWeek() ? ' 🚀 50% OFF' : ''}`
+                    return `Pay $${total} (Data + Gamma)`
                   } else {
-                    return `Pay $${basePrice}${isLaunchWeek() ? ' 🚀 50% OFF' : ''}`
+                    return `Pay $${basePrice}`
                   }
                 })()}
               </button>
