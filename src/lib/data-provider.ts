@@ -34,43 +34,34 @@ class DataProvider {
     try {
       console.log(`[DataProvider] Fetching profile for @${username}`)
       
-      // Import Apify internally - not visible in imports
       const { ApifyClient } = await import('apify-client')
       const client = new ApifyClient({ token: this.apiKey })
       
-      // Use apidojo/tweet-scraper for PROFILE ONLY (doesn't return followers)
-      const run = await client.actor('apidojo/tweet-scraper').call({
-        twitterHandles: [username],
-        maxTweetsPerQuery: 0, // Don't need tweets, just profile
-        proxyConfig: { useApifyProxy: true }
+      // Use curious_coder - fast profile scraper
+      const run = await client.actor('curious_coder/twitter-scraper').call({
+        handle: [username],
+        maxTweets: 0
       })
       
       const dataset = await client.dataset(run.defaultDatasetId).listItems()
       
-      console.log('[DataProvider] Dataset items:', dataset.items.length)
-      
       if (dataset.items.length > 0) {
-        const item = dataset.items[0] as any
-        const user = item.user || item // Profile is in 'user' field
+        const profile = dataset.items[0] as any
         
-        console.log('[DataProvider] Found profile:', {
-          username: user.screen_name || user.username,
-          followers: user.followers_count || user.followersCount
-        })
+        console.log('[DataProvider] Profile:', profile.username, '-', profile.followers, 'followers')
         
         return {
-          username: user.screen_name || user.username || username,
-          name: user.name || username,
-          bio: user.description || user.bio || '',
-          verified: user.verified || false,
-          followersCount: user.followers_count || user.followersCount || 0,
-          followingCount: user.friends_count || user.followingCount || 0,
-          profileImageUrl: user.profile_image_url_https || user.profileImageUrl,
-          location: user.location || ''
+          username: profile.username || username,
+          name: profile.name || profile.username,
+          bio: profile.bio || '',
+          verified: profile.verified || false,
+          followersCount: profile.followers || 0,
+          followingCount: profile.following || 0,
+          profileImageUrl: profile.avatar,
+          location: profile.location || ''
         }
       }
       
-      console.error('[DataProvider] No profile data found in response')
       return null
       
     } catch (error: any) {

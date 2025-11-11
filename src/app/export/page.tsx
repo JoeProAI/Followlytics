@@ -43,21 +43,33 @@ function ExportContent() {
     setPricing(null)
 
     try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000)
+
       const res = await fetch('/api/user/check-eligibility', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: user })
+        body: JSON.stringify({ username: user }),
+        signal: controller.signal
       })
+
+      clearTimeout(timeoutId)
 
       const data = await res.json()
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to check pricing')
+        setError(data.error || 'Failed to check eligibility')
+        return
       }
 
       setPricing(data)
     } catch (err: any) {
-      setError(err.message)
+      if (err.name === 'AbortError') {
+        setError('Request timed out. The API is taking too long. Please try again.')
+      } else {
+        setError('Network error. Please try again.')
+      }
+      console.error('Check price error:', err)
     } finally {
       setChecking(false)
     }
