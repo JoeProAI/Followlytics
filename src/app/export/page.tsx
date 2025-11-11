@@ -17,6 +17,10 @@ function ExportContent() {
   const [gammaStyle, setGammaStyle] = useState('clean')
   const [customInstructions, setCustomInstructions] = useState('')
   const [turnstileToken, setTurnstileToken] = useState('')
+  
+  // Status polling
+  const [checkStatus, setCheckStatus] = useState<any>(null)
+  const [statusPolling, setStatusPolling] = useState(false)
 
   useEffect(() => {
     if (initialUsername) {
@@ -37,13 +41,46 @@ function ExportContent() {
   //   }
   // }, [])
 
+  // Poll for status updates
+  const pollStatus = async (user: string) => {
+    setStatusPolling(true)
+    const cleanUser = user.replace('@', '')
+    
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/user/check-status?username=${cleanUser}`)
+        const data = await res.json()
+        
+        setCheckStatus(data)
+        
+        // Stop polling when complete or failed
+        if (data.status === 'complete' || data.status === 'failed') {
+          clearInterval(interval)
+          setStatusPolling(false)
+        }
+      } catch (err) {
+        console.error('Status poll error:', err)
+      }
+    }, 2000) // Poll every 2 seconds
+
+    // Cleanup after 60 seconds
+    setTimeout(() => {
+      clearInterval(interval)
+      setStatusPolling(false)
+    }, 60000)
+  }
+
   const checkPrice = async (user: string) => {
     setChecking(true)
     setError('')
     setPricing(null)
+    setCheckStatus(null)
+
+    // Start polling for status
+    pollStatus(user)
 
     try {
-      // Add 60 second timeout (actor takes ~35s)
+      // Add 60 second timeout
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 60000)
 
@@ -73,6 +110,7 @@ function ExportContent() {
       console.error('Check price error:', err)
     } finally {
       setChecking(false)
+      setStatusPolling(false)
     }
   }
 
@@ -164,6 +202,27 @@ function ExportContent() {
 
             {/* TODO: Add Cloudflare Turnstile when configured */}
           </div>
+
+          {/* Real-time Status Display */}
+          {checking && checkStatus && (
+            <div className="mt-4 p-4 bg-gray-900/50 border border-gray-800 rounded">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-300">{checkStatus.message || 'Processing...'}</span>
+                <span className="text-gray-500 text-sm">{checkStatus.progress || 0}%</span>
+              </div>
+              <div className="w-full bg-gray-800 rounded-full h-2">
+                <div 
+                  className="bg-white h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${checkStatus.progress || 0}%` }}
+                />
+              </div>
+              {checkStatus.followerCount && (
+                <div className="mt-2 text-sm text-gray-500">
+                  Found: {checkStatus.followerCount.toLocaleString()} followers
+                </div>
+              )}
+            </div>
+          )}
 
           {error && (
             <div className="mt-4 p-4 bg-red-900/20 border border-red-900/50 rounded text-red-400">

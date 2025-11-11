@@ -47,13 +47,35 @@ export async function POST(request: NextRequest) {
     // STEP 2: No data → Get EXACT follower count with Daytona profile scraper
     console.log(`[Eligibility] Getting EXACT follower count for @${cleanUsername}`)
     
+    // Set initial status
+    await adminDb.collection('price_check_status').doc(cleanUsername).set({
+      status: 'scraping',
+      message: 'Creating sandbox...',
+      progress: 10,
+      startedAt: new Date()
+    })
+    
     const { DaytonaClient } = await import('@/lib/daytona-profile-scraper')
     const client = new DaytonaClient()
+    
+    // Update status: running scraper
+    await adminDb.collection('price_check_status').doc(cleanUsername).update({
+      message: 'Scraping profile page...',
+      progress: 50
+    })
     
     // Quick profile scrape - get exact follower count in ~15 seconds
     const profileResult = await client.getFollowerCount(cleanUsername)
     
     if (!profileResult.success) {
+      // Update status: failed
+      await adminDb.collection('price_check_status').doc(cleanUsername).update({
+        status: 'failed',
+        message: 'Account not found or private',
+        error: profileResult.error,
+        progress: 100
+      })
+      
       return NextResponse.json({ 
         error: 'Account not found or private',
         details: profileResult.error || 'Unable to access profile'
@@ -63,6 +85,13 @@ export async function POST(request: NextRequest) {
     const followerCount = profileResult.followerCount || 0
     
     console.log(`[Eligibility] @${cleanUsername} has EXACTLY ${followerCount} followers`)
+    
+    // Update status: analyzing
+    await adminDb.collection('price_check_status').doc(cleanUsername).update({
+      message: 'Calculating pricing...',
+      progress: 80,
+      followerCount: followerCount
+    })
     
     // Store in X database for analytics
     const { xDatabase } = await import('@/lib/firebase-x-database')
@@ -95,6 +124,17 @@ export async function POST(request: NextRequest) {
 
     const { isFree, price, tier } = calculatePricing(followerCount)
 
+    // Update status: complete
+    await adminDb.collection('price_check_status').doc(cleanUsername).update({
+      status: 'complete',
+      message: 'Ready for download',
+      progress: 100,
+      price: price,
+      isFree: isFree,
+      tier: tier,
+      completedAt: new Date()
+    })
+
     return NextResponse.json({
       username: cleanUsername,
       followerCount,
@@ -109,6 +149,22 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('[Eligibility Check] Error:', error)
+    
+    // Update status: error
+    try {
+      const cleanUsername = (error.username || '').replace('@', '').toLowerCase()
+      if (cleanUsername) {
+        await adminDb.collection('price_check_status').doc(cleanUsername).update({
+          status: 'failed',
+          message: 'An error occurred',
+          error: error.message,
+          progress: 100
+        })
+      }
+    } catch (statusError) {
+      console.error('[Eligibility] Failed to update error status:', statusError)
+    }
+    
     return NextResponse.json({
       error: 'Failed to check eligibility',
       details: error.message
