@@ -289,7 +289,7 @@ async function triggerDataExtraction(username: string, customerEmail: string) {
     await db.collection('follower_database').doc(username).set({
       extractionProgress: {
         status: 'extracting',
-        message: 'Extracting followers from Twitter...',
+        message: 'Extracting followers from X...',
         percentage: 25,
         estimatedTimeRemaining: '30-60 seconds'
       }

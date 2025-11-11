@@ -44,16 +44,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // STEP 2: No data → Get EXACT follower count from Twitter API (no extraction yet!)
-    console.log(`[Eligibility] Getting exact follower count for @${cleanUsername} from Twitter API`)
+    // STEP 2: No data → Get EXACT follower count from X API (no extraction yet!)
+    console.log(`[Eligibility] Getting exact follower count for @${cleanUsername} from X API`)
     
     let followerCount = 0
     
     try {
-      // Use Twitter API v2 to get user profile with follower count
+      // Use X API v2 to get user profile with follower count
       const { TwitterApi } = await import('twitter-api-v2')
       
-      const client = new TwitterApi(process.env.TWITTER_BEARER_TOKEN || '')
+      const client = new TwitterApi(process.env.X_BEARER_TOKEN || '')
       
       // Get user by username - returns exact follower count!
       const user = await client.v2.userByUsername(cleanUsername, {
@@ -63,19 +63,19 @@ export async function POST(request: NextRequest) {
       if (!user.data) {
         return NextResponse.json({ 
           error: 'Account not found',
-          details: 'This Twitter account does not exist or is suspended'
+          details: 'This X account does not exist or is suspended'
         }, { status: 404 })
       }
       
-      // EXACT follower count from Twitter API!
+      // EXACT follower count from X API!
       followerCount = user.data.public_metrics?.followers_count || 0
       
-      console.log(`[Eligibility] @${cleanUsername} has EXACTLY ${followerCount} followers (from Twitter API)`)
+      console.log(`[Eligibility] @${cleanUsername} has EXACTLY ${followerCount} followers (from X API)`)
       
-    } catch (twitterError: any) {
-      console.error('[Eligibility] Twitter API failed:', twitterError.message)
+    } catch (xError: any) {
+      console.error('[Eligibility] X API failed:', xError.message)
       
-      // Fallback: If Twitter API fails, return error
+      // Fallback: If X API fails, return error
       return NextResponse.json({ 
         error: 'Unable to fetch account info',
         details: 'Please try again or contact support'

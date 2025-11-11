@@ -72,7 +72,7 @@ class DataProvider {
       return {
         username: targetUsername || username,
         name: targetUsername,
-        bio: `Twitter user`,
+        bio: `X user`,
         verified: false,
         followersCount: estimatedCount,
         followingCount: 0,

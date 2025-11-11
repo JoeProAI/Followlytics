@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     await adminDb.collection('follower_database').doc(cleanUsername).set({
       extractionProgress: {
         status: 'extracting',
-        message: 'Extracting followers from Twitter...',
+        message: 'Extracting followers from X...',
         percentage: 25
       }
     }, { merge: true })
