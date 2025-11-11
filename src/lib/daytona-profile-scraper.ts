@@ -37,8 +37,9 @@ export class DaytonaClient {
       // Python script to scrape profile and get exact follower count
       const pythonScript = this.getProfileScraperScript(username)
 
-      // Write script to sandbox
-      await sandbox.files.write('scrape_profile.py', pythonScript)
+      // Write script to sandbox using echo (Daytona SDK doesn't have files.write)
+      const scriptBase64 = Buffer.from(pythonScript).toString('base64')
+      await sandbox.process.executeCommand(`echo "${scriptBase64}" | base64 -d > scrape_profile.py`)
 
       console.log(`[Daytona] Installing dependencies...`)
 

@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
 
     const data = statusDoc.data()!
 
+    // Return user-friendly status
     return NextResponse.json({
       status: data.status,
       message: data.message,

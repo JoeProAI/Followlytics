@@ -49,8 +49,8 @@ export async function POST(request: NextRequest) {
     
     // Set initial status
     await adminDb.collection('price_check_status').doc(cleanUsername).set({
-      status: 'scraping',
-      message: 'Creating sandbox...',
+      status: 'analyzing',
+      message: 'Connecting to X...',
       progress: 10,
       startedAt: new Date()
     })
@@ -58,9 +58,9 @@ export async function POST(request: NextRequest) {
     const { DaytonaClient } = await import('@/lib/daytona-profile-scraper')
     const client = new DaytonaClient()
     
-    // Update status: running scraper
+    // Update status: getting profile data
     await adminDb.collection('price_check_status').doc(cleanUsername).update({
-      message: 'Scraping profile page...',
+      message: 'Analyzing account...',
       progress: 50
     })
     
