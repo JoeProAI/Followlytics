@@ -63,12 +63,24 @@ export async function POST(request: NextRequest) {
     }
     
     const followerCount = result.followers.length
-    console.log(`[Eligibility] Extracted ${followerCount} followers, storing`)
+    console.log(`[Eligibility] Extracted ${followerCount} followers, cleaning and storing`)
+    
+    // Clean followers - remove undefined values for Firestore
+    const cleanFollowers = result.followers.map((f: any) => ({
+      username: f.username || '',
+      name: f.name || '',
+      bio: f.bio || '',
+      verified: f.verified || false,
+      followersCount: f.followersCount || 0,
+      followingCount: f.followingCount || 0,
+      profileImageUrl: f.profileImageUrl || '',
+      location: f.location || ''
+    }))
     
     // Store in database
     await adminDb.collection('follower_database').doc(cleanUsername).set({
       username: cleanUsername,
-      followers: result.followers,
+      followers: cleanFollowers,
       followerCount,
       lastExtractedAt: new Date(),
       extractedBy: 'check-eligibility',

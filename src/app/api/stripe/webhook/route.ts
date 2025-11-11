@@ -340,17 +340,29 @@ async function triggerDataExtraction(username: string, customerEmail: string) {
     
     console.log(`[Extraction] SUCCESS - ${result.followers.length} followers for @${username} (took ${duration}s)`)
     
+    // Clean followers - remove undefined values for Firestore
+    const cleanFollowers = result.followers.map((f: any) => ({
+      username: f.username || '',
+      name: f.name || '',
+      bio: f.bio || '',
+      verified: f.verified || false,
+      followersCount: f.followersCount || 0,
+      followingCount: f.followingCount || 0,
+      profileImageUrl: f.profileImageUrl || '',
+      location: f.location || ''
+    }))
+    
     // Store in database (overwrites if exists)
     await db.collection('follower_database').doc(username).set({
-      followers: result.followers,
-      followerCount: result.followers.length,
+      followers: cleanFollowers,
+      followerCount: cleanFollowers.length,
       lastExtractedAt: new Date(),
       extractedBy: 'webhook',
       customerEmail,
       extractionFailed: false,
       extractionProgress: {
         status: 'complete',
-        message: `Successfully extracted ${result.followers.length} followers`,
+        message: `Successfully extracted ${cleanFollowers.length} followers`,
         percentage: 100,
         completedAt: new Date(),
         duration: `${duration} seconds`
