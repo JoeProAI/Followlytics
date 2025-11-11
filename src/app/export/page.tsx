@@ -13,7 +13,7 @@ function ExportContent() {
   const [pricing, setPricing] = useState<any>(null)
   const [error, setError] = useState('')
   const [addGamma, setAddGamma] = useState(false)
-  const [gammaStyle, setGammaStyle] = useState('minimalist')
+  const [gammaStyle, setGammaStyle] = useState('clean')
   const [customInstructions, setCustomInstructions] = useState('')
   const [turnstileToken, setTurnstileToken] = useState('')
 
@@ -157,62 +157,83 @@ function ExportContent() {
               )}
             </div>
 
-            {/* Premium Gamma Report Add-on */}
-            {!pricing.isFree && (
-              <div className="mb-6 p-4 border border-gray-800 rounded">
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={addGamma}
-                    onChange={(e) => setAddGamma(e.target.checked)}
-                    className="mt-1"
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium">Add Gamma Report (+$50)</div>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Premium presentation-ready analysis. Custom styling, AI-generated visuals, shareable link.
-                    </p>
-                  </div>
-                </label>
+            {/* Gamma Report Add-on */}
+            <div className="mb-6 p-4 border border-gray-800 rounded">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={addGamma}
+                  onChange={(e) => setAddGamma(e.target.checked)}
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  {pricing.isFree || pricing.followerCount < 5000 ? (
+                    <>
+                      <div className="font-medium">Add Gamma Report (FREE)</div>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Presentation-ready analysis. Clean, fast, professional. On us.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="font-medium">Add Gamma Report (+$50)</div>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Premium presentation-ready analysis. Custom styling, shareable link.
+                      </p>
+                    </>
+                  )}
+                </div>
+              </label>
 
-                {addGamma && (
-                  <div className="mt-4 space-y-4 pl-7">
-                    <div>
-                      <label className="block text-sm text-gray-500 mb-2">Report Style</label>
-                      <select
-                        value={gammaStyle}
-                        onChange={(e) => setGammaStyle(e.target.value)}
-                        className="w-full px-4 py-2 bg-black border border-gray-800 rounded text-white focus:outline-none focus:border-white"
-                      >
-                        <option value="minimalist">Minimalist</option>
-                        <option value="tech">Tech / Futuristic</option>
-                        <option value="corporate">Corporate / Professional</option>
-                        <option value="creative">Creative / Bold</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-500 mb-2">Custom Instructions (Optional)</label>
-                      <textarea
-                        value={customInstructions}
-                        onChange={(e) => setCustomInstructions(e.target.value)}
-                        placeholder="e.g., Focus on engagement quality and brand safety for partnership evaluation"
-                        className="w-full px-4 py-2 bg-black border border-gray-800 rounded text-white placeholder-gray-600 focus:outline-none focus:border-white resize-none"
-                        rows={3}
-                      />
-                    </div>
+              {addGamma && (
+                <div className="mt-4 space-y-4 pl-7">
+                  <div>
+                    <label className="block text-sm text-gray-500 mb-2">Report Style</label>
+                    <select
+                      value={gammaStyle}
+                      onChange={(e) => setGammaStyle(e.target.value)}
+                      className="w-full px-4 py-2 bg-black border border-gray-800 rounded text-white focus:outline-none focus:border-white"
+                    >
+                      <option value="clean">Clean & Fast (Cheetah on a Snowboard)</option>
+                      <option value="minimal">Minimal</option>
+                      <option value="corporate">Corporate / Professional</option>
+                      <option value="bold">Bold & Direct</option>
+                    </select>
                   </div>
-                )}
-              </div>
-            )}
+                  <div>
+                    <label className="block text-sm text-gray-500 mb-2">Custom Instructions (Optional)</label>
+                    <textarea
+                      value={customInstructions}
+                      onChange={(e) => setCustomInstructions(e.target.value)}
+                      placeholder="e.g., Focus on engagement quality and brand safety for partnership evaluation"
+                      className="w-full px-4 py-2 bg-black border border-gray-800 rounded text-white placeholder-gray-600 focus:outline-none focus:border-white resize-none"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Payment Button */}
             {pricing.isFree ? (
               <button className="w-full bg-white text-black py-4 rounded font-medium hover:bg-gray-200 transition-colors">
-                Export Now (Free)
+                Export Now (Free{addGamma && ' + Gamma Report'})
               </button>
             ) : (
               <button className="w-full bg-white text-black py-4 rounded font-medium hover:bg-gray-200 transition-colors">
-                Pay ${pricing.price + (addGamma ? 50 : 0)} {addGamma && '(Data + Gamma)'}
+                {(() => {
+                  const isFreeGamma = pricing.followerCount < 5000
+                  const gammaCharge = isFreeGamma ? 0 : 50
+                  const total = pricing.price + (addGamma ? gammaCharge : 0)
+                  
+                  if (addGamma && isFreeGamma) {
+                    return `Pay $${pricing.price} (Gamma FREE)`
+                  } else if (addGamma) {
+                    return `Pay $${total} (Data + Gamma)`
+                  } else {
+                    return `Pay $${pricing.price}`
+                  }
+                })()}
               </button>
             )}
 
