@@ -44,43 +44,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // STEP 2: No data → Get EXACT follower count from X API (no extraction yet!)
-    console.log(`[Eligibility] Getting exact follower count for @${cleanUsername} from X API`)
+    // STEP 2: No data → Get follower count from Apify (X API free tier too limited!)
+    console.log(`[Eligibility] Getting follower count for @${cleanUsername} from Apify`)
     
-    let followerCount = 0
+    const { getDataProvider } = await import('@/lib/data-provider')
+    const provider = getDataProvider()
     
-    try {
-      // Use X API v2 to get user profile with follower count
-      const { TwitterApi } = await import('twitter-api-v2')
-      
-      const client = new TwitterApi(process.env.X_BEARER_TOKEN || '')
-      
-      // Get user by username - returns exact follower count!
-      const user = await client.v2.userByUsername(cleanUsername, {
-        'user.fields': ['public_metrics', 'verified', 'description', 'profile_image_url', 'name']
-      })
-      
-      if (!user.data) {
-        return NextResponse.json({ 
-          error: 'Account not found',
-          details: 'This X account does not exist or is suspended'
-        }, { status: 404 })
-      }
-      
-      // EXACT follower count from X API!
-      followerCount = user.data.public_metrics?.followers_count || 0
-      
-      console.log(`[Eligibility] @${cleanUsername} has EXACTLY ${followerCount} followers (from X API)`)
-      
-    } catch (xError: any) {
-      console.error('[Eligibility] X API failed:', xError.message)
-      
-      // Fallback: If X API fails, return error
+    // Get profile info using Apify (returns follower count from profile)
+    const profile = await provider.getUserProfile(cleanUsername)
+    
+    if (!profile) {
       return NextResponse.json({ 
-        error: 'Unable to fetch account info',
-        details: 'Please try again or contact support'
-      }, { status: 500 })
+        error: 'Account not found',
+        details: 'This X account does not exist, is private, or is suspended'
+      }, { status: 404 })
     }
+    
+    const followerCount = profile.followersCount || 0
+    
+    console.log(`[Eligibility] @${cleanUsername} has ${followerCount} followers`)
     
     // Store minimal info (no followers yet - will extract after payment)
     await adminDb.collection('follower_database').doc(cleanUsername).set({

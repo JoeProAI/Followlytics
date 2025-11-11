@@ -57,24 +57,34 @@ class DataProvider {
       const firstFollower = dataset.items[0] as any
       const targetUsername = firstFollower.target_username
       
-      // Count sample extracted
-      const sampleCount = dataset.items.length
+      // Check if actor returns the actual follower count
+      // Some actors include target_followers_count or similar field
+      const actualFollowerCount = firstFollower.target_followers_count || 
+                                  firstFollower.targetFollowersCount ||
+                                  firstFollower.target_user_followers_count
       
-      // Estimate total based on whether we hit the limit
-      // If we got 1000, user likely has WAY more
-      const estimatedCount = sampleCount >= 1000 
-        ? sampleCount * 10 // Conservative estimate
-        : sampleCount
+      let followerCount: number
       
-      console.log(`[DataProvider] Sampled ${sampleCount} followers for @${targetUsername} - estimated ${estimatedCount}`)
+      if (actualFollowerCount) {
+        // Use the ACTUAL count from the actor response!
+        followerCount = actualFollowerCount
+        console.log(`[DataProvider] @${targetUsername} has EXACT ${followerCount} followers (from actor)`)
+      } else {
+        // Fallback: Count the sample we extracted
+        const sampleCount = dataset.items.length
+        followerCount = sampleCount >= 1000 
+          ? sampleCount * 10 // Conservative estimate if we hit limit
+          : sampleCount // Exact if under 1000
+        console.log(`[DataProvider] @${targetUsername} - sampled ${sampleCount}, estimated ${followerCount} followers`)
+      }
       
-      // Return profile using target username and estimated count
+      // Return profile with follower count
       return {
         username: targetUsername || username,
         name: targetUsername,
         bio: `X user`,
         verified: false,
-        followersCount: estimatedCount,
+        followersCount: followerCount,
         followingCount: 0,
         profileImageUrl: undefined,
         location: ''
