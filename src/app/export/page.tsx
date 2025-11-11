@@ -43,8 +43,9 @@ function ExportContent() {
     setPricing(null)
 
     try {
+      // Add 60 second timeout (actor takes ~35s)
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 30000)
+      const timeoutId = setTimeout(() => controller.abort(), 60000)
 
       const res = await fetch('/api/user/check-eligibility', {
         method: 'POST',
