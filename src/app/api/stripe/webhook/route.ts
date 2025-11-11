@@ -244,8 +244,27 @@ async function triggerDataExtraction(username: string, customerEmail: string) {
   try {
     console.log(`[Extraction Trigger] Starting extraction for @${username}`)
     
+    // Check env var
+    if (!process.env.DATA_API_KEY) {
+      console.error('[Extraction] CRITICAL: DATA_API_KEY not set in environment!')
+      
+      // Store error state in database
+      await db.collection('follower_database').doc(username).set({
+        error: 'DATA_API_KEY not configured',
+        extractionFailed: true,
+        lastAttemptedAt: new Date(),
+        customerEmail
+      }, { merge: true })
+      
+      return
+    }
+    
+    console.log('[Extraction] DATA_API_KEY found, starting extraction...')
+    
     const { getDataProvider } = await import('@/lib/data-provider')
     const provider = getDataProvider()
+    
+    console.log(`[Extraction] Provider created, calling getFollowers for @${username}`)
     
     // Extract ALL followers (chunked automatically)
     const result = await provider.getFollowers(username, {
@@ -253,8 +272,33 @@ async function triggerDataExtraction(username: string, customerEmail: string) {
       includeDetails: true
     })
     
+    console.log(`[Extraction] getFollowers returned - success: ${result.success}, followers: ${result.followers?.length || 0}`)
+    
     if (!result.success) {
       console.error(`[Extraction] Failed for @${username}:`, result.error)
+      
+      // Store error state
+      await db.collection('follower_database').doc(username).set({
+        error: result.error || 'Unknown extraction error',
+        extractionFailed: true,
+        lastAttemptedAt: new Date(),
+        customerEmail
+      }, { merge: true })
+      
+      return
+    }
+    
+    if (!result.followers || result.followers.length === 0) {
+      console.error(`[Extraction] No followers extracted for @${username}`)
+      
+      // Store zero followers state
+      await db.collection('follower_database').doc(username).set({
+        error: 'No followers found or extraction returned empty',
+        extractionFailed: true,
+        lastAttemptedAt: new Date(),
+        customerEmail
+      }, { merge: true })
+      
       return
     }
     
@@ -266,15 +310,28 @@ async function triggerDataExtraction(username: string, customerEmail: string) {
       followerCount: result.followers.length,
       lastExtractedAt: new Date(),
       extractedBy: 'webhook',
-      customerEmail
+      customerEmail,
+      extractionFailed: false
     }, { merge: true })
     
-    console.log(`[Extraction] Stored in database for @${username}`)
+    console.log(`[Extraction] Stored ${result.followers.length} followers in database for @${username}`)
     
     // TODO: Send email to customerEmail with download link
     
   } catch (error: any) {
-    console.error(`[Extraction] Error for @${username}:`, error)
+    console.error(`[Extraction] EXCEPTION for @${username}:`, error.message, error.stack)
+    
+    // Store exception state
+    try {
+      await db.collection('follower_database').doc(username).set({
+        error: error.message || 'Unknown exception',
+        extractionFailed: true,
+        lastAttemptedAt: new Date(),
+        customerEmail
+      }, { merge: true })
+    } catch (dbError) {
+      console.error('[Extraction] Failed to store error state:', dbError)
+    }
   }
 }
 
