@@ -98,28 +98,34 @@ export class ApifyFollowerExtractor {
     try {
       console.log(`[Apify] Extracting profile for @${username}`)
       
-      const run = await this.client.actor('curious_coder/twitter-scraper').call({
-        handles: [username],
-        maxItems: 1,
-        includeUserInfo: true
+      // Use Premium X User Scraper for reliable profile data
+      const run = await this.client.actor('kaitoeasyapi/premium-twitter-user-scraper-pay-per-result').call({
+        usernames: [username]
       })
       
       const dataset = await this.client.dataset(run.defaultDatasetId).listItems()
       
       if (dataset.items.length > 0) {
         const profile = dataset.items[0] as any
+        
+        console.log(`[Apify] Profile found:`, {
+          username: profile.username,
+          followers: profile.followers_count || profile.followersCount
+        })
+        
         return {
           username: profile.username || username,
-          name: profile.name || profile.fullName || username,
+          name: profile.name || profile.full_name || username,
           bio: profile.bio || profile.description,
-          verified: profile.verified || profile.isVerified || false,
-          followersCount: profile.followersCount || profile.followers || 0,
-          followingCount: profile.followingCount || profile.following || 0,
-          profileImageUrl: profile.profileImageUrl || profile.avatar,
+          verified: profile.verified || profile.is_verified || false,
+          followersCount: profile.followers_count || profile.followersCount || 0,
+          followingCount: profile.following_count || profile.followingCount || 0,
+          profileImageUrl: profile.profile_image_url || profile.profileImageUrl,
           location: profile.location
         }
       }
       
+      console.error('[Apify] No profile data returned')
       return null
       
     } catch (error: any) {

@@ -41,34 +41,35 @@ export default function LaunchTimer() {
   if (!isLaunched) return null
 
   return (
-    <div className="bg-white text-black border-b border-gray-200 py-3 px-4">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-center gap-6 text-center md:text-left">
-        <div className="flex items-center gap-3">
+    <div className="bg-black border-b border-gray-900 py-4 px-4">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-center gap-8 text-center md:text-left">
+        <div className="flex items-center gap-4">
+          <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
           <div>
-            <div className="font-medium text-sm">Launch Week</div>
-            <div className="text-xs text-gray-600">50% off</div>
+            <div className="font-light text-sm text-white">Launch Week</div>
+            <div className="text-xs text-gray-500">50% off all exports</div>
           </div>
         </div>
         
-        <div className="flex gap-3 font-mono text-sm">
-          <div className="flex flex-col items-center">
-            <div className="font-medium">{timeLeft.days}</div>
-            <div className="text-xs text-gray-500">DAYS</div>
+        <div className="flex gap-4 font-mono text-base">
+          <div className="flex flex-col items-center min-w-[3rem]">
+            <div className="text-2xl font-light text-white">{timeLeft.days}</div>
+            <div className="text-xs text-gray-600 uppercase tracking-wider">Days</div>
           </div>
-          <div className="text-gray-400">:</div>
-          <div className="flex flex-col items-center">
-            <div className="font-medium">{String(timeLeft.hours).padStart(2, '0')}</div>
-            <div className="text-xs text-gray-500">HRS</div>
+          <div className="text-xl text-gray-800 self-start mt-1">:</div>
+          <div className="flex flex-col items-center min-w-[3rem]">
+            <div className="text-2xl font-light text-white">{String(timeLeft.hours).padStart(2, '0')}</div>
+            <div className="text-xs text-gray-600 uppercase tracking-wider">Hrs</div>
           </div>
-          <div className="text-gray-400">:</div>
-          <div className="flex flex-col items-center">
-            <div className="font-medium">{String(timeLeft.minutes).padStart(2, '0')}</div>
-            <div className="text-xs text-gray-500">MIN</div>
+          <div className="text-xl text-gray-800 self-start mt-1">:</div>
+          <div className="flex flex-col items-center min-w-[3rem]">
+            <div className="text-2xl font-light text-white">{String(timeLeft.minutes).padStart(2, '0')}</div>
+            <div className="text-xs text-gray-600 uppercase tracking-wider">Min</div>
           </div>
-          <div className="text-gray-400">:</div>
-          <div className="flex flex-col items-center">
-            <div className="font-medium">{String(timeLeft.seconds).padStart(2, '0')}</div>
-            <div className="text-xs text-gray-500">SEC</div>
+          <div className="text-xl text-gray-800 self-start mt-1">:</div>
+          <div className="flex flex-col items-center min-w-[3rem]">
+            <div className="text-2xl font-light text-white">{String(timeLeft.seconds).padStart(2, '0')}</div>
+            <div className="text-xs text-gray-600 uppercase tracking-wider">Sec</div>
           </div>
         </div>
       </div>
