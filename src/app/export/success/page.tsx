@@ -34,6 +34,8 @@ function SuccessContent() {
   const [downloading, setDownloading] = useState<string | null>(null)
 
   useEffect(() => {
+    let extractionTriggered = false
+    
     // Verify payment and get download links
     const verifyAndGetData = async () => {
       if (!username) {
@@ -62,7 +64,22 @@ function SuccessContent() {
         const data = await res.json()
 
         if (res.status === 202) {
-          // Data not ready yet - poll again
+          // Data not ready yet - check if we need to trigger extraction
+          if (data.progress?.status === 'pending' && !extractionTriggered) {
+            console.log('[Success Page] Triggering extraction for', username)
+            extractionTriggered = true
+            
+            // Trigger extraction in background
+            fetch('/api/export/trigger-extraction', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username })
+            }).catch(err => {
+              console.error('[Success Page] Failed to trigger extraction:', err)
+            })
+          }
+          
+          // Poll again
           setTimeout(verifyAndGetData, 5000) // Check again in 5 seconds
           setLoading(false)
           setDownloadData({ ...data, ready: false })

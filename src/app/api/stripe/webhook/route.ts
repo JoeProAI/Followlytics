@@ -135,12 +135,18 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     })
     
     console.log(`[Payment Success] @${username} - Access granted to ${accessKey}`)
+    console.log(`[Webhook] Extraction will be triggered from success page (to avoid timeouts)`)
     
-    // ALWAYS trigger extraction after payment (this is when we actually extract!)
-    console.log(`[Webhook] Payment received, starting extraction for @${username}`)
-    triggerDataExtraction(username, customerEmail || 'no-email').catch((err: any) => {
-      console.error('[Webhook] Failed to trigger extraction:', err)
-    })
+    // Mark as ready for extraction (success page will trigger it)
+    await db.collection('follower_database').doc(username).set({
+      extractionProgress: {
+        status: 'pending',
+        message: 'Payment received - ready to extract',
+        percentage: 0
+      },
+      customerEmail: customerEmail || 'no-email',
+      accessGranted: [accessKey]
+    }, { merge: true })
     
     return
   }
