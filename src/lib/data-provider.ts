@@ -38,32 +38,39 @@ class DataProvider {
       const { ApifyClient } = await import('apify-client')
       const client = new ApifyClient({ token: this.apiKey })
       
-      const run = await client.actor('kaitoeasyapi/premium-x-follower-scraper-following-data').call({
-        user_names: [username],
-        user_ids: [],
-        maxFollowers: 200, // Minimum required by actor
-        maxFollowings: 200,
-        getFollowers: true, // MUST be true to get data
-        getFollowing: false
+      // Use apidojo/tweet-scraper for PROFILE ONLY (doesn't return followers)
+      const run = await client.actor('apidojo/tweet-scraper').call({
+        twitterHandles: [username],
+        maxTweetsPerQuery: 0, // Don't need tweets, just profile
+        proxyConfig: { useApifyProxy: true }
       })
       
       const dataset = await client.dataset(run.defaultDatasetId).listItems()
       
+      console.log('[DataProvider] Dataset items:', dataset.items.length)
+      
       if (dataset.items.length > 0) {
-        const data = dataset.items[0] as any
+        const item = dataset.items[0] as any
+        const user = item.user || item // Profile is in 'user' field
+        
+        console.log('[DataProvider] Found profile:', {
+          username: user.screen_name || user.username,
+          followers: user.followers_count || user.followersCount
+        })
         
         return {
-          username: data.user_name || data.username || username,
-          name: data.name || data.user_name || username,
-          bio: data.description || data.bio || '',
-          verified: data.verified || data.is_verified || false,
-          followersCount: data.followers_count || data.followersCount || 0,
-          followingCount: data.following_count || data.followingCount || 0,
-          profileImageUrl: data.profile_image_url || data.avatar_url,
-          location: data.location || ''
+          username: user.screen_name || user.username || username,
+          name: user.name || username,
+          bio: user.description || user.bio || '',
+          verified: user.verified || false,
+          followersCount: user.followers_count || user.followersCount || 0,
+          followingCount: user.friends_count || user.followingCount || 0,
+          profileImageUrl: user.profile_image_url_https || user.profileImageUrl,
+          location: user.location || ''
         }
       }
       
+      console.error('[DataProvider] No profile data found in response')
       return null
       
     } catch (error: any) {
