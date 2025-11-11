@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import LaunchTimer, { isLaunchWeek, getLaunchDiscount } from '@/components/LaunchTimer'
 
 function ExportContent() {
   const searchParams = useSearchParams()
@@ -70,6 +71,7 @@ function ExportContent() {
 
   return (
     <div className="min-h-screen bg-black text-white">
+      <LaunchTimer />
       {/* Header */}
       <header className="border-b border-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -136,6 +138,12 @@ function ExportContent() {
               <div className="text-right">
                 {pricing.isFree ? (
                   <div className="text-4xl font-light text-green-400">Free</div>
+                ) : isLaunchWeek() ? (
+                  <div>
+                    <div className="text-2xl font-light text-gray-500 line-through">${pricing.price}</div>
+                    <div className="text-4xl font-light text-green-400">${getLaunchDiscount(pricing.price)}</div>
+                    <div className="text-sm text-green-400 mt-1">🚀 Launch Week - 50% OFF</div>
+                  </div>
                 ) : (
                   <div className="text-4xl font-light">${pricing.price}</div>
                 )}
@@ -223,15 +231,16 @@ function ExportContent() {
               <button className="w-full bg-white text-black py-4 rounded font-medium hover:bg-gray-200 transition-colors">
                 {(() => {
                   const isFreeGamma = pricing.followerCount < 5000
-                  const gammaCharge = isFreeGamma ? 0 : 50
-                  const total = pricing.price + (addGamma ? gammaCharge : 0)
+                  const gammaCharge = isFreeGamma ? 0 : (isLaunchWeek() ? 25 : 50) // Gamma also 50% off
+                  const basePrice = isLaunchWeek() ? getLaunchDiscount(pricing.price) : pricing.price
+                  const total = basePrice + (addGamma ? gammaCharge : 0)
                   
                   if (addGamma && isFreeGamma) {
-                    return `Pay $${pricing.price} (Gamma FREE)`
+                    return `Pay $${basePrice} (Gamma FREE)${isLaunchWeek() ? ' 🚀 50% OFF' : ''}`
                   } else if (addGamma) {
-                    return `Pay $${total} (Data + Gamma)`
+                    return `Pay $${total} (Data + Gamma)${isLaunchWeek() ? ' 🚀 50% OFF' : ''}`
                   } else {
-                    return `Pay $${pricing.price}`
+                    return `Pay $${basePrice}${isLaunchWeek() ? ' 🚀 50% OFF' : ''}`
                   }
                 })()}
               </button>
