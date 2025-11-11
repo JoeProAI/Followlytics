@@ -1,21 +1,12 @@
 // Check if user qualifies for free export based on their follower count
 // Under 500 followers = FREE
 // Over 500 followers = PAY
+// PUBLIC ENDPOINT - No auth required
 
 import { NextRequest, NextResponse } from 'next/server'
-import { adminAuth } from '@/lib/firebase-admin'
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const idToken = authHeader.split('Bearer ')[1]
-    const decodedToken = await adminAuth.verifyIdToken(idToken)
-    const userId = decodedToken.uid
-
     const { username } = await request.json()
 
     if (!username) {

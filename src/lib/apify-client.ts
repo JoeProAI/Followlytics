@@ -92,21 +92,32 @@ export class ApifyFollowerExtractor {
   
   /**
    * Extract profile information for a single user
-   * Useful for competitor analysis
+   * Useful for getting follower count and basic info
    */
   async extractProfile(username: string): Promise<ApifyFollowerResult | null> {
     try {
       console.log(`[Apify] Extracting profile for @${username}`)
       
-      const run = await this.client.actor('quacker/twitter-profile-scraper').call({
+      const run = await this.client.actor('curious_coder/twitter-scraper').call({
         handles: [username],
-        maxItems: 1
+        maxItems: 1,
+        includeUserInfo: true
       })
       
       const dataset = await this.client.dataset(run.defaultDatasetId).listItems()
       
       if (dataset.items.length > 0) {
-        return dataset.items[0] as unknown as ApifyFollowerResult
+        const profile = dataset.items[0] as any
+        return {
+          username: profile.username || username,
+          name: profile.name || profile.fullName || username,
+          bio: profile.bio || profile.description,
+          verified: profile.verified || profile.isVerified || false,
+          followersCount: profile.followersCount || profile.followers || 0,
+          followingCount: profile.followingCount || profile.following || 0,
+          profileImageUrl: profile.profileImageUrl || profile.avatar,
+          location: profile.location
+        }
       }
       
       return null
