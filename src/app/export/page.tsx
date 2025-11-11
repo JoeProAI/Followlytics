@@ -82,6 +82,42 @@ function ExportContent() {
     }
   }
 
+  const handlePayment = async () => {
+    if (!pricing) return
+
+    try {
+      const isFreeGamma = pricing.followerCount < 5000
+      const gammaCharge = isFreeGamma ? 0 : (isLaunchWeek() ? 25 : 50)
+      const basePrice = isLaunchWeek() ? getLaunchDiscount(pricing.price) : pricing.price
+      const total = basePrice + (addGamma ? gammaCharge : 0)
+
+      // Create Stripe checkout
+      const res = await fetch('/api/stripe/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: pricing.username,
+          amount: total,
+          includeGamma: addGamma,
+          gammaStyle: addGamma ? gammaStyle : undefined,
+          customInstructions: addGamma ? customInstructions : undefined
+        })
+      })
+
+      const data = await res.json()
+
+      if (data.url) {
+        // Redirect to Stripe checkout
+        window.location.href = data.url
+      } else {
+        setError('Failed to create checkout session')
+      }
+    } catch (err: any) {
+      setError('Payment error. Please try again.')
+      console.error('Payment error:', err)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-black text-white">
       <LaunchTimer />
@@ -230,11 +266,17 @@ function ExportContent() {
 
             {/* Payment Button */}
             {pricing.isFree ? (
-              <button className="w-full bg-white text-black py-4 rounded font-medium hover:bg-gray-200 transition-colors">
+              <button 
+                onClick={handlePayment}
+                className="w-full bg-white text-black py-4 rounded font-medium hover:bg-gray-200 transition-colors"
+              >
                 Export Now (Free{addGamma && ' + Gamma Report'})
               </button>
             ) : (
-              <button className="w-full bg-white text-black py-4 rounded font-medium hover:bg-gray-200 transition-colors">
+              <button 
+                onClick={handlePayment}
+                className="w-full bg-white text-black py-4 rounded font-medium hover:bg-gray-200 transition-colors"
+              >
                 {(() => {
                   const isFreeGamma = pricing.followerCount < 5000
                   const gammaCharge = isFreeGamma ? 0 : (isLaunchWeek() ? 25 : 50)
