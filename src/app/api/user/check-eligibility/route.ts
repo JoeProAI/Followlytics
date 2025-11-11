@@ -44,55 +44,46 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // STEP 2: No data or too old → Extract NOW
-    console.log(`[Eligibility] Extracting for @${cleanUsername}`)
+    // STEP 2: No data → Get follower count ONLY (don't extract all followers yet!)
+    console.log(`[Eligibility] Getting follower count for @${cleanUsername}`)
     
     const { getDataProvider } = await import('@/lib/data-provider')
     const provider = getDataProvider()
     
+    // Just get profile info with minimal followers (cheap!)
     const result = await provider.getFollowers(cleanUsername, {
-      maxFollowers: 10000,
-      includeDetails: true
+      maxFollowers: 1, // Only extract 1 follower to get the count
+      includeDetails: false
     })
     
     if (!result.success) {
       return NextResponse.json({ 
-        error: 'Failed to extract followers',
+        error: 'Failed to get account info',
         details: result.error 
       }, { status: 500 })
     }
     
-    const followerCount = result.followers.length
-    console.log(`[Eligibility] Extracted ${followerCount} followers, cleaning and storing`)
+    // The actor returns profile data in the first follower object
+    // We need the actual follower count from the profile
+    const followerCount = result.totalExtracted || result.followers.length
+    console.log(`[Eligibility] Account has ${followerCount} followers`)
     
-    // Clean followers - remove undefined values for Firestore
-    const cleanFollowers = result.followers.map((f: any) => ({
-      username: f.username || '',
-      name: f.name || '',
-      bio: f.bio || '',
-      verified: f.verified || false,
-      followersCount: f.followersCount || 0,
-      followingCount: f.followingCount || 0,
-      profileImageUrl: f.profileImageUrl || '',
-      location: f.location || ''
-    }))
-    
-    // Store in database
+    // Store minimal info (no followers yet - will extract after payment)
     await adminDb.collection('follower_database').doc(cleanUsername).set({
       username: cleanUsername,
-      followers: cleanFollowers,
-      followerCount,
-      lastExtractedAt: new Date(),
-      extractedBy: 'check-eligibility',
+      followers: [], // Empty - will extract after payment
+      followerCount: followerCount,
+      lastCheckedAt: new Date(),
+      extractedBy: 'pending-payment',
       accessGranted: [],
       extractionProgress: {
-        status: 'complete',
-        message: 'Ready to download',
-        percentage: 100
+        status: 'pending',
+        message: 'Awaiting payment',
+        percentage: 0
       }
     })
     
-    console.log(`[Eligibility] Stored for @${cleanUsername}`)
+    console.log(`[Eligibility] Stored placeholder for @${cleanUsername}`)
 
     const { isFree, price, tier } = calculatePricing(followerCount)
 
@@ -102,10 +93,10 @@ export async function POST(request: NextRequest) {
       isFree,
       price,
       tier,
-      status: 'ready',
+      status: 'pending_payment',
       message: isFree 
-        ? `🎉 ${followerCount} followers extracted - FREE download!`
-        : `✅ ${followerCount} followers extracted - Pay $${price} to download.`
+        ? `🎉 You have ${followerCount} followers - FREE download!`
+        : `💰 ${followerCount.toLocaleString()} followers found - Pay $${price} to extract and download.`
     })
 
   } catch (error: any) {
@@ -132,9 +123,18 @@ function calculatePricing(followerCount: number) {
     } else if (followerCount < 10000) {
       price = 20
       tier = '5,000-10,000 followers'
-    } else {
+    } else if (followerCount < 20000) {
       price = 35
-      tier = '10,000+ followers'
+      tier = '10,000-20,000 followers'
+    } else if (followerCount < 50000) {
+      price = 50
+      tier = '20,000-50,000 followers'
+    } else if (followerCount < 100000) {
+      price = 100
+      tier = '50,000-100,000 followers'
+    } else {
+      price = 150
+      tier = '100,000+ followers'
     }
   }
 

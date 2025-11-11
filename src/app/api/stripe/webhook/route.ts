@@ -136,19 +136,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     
     console.log(`[Payment Success] @${username} - Access granted to ${accessKey}`)
     
-    // Check if data already exists from check-eligibility
-    const existingData = await db.collection('follower_database').doc(username).get()
-    
-    if (existingData.exists && existingData.data()?.followers?.length > 0) {
-      console.log(`[Webhook] Data already exists for @${username} - ${existingData.data()?.followers?.length} followers`)
-      // Data already extracted, user can download immediately!
-    } else {
-      console.log(`[Webhook] No existing data for @${username}, triggering extraction`)
-      // TRIGGER DATA EXTRACTION IN BACKGROUND (only if needed)
-      triggerDataExtraction(username, customerEmail || 'no-email').catch((err: any) => {
-        console.error('[Webhook] Failed to trigger extraction:', err)
-      })
-    }
+    // ALWAYS trigger extraction after payment (this is when we actually extract!)
+    console.log(`[Webhook] Payment received, starting extraction for @${username}`)
+    triggerDataExtraction(username, customerEmail || 'no-email').catch((err: any) => {
+      console.error('[Webhook] Failed to trigger extraction:', err)
+    })
     
     return
   }
