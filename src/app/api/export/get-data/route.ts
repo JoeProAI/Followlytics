@@ -40,19 +40,29 @@ export async function POST(request: NextRequest) {
 
     // Check if extraction is in progress
     const progress = data?.extractionProgress
-    const isComplete = progress?.status === 'complete' || (data?.followers?.length > 0 && !progress)
+    const isComplete = progress?.status === 'complete' && data?.followers?.length > 0
     
-    // Return data info with progress
+    // If not complete, return 202 so success page triggers extraction
+    if (!isComplete) {
+      return NextResponse.json({
+        username,
+        followerCount: data?.followers?.length || 0,
+        ready: false,
+        progress: progress || {
+          status: 'pending',
+          message: 'Preparing extraction...',
+          percentage: 0
+        }
+      }, { status: 202 })
+    }
+    
+    // Return complete data
     return NextResponse.json({
       username,
       followerCount: data?.followers?.length || 0,
-      ready: isComplete,
+      ready: true,
       extractedAt: data?.lastExtractedAt,
-      progress: progress || {
-        status: isComplete ? 'complete' : 'unknown',
-        message: isComplete ? 'Ready to download' : 'Processing...',
-        percentage: isComplete ? 100 : 0
-      }
+      progress: progress
     })
 
   } catch (error: any) {
