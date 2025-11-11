@@ -361,9 +361,60 @@ async function triggerDataExtraction(username: string, customerEmail: string) {
       }
     }, { merge: true })
     
-    console.log(`[Extraction] Stored ${result.followers.length} followers in database for @${username}`)
+    console.log(`[Extraction] Stored ${cleanFollowers.length} followers in database for @${username}`)
     
-    // TODO: Send email to customerEmail with download link
+    // Send email with download links
+    if (customerEmail && customerEmail !== 'no-email') {
+      try {
+        console.log(`[Email] Sending notification to ${customerEmail}`)
+        
+        const { Resend } = await import('resend')
+        const resend = new Resend(process.env.RESEND_API_KEY)
+        
+        const downloadUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://followlytics-zeta.vercel.app'}/export/success?username=${username}&session_id=email_access`
+        
+        await resend.emails.send({
+          from: 'Followlytics <notifications@followlytics.io>',
+          to: customerEmail,
+          subject: `✅ Your ${cleanFollowers.length} Followers Are Ready!`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h1 style="color: #1DA1F2;">🎉 Your Follower Export is Ready!</h1>
+              
+              <p>Great news! We've successfully extracted <strong>${cleanFollowers.length} followers</strong> from <strong>@${username}</strong>.</p>
+              
+              <div style="background: #f5f8fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="margin-top: 0;">📊 What You Get:</h3>
+                <ul>
+                  <li><strong>${cleanFollowers.length} followers</strong> with complete profile data</li>
+                  <li>CSV format (Excel-ready)</li>
+                  <li>JSON format (developer-friendly)</li>
+                  <li>Excel format (.xlsx)</li>
+                </ul>
+              </div>
+              
+              <a href="${downloadUrl}" style="display: inline-block; background: #1DA1F2; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 20px 0;">
+                Download Your Followers
+              </a>
+              
+              <p style="color: #657786; font-size: 14px;">This link will remain active for 30 days.</p>
+              
+              <hr style="border: none; border-top: 1px solid #e1e8ed; margin: 30px 0;">
+              
+              <p style="color: #657786; font-size: 12px;">
+                Questions? Reply to this email or visit our help center.<br>
+                Thanks for using Followlytics!
+              </p>
+            </div>
+          `
+        })
+        
+        console.log(`[Email] Successfully sent to ${customerEmail}`)
+      } catch (emailError: any) {
+        console.error(`[Email] Failed to send:`, emailError)
+        // Don't fail the whole extraction if email fails
+      }
+    }
     
   } catch (error: any) {
     console.error(`[Extraction] EXCEPTION for @${username}:`, error.message, error.stack)

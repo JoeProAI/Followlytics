@@ -24,7 +24,8 @@ export async function POST(request: NextRequest) {
     const data = dataDoc.data()
     
     // Verify access (free, test, or paid with matching session)
-    const hasAccess = sessionId === 'free' || 
+    const hasAccess = sessionId === 'email_access' || // Email link access
+                      sessionId === 'free' || 
                       sessionId === 'manual-test' ||
                       sessionId === 'test' ||
                       data?.accessGranted?.includes(sessionId) ||
