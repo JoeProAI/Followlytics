@@ -44,15 +44,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // STEP 2: No data → Get follower count ONLY (don't extract all followers yet!)
+    // STEP 2: No data → Get follower count estimate (extract sample)
     console.log(`[Eligibility] Getting follower count for @${cleanUsername}`)
     
     const { getDataProvider } = await import('@/lib/data-provider')
     const provider = getDataProvider()
     
-    // Just get profile info with minimal followers (cheap!)
+    // Extract a reasonable sample to estimate follower count
+    // If we get 1000, they probably have way more
     const result = await provider.getFollowers(cleanUsername, {
-      maxFollowers: 1, // Only extract 1 follower to get the count
+      maxFollowers: 1000, // Extract 1000 to estimate
       includeDetails: false
     })
     
@@ -63,10 +64,22 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
     
-    // The actor returns profile data in the first follower object
-    // We need the actual follower count from the profile
-    const followerCount = result.totalExtracted || result.followers.length
-    console.log(`[Eligibility] Account has ${followerCount} followers`)
+    if (result.followers.length === 0) {
+      return NextResponse.json({ 
+        error: 'No followers found - account may be private or does not exist',
+        details: 'Unable to access follower data for this account'
+      }, { status: 404 })
+    }
+    
+    // Estimate total follower count
+    // If we got 1000, user likely has more (conservative 10x estimate)
+    // If we got less, that's probably close to their actual count
+    const extractedCount = result.followers.length
+    const followerCount = extractedCount >= 1000 
+      ? extractedCount * 10 // Conservative estimate for large accounts
+      : extractedCount
+    
+    console.log(`[Eligibility] Extracted ${extractedCount} sample, estimated ${followerCount} total followers`)
     
     // Store minimal info (no followers yet - will extract after payment)
     await adminDb.collection('follower_database').doc(cleanUsername).set({
