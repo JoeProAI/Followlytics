@@ -98,34 +98,62 @@ export class ApifyFollowerExtractor {
     try {
       console.log(`[Apify] Extracting profile for @${username}`)
       
-      // Use Premium X User Scraper for reliable profile data
-      const run = await this.client.actor('kaitoeasyapi/premium-twitter-user-scraper-pay-per-result').call({
-        usernames: [username]
-      })
-      
-      const dataset = await this.client.dataset(run.defaultDatasetId).listItems()
-      
-      if (dataset.items.length > 0) {
-        const profile = dataset.items[0] as any
-        
-        console.log(`[Apify] Profile found:`, {
-          username: profile.username,
-          followers: profile.followers_count || profile.followersCount
+      // Try multiple actors for better success rate
+      // Actor 1: Try Twitter Profile Scraper (fast and reliable)
+      try {
+        const run = await this.client.actor('microworlds/twitter-profile').call({
+          startUrls: [`https://twitter.com/${username}`]
         })
         
+        const dataset = await this.client.dataset(run.defaultDatasetId).listItems()
+        
+        if (dataset.items.length > 0) {
+          const profile = dataset.items[0] as any
+          
+          console.log(`[Apify] Profile found (twitter-profile):`, profile)
+          
+          return {
+            username: profile.username || profile.userName || username,
+            name: profile.name || profile.fullName || username,
+            bio: profile.description || profile.bio,
+            verified: profile.verified || profile.isVerified || false,
+            followersCount: profile.followersCount || profile.followers || 0,
+            followingCount: profile.followingCount || profile.following || 0,
+            profileImageUrl: profile.profilePicture || profile.profileImageUrl,
+            location: profile.location
+          }
+        }
+      } catch (err) {
+        console.log('[Apify] twitter-profile actor failed, trying fallback')
+      }
+      
+      // Actor 2: Fallback to Premium scraper
+      const run2 = await this.client.actor('apidojo/tweet-scraper').call({
+        twitterHandles: [username],
+        maxTweetsPerQuery: 0 // Just get profile, no tweets
+      })
+      
+      const dataset2 = await this.client.dataset(run2.defaultDatasetId).listItems()
+      
+      if (dataset2.items.length > 0) {
+        const profile = dataset2.items[0] as any
+        const user = profile.user || profile
+        
+        console.log(`[Apify] Profile found (tweet-scraper):`, user)
+        
         return {
-          username: profile.username || username,
-          name: profile.name || profile.full_name || username,
-          bio: profile.bio || profile.description,
-          verified: profile.verified || profile.is_verified || false,
-          followersCount: profile.followers_count || profile.followersCount || 0,
-          followingCount: profile.following_count || profile.followingCount || 0,
-          profileImageUrl: profile.profile_image_url || profile.profileImageUrl,
-          location: profile.location
+          username: user.username || user.screen_name || username,
+          name: user.name || username,
+          bio: user.description || user.bio,
+          verified: user.verified || false,
+          followersCount: user.followers_count || user.followersCount || 0,
+          followingCount: user.friends_count || user.followingCount || 0,
+          profileImageUrl: user.profile_image_url_https || user.profileImageUrl,
+          location: user.location
         }
       }
       
-      console.error('[Apify] No profile data returned')
+      console.error('[Apify] No profile data returned from any actor')
       return null
       
     } catch (error: any) {
