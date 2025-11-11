@@ -4,20 +4,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase-admin'
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const idToken = authHeader.split('Bearer ')[1]
-    const decodedToken = await adminAuth.verifyIdToken(idToken)
-    const userId = decodedToken.uid
-
-    const { searchParams } = new URL(request.url)
-    const username = searchParams.get('username')
-    const format = searchParams.get('format') || 'csv'
+    const { sessionId, username, format = 'csv' } = await request.json()
 
     if (!username) {
       return NextResponse.json({ error: 'Username required' }, { status: 400 })
@@ -25,15 +14,25 @@ export async function GET(request: NextRequest) {
 
     const cleanUsername = username.replace('@', '').toLowerCase()
 
-    // Get followers from cache
-    const cacheDoc = await adminDb.collection('follower_cache').doc(cleanUsername).get()
+    // Get followers from database
+    const dataDoc = await adminDb.collection('follower_database').doc(cleanUsername).get()
 
-    if (!cacheDoc.exists) {
+    if (!dataDoc.exists) {
       return NextResponse.json({ error: 'No data found for this username' }, { status: 404 })
     }
 
-    const cacheData = cacheDoc.data()
-    const followers = cacheData!.followers || []
+    const data = dataDoc.data()
+    
+    // Verify access (free or paid with matching session)
+    const hasAccess = sessionId === 'free' || 
+                      data?.accessGranted?.includes(sessionId) ||
+                      data?.paidAccess?.some((p: any) => p.sessionId === sessionId)
+
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    }
+
+    const followers = data?.followers || []
 
     if (followers.length === 0) {
       return NextResponse.json({ error: 'No followers data available' }, { status: 404 })

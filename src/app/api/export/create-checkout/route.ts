@@ -68,6 +68,11 @@ export async function POST(request: NextRequest) {
       mode: 'payment',
       payment_method_types: ['card'],
       line_items: lineItems,
+      customer_creation: 'always', // Always create a customer (requires email)
+      billing_address_collection: 'auto',
+      phone_number_collection: {
+        enabled: false
+      },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/export/success?session_id={CHECKOUT_SESSION_ID}&username=${username}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/export?username=${username}`,
       // Custom branding

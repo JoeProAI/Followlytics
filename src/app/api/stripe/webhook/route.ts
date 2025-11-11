@@ -85,12 +85,31 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     const gammaStyle = session.metadata?.gammaStyle || ''
     const customInstructions = session.metadata?.customInstructions || ''
     
+    // Get customer email - fetch from customer object if not in session
+    let customerEmail = session.customer_email
+    if (!customerEmail && session.customer) {
+      try {
+        const customer = await stripe.customers.retrieve(session.customer as string)
+        if ('email' in customer && customer.email) {
+          customerEmail = customer.email
+        }
+      } catch (error) {
+        console.error('Failed to fetch customer email:', error)
+      }
+    }
+    
+    // Use session ID as fallback if still no email
+    const accessKey = customerEmail || session.id
+    
+    console.log(`[Payment] Customer email: ${customerEmail || 'NONE'}, using key: ${accessKey}`)
+    
     // Grant access to follower data
     await db.collection('follower_database').doc(username).set({
-      accessGranted: FieldValue.arrayUnion(session.customer_email || session.id),
+      accessGranted: FieldValue.arrayUnion(accessKey),
       paidAccess: FieldValue.arrayUnion({
         sessionId: session.id,
-        email: session.customer_email,
+        email: customerEmail || 'no-email',
+        accessKey,
         amount,
         includeGamma,
         gammaStyle,
@@ -109,12 +128,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       customInstructions,
       sessionId: session.id,
       customerId: session.customer,
-      customerEmail: session.customer_email,
+      customerEmail: customerEmail || 'no-email',
+      accessKey,
       status: 'completed',
       createdAt: new Date().toISOString()
     })
     
-    console.log(`[Payment Success] @${username} - Access granted to ${session.customer_email}`)
+    console.log(`[Payment Success] @${username} - Access granted to ${accessKey}`)
     return
   }
 
