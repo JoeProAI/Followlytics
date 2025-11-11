@@ -173,8 +173,19 @@ function SuccessContent() {
           )}
           
           {downloadData && !downloadData.ready && (
+            <div className="space-y-2">
+              <p className="text-yellow-400 text-sm font-medium animate-pulse">
+                ⏳ Extracting followers... This page will update automatically
+              </p>
+              <p className="text-xs text-gray-500">
+                Large accounts may take 10-15 minutes. We'll email you when ready.
+              </p>
+            </div>
+          )}
+          
+          {!downloadData && !loading && !error && (
             <p className="text-yellow-400 text-sm font-medium animate-pulse">
-              ⏳ Extracting followers... This page will update automatically
+              ⏳ Starting extraction... Please wait
             </p>
           )}
           

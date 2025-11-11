@@ -259,16 +259,33 @@ async function triggerDataExtraction(username: string, customerEmail: string) {
       return
     }
     
-    console.log('[Extraction] DATA_API_KEY found, starting extraction...')
+    console.log('[Extraction] DATA_API_KEY found, getting profile info first...')
     
     const { getDataProvider } = await import('@/lib/data-provider')
     const provider = getDataProvider()
     
-    console.log(`[Extraction] Provider created, calling getFollowers for @${username}`)
+    // First, get the actual follower count
+    const profile = await provider.getUserProfile(username)
     
-    // Extract ALL followers (chunked automatically)
+    if (!profile || !profile.followersCount) {
+      console.error(`[Extraction] Could not get profile for @${username}`)
+      
+      await db.collection('follower_database').doc(username).set({
+        error: 'Could not fetch profile information',
+        extractionFailed: true,
+        lastAttemptedAt: new Date(),
+        customerEmail
+      }, { merge: true })
+      
+      return
+    }
+    
+    const followerCount = profile.followersCount
+    console.log(`[Extraction] @${username} has ${followerCount} followers, starting extraction...`)
+    
+    // Extract with actual follower count (avoid unnecessary chunks)
     const result = await provider.getFollowers(username, {
-      maxFollowers: 10000000, // Unlimited
+      maxFollowers: followerCount + 100, // Add buffer for new followers
       includeDetails: true
     })
     
