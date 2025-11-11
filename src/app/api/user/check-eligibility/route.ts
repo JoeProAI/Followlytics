@@ -33,12 +33,12 @@ export async function POST(request: NextRequest) {
         let tier = 'FREE (Under 500 followers)'
 
         if (!isFree) {
-          if (followerCount < 1000) {
+          if (followerCount < 2000) {
             price = 5
-            tier = '500-1,000 followers'
+            tier = '500-2,000 followers'
           } else if (followerCount < 5000) {
             price = 15
-            tier = '1,000-5,000 followers'
+            tier = '2,000-5,000 followers'
           } else if (followerCount < 10000) {
             price = 30
             tier = '5,000-10,000 followers'
@@ -87,12 +87,12 @@ export async function POST(request: NextRequest) {
     let tier = 'FREE (Under 500 followers)'
 
     if (!isFree) {
-      if (followerCount < 1000) {
+      if (followerCount < 2000) {
         price = 5
-        tier = '500-1,000 followers'
+        tier = '500-2,000 followers'
       } else if (followerCount < 5000) {
         price = 15
-        tier = '1,000-5,000 followers'
+        tier = '2,000-5,000 followers'
       } else if (followerCount < 10000) {
         price = 30
         tier = '5,000-10,000 followers'

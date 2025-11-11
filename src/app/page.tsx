@@ -103,11 +103,11 @@ export default function Home() {
                 <div className="text-2xl font-light">Free</div>
               </div>
               <div className="flex justify-between items-center border-b border-gray-900 pb-4">
-                <div className="text-gray-500">500 – 1,000</div>
+                <div className="text-gray-500">500 – 2,000</div>
                 <div className="text-2xl font-light">$5</div>
               </div>
               <div className="flex justify-between items-center border-b border-gray-900 pb-4">
-                <div className="text-gray-500">1,000 – 5,000</div>
+                <div className="text-gray-500">2,000 – 5,000</div>
                 <div className="text-2xl font-light">$15</div>
               </div>
               <div className="flex justify-between items-center border-b border-gray-900 pb-4">
