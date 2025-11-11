@@ -120,24 +120,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // STEP 3: Check if requires manual approval (200K+)
-    const requiresApproval = followerCount >= 200000
-
-    if (requiresApproval) {
-      // Don't extract automatically for 200K+ accounts
-      return NextResponse.json({
-        username: cleanUsername,
-        followerCount,
-        isFree: false,
-        price,
-        tier,
-        status: 'requires_approval',
-        requiresApproval: true,
-        message: `⚠️ This account has ${followerCount.toLocaleString()} followers and requires manual verification. Payment first, then we'll extract within 24 hours.`
-      })
-    }
-
-    // STEP 4: Start extraction in background (don't wait)
+    // STEP 3: Start extraction in background (handles ANY size automatically with chunking)
     startBackgroundExtraction(cleanUsername, profile, price).catch((err: any) => {
       console.error('[Smart Extract] Background extraction failed:', err)
     })
@@ -217,14 +200,17 @@ async function startBackgroundExtraction(username: string, profile: any, price: 
   }
 }
 
-// Estimate extraction time
+// Estimate extraction time (with chunked extraction)
 function estimateExtractionTime(followerCount: number): string {
   if (followerCount < 1000) return '1-2 min'
   if (followerCount < 5000) return '2-5 min'
   if (followerCount < 10000) return '5-10 min'
   if (followerCount < 50000) return '10-20 min'
   if (followerCount < 100000) return '20-40 min'
-  return '40-60 min'
+  if (followerCount < 200000) return '40-60 min'
+  if (followerCount < 500000) return '1-2 hours (chunked)'
+  if (followerCount < 1000000) return '2-4 hours (chunked)'
+  return '4-8 hours (large account)'
 }
 
 // Estimate data extraction cost
