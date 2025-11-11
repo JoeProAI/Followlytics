@@ -121,19 +121,16 @@ function calculatePricing(followerCount: number) {
       price = 10
       tier = '2,000-5,000 followers'
     } else if (followerCount < 10000) {
-      price = 20
+      price = 15
       tier = '5,000-10,000 followers'
-    } else if (followerCount < 20000) {
-      price = 35
-      tier = '10,000-20,000 followers'
     } else if (followerCount < 50000) {
-      price = 50
-      tier = '20,000-50,000 followers'
+      price = 20
+      tier = '10,000-50,000 followers'
     } else if (followerCount < 100000) {
-      price = 100
+      price = 50
       tier = '50,000-100,000 followers'
     } else {
-      price = 150
+      price = 100
       tier = '100,000+ followers'
     }
   }
