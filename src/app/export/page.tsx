@@ -24,18 +24,18 @@ function ExportContent() {
     }
   }, [initialUsername])
 
-  useEffect(() => {
-    // Load Cloudflare Turnstile script
-    const script = document.createElement('script')
-    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
-    script.async = true
-    script.defer = true
-    document.body.appendChild(script)
+  // TODO: Add Cloudflare Turnstile later when configured
+  // useEffect(() => {
+  //   const script = document.createElement('script')
+  //   script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
+  //   script.async = true
+  //   script.defer = true
+  //   document.body.appendChild(script)
 
-    return () => {
-      document.body.removeChild(script)
-    }
-  }, [])
+  //   return () => {
+  //     document.body.removeChild(script)
+  //   }
+  // }, [])
 
   const checkPrice = async (user: string) => {
     setChecking(true)
@@ -110,14 +110,7 @@ function ExportContent() {
               </button>
             </div>
 
-            {/* Cloudflare Turnstile - Invisible */}
-            <div 
-              className="cf-turnstile" 
-              data-sitekey="0x4AAAAAAAyourSiteKeyHere"
-              data-callback="onTurnstileSuccess"
-              data-theme="dark"
-              data-size="invisible"
-            ></div>
+            {/* TODO: Add Cloudflare Turnstile when configured */}
           </div>
 
           {error && (
