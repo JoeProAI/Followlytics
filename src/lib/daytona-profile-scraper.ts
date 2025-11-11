@@ -41,14 +41,9 @@ export class DaytonaClient {
       const scriptBase64 = Buffer.from(pythonScript).toString('base64')
       await sandbox.process.executeCommand(`echo "${scriptBase64}" | base64 -d > scrape_profile.py`)
 
-      console.log(`[Daytona] Installing dependencies...`)
-
-      // Install dependencies
-      await sandbox.process.executeCommand('pip install playwright beautifulsoup4')
-
-      await sandbox.process.executeCommand('playwright install chromium')
-
       console.log(`[Daytona] Running profile scraper...`)
+      
+      // No dependencies needed - using built-in urllib!
 
       // Run scraper
       const result = await sandbox.process.executeCommand('python scrape_profile.py')
@@ -86,78 +81,90 @@ export class DaytonaClient {
 
   private getProfileScraperScript(username: string): string {
     return `#!/usr/bin/env python3
-import asyncio
 import json
 import re
-from playwright.async_api import async_playwright
+import urllib.request
+import urllib.error
 
-async def scrape_profile():
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page()
+def scrape_profile():
+    try:
+        # Use mobile X URL for cleaner HTML
+        url = f"https://mobile.x.com/{username}"
+        print(f"Fetching profile: {url}")
         
-        try:
-            # Go to profile page
-            url = f"https://x.com/{username}"
-            print(f"Navigating to {url}...")
-            await page.goto(url, wait_until='networkidle', timeout=30000)
-            
-            # Wait for profile to load
-            await page.wait_for_timeout(3000)
-            
-            # Get page content
-            content = await page.content()
-            
-            # Extract follower count from page
-            # X shows follower count in format: "123.4K Followers" or "1.2M Followers"
-            follower_match = re.search(r'([0-9,.]+[KMB]?)\\s+Followers?', content)
-            
-            if not follower_match:
-                # Try alternative pattern in data attributes
-                follower_match = re.search(r'data-testid="[^"]*"[^>]*>([0-9,.]+[KMB]?)\\s+<[^>]*Followers', content)
-            
-            if follower_match:
-                follower_text = follower_match.group(1)
-                follower_count = parse_count(follower_text)
-            else:
-                # Last resort: try to find any number followed by "Followers"
-                follower_match = re.search(r'([0-9,]+)\\s+Followers?', content)
-                follower_count = int(follower_match.group(1).replace(',', '')) if follower_match else 0
-            
-            # Get profile name
-            name_match = re.search(r'<title>([^(]+)\\s*\\(', content)
-            name = name_match.group(1).strip() if name_match else username
-            
-            # Check if verified
-            verified = 'verified' in content.lower() or 'blue-verified' in content.lower()
-            
-            # Get bio
-            bio_match = re.search(r'<div[^>]*data-testid="UserDescription"[^>]*>([^<]+)', content)
-            bio = bio_match.group(1).strip() if bio_match else ''
-            
-            result = {
-                "success": True,
-                "followerCount": follower_count,
-                "name": name,
-                "verified": verified,
-                "bio": bio
-            }
-            
-            print("PROFILE_RESULT:", json.dumps(result))
-            
-        except Exception as e:
-            print("ERROR:", str(e))
-            result = {
-                "success": False,
-                "error": str(e)
-            }
-            print("PROFILE_RESULT:", json.dumps(result))
+        # Set user agent to look like a browser
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
         
-        finally:
-            await browser.close()
+        # Make HTTP request
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=15) as response:
+            html = response.read().decode('utf-8')
+        
+        print(f"Fetched {len(html)} bytes of HTML")
+        
+        # Extract follower count from HTML
+        # Look for patterns like "1,234 Followers" or "1.2M Followers"
+        patterns = [
+            r'"followers_count":([0-9]+)',  # JSON data
+            r'([0-9,.]+[KMB]?)\\s+Followers',  # "1.2M Followers"
+            r'([0-9,]+)\\s+Followers',  # "1,234 Followers"
+        ]
+        
+        follower_count = 0
+        for pattern in patterns:
+            match = re.search(pattern, html)
+            if match:
+                count_text = match.group(1)
+                follower_count = parse_count(count_text)
+                print(f"Found follower count: {follower_count} (pattern: {pattern})")
+                break
+        
+        # Get name from title tag
+        name_match = re.search(r'<title>([^(]+?)\\s*\\(', html)
+        name = name_match.group(1).strip() if name_match else username
+        
+        # Check verification
+        verified = 'verified' in html.lower() or '"verified":true' in html
+        
+        # Get bio
+        bio_match = re.search(r'"description":"([^"]+)"', html)
+        bio = bio_match.group(1) if bio_match else ''
+        
+        result = {
+            "success": True,
+            "followerCount": follower_count,
+            "name": name,
+            "verified": verified,
+            "bio": bio
+        }
+        
+        print("PROFILE_RESULT:", json.dumps(result))
+        
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            error_msg = "Account not found"
+        elif e.code == 403:
+            error_msg = "Account is private or suspended"
+        else:
+            error_msg = f"HTTP error {e.code}"
+        
+        result = {
+            "success": False,
+            "error": error_msg
+        }
+        print("PROFILE_RESULT:", json.dumps(result))
+        
+    except Exception as e:
+        result = {
+            "success": False,
+            "error": str(e)
+        }
+        print("PROFILE_RESULT:", json.dumps(result))
 
 def parse_count(text):
-    """Convert '1.2M' or '123.4K' to actual number"""
+    """Convert '1.2M' or '123.4K' or '1,234' to actual number"""
     text = text.replace(',', '')
     multiplier = 1
     
@@ -171,9 +178,12 @@ def parse_count(text):
         multiplier = 1000000000
         text = text.replace('B', '')
     
-    return int(float(text) * multiplier)
+    try:
+        return int(float(text) * multiplier)
+    except:
+        return 0
 
-asyncio.run(scrape_profile())
+scrape_profile()
 `
   }
 
