@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
       phone_number_collection: {
         enabled: false
       },
+      allow_promotion_codes: true, // Allow coupon codes
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/export/success?session_id={CHECKOUT_SESSION_ID}&username=${username}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/export?username=${username}`,
       // Custom branding

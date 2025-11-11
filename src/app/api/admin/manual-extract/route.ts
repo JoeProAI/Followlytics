@@ -11,6 +11,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Username required' }, { status: 400 })
     }
 
+    // Check if DATA_API_KEY is set
+    if (!process.env.DATA_API_KEY) {
+      console.error('[Manual Extract] DATA_API_KEY not set!')
+      return NextResponse.json({ 
+        error: 'API key not configured',
+        details: 'Add DATA_API_KEY to Vercel environment variables (your Apify token)'
+      }, { status: 500 })
+    }
+
     const cleanUsername = username.replace('@', '').toLowerCase()
 
     console.log(`[Manual Extract] Starting for @${cleanUsername}`)
