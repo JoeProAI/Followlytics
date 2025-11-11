@@ -12,12 +12,29 @@ function ExportContent() {
   const [checking, setChecking] = useState(false)
   const [pricing, setPricing] = useState<any>(null)
   const [error, setError] = useState('')
+  const [addGamma, setAddGamma] = useState(false)
+  const [gammaStyle, setGammaStyle] = useState('minimalist')
+  const [customInstructions, setCustomInstructions] = useState('')
+  const [turnstileToken, setTurnstileToken] = useState('')
 
   useEffect(() => {
     if (initialUsername) {
       checkPrice(initialUsername)
     }
   }, [initialUsername])
+
+  useEffect(() => {
+    // Load Cloudflare Turnstile script
+    const script = document.createElement('script')
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
+    script.async = true
+    script.defer = true
+    document.body.appendChild(script)
+
+    return () => {
+      document.body.removeChild(script)
+    }
+  }, [])
 
   const checkPrice = async (user: string) => {
     setChecking(true)
@@ -72,22 +89,33 @@ function ExportContent() {
             Enter your Twitter username to check pricing
           </p>
 
-          <div className="flex gap-4 items-center max-w-xl">
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleCheck()}
-              placeholder="@username"
-              className="flex-1 px-6 py-3 bg-black border border-gray-800 rounded text-white placeholder-gray-600 focus:outline-none focus:border-white transition-colors"
-            />
-            <button
-              onClick={handleCheck}
-              disabled={checking || !username.trim()}
-              className="bg-white text-black px-8 py-3 rounded font-medium hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {checking ? 'Checking...' : 'Check Price'}
-            </button>
+          <div className="space-y-4 max-w-xl">
+            <div className="flex gap-4 items-center">
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleCheck()}
+                placeholder="@username"
+                className="flex-1 px-6 py-3 bg-black border border-gray-800 rounded text-white placeholder-gray-600 focus:outline-none focus:border-white transition-colors"
+              />
+              <button
+                onClick={handleCheck}
+                disabled={checking || !username.trim()}
+                className="bg-white text-black px-8 py-3 rounded font-medium hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {checking ? 'Checking...' : 'Check Price'}
+              </button>
+            </div>
+
+            {/* Cloudflare Turnstile - Invisible */}
+            <div 
+              className="cf-turnstile" 
+              data-sitekey="0x4AAAAAAAyourSiteKeyHere"
+              data-callback="onTurnstileSuccess"
+              data-theme="dark"
+              data-size="invisible"
+            ></div>
           </div>
 
           {error && (
@@ -117,15 +145,74 @@ function ExportContent() {
 
             <div className="border-t border-gray-900 pt-6 mb-6">
               <p className="text-gray-400">{pricing.message}</p>
+              
+              {/* 200K+ Manual Approval Warning */}
+              {pricing.followerCount >= 200000 && (
+                <div className="mt-4 p-4 bg-yellow-900/20 border border-yellow-900/50 rounded">
+                  <p className="text-yellow-400 text-sm">
+                    ⚠️ Accounts with 200K+ followers require manual verification before extraction. 
+                    Contact us after payment for priority processing.
+                  </p>
+                </div>
+              )}
             </div>
 
+            {/* Premium Gamma Report Add-on */}
+            {!pricing.isFree && (
+              <div className="mb-6 p-4 border border-gray-800 rounded">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={addGamma}
+                    onChange={(e) => setAddGamma(e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <div className="font-medium">Add Gamma Report (+$50)</div>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Premium presentation-ready analysis. Custom styling, AI-generated visuals, shareable link.
+                    </p>
+                  </div>
+                </label>
+
+                {addGamma && (
+                  <div className="mt-4 space-y-4 pl-7">
+                    <div>
+                      <label className="block text-sm text-gray-500 mb-2">Report Style</label>
+                      <select
+                        value={gammaStyle}
+                        onChange={(e) => setGammaStyle(e.target.value)}
+                        className="w-full px-4 py-2 bg-black border border-gray-800 rounded text-white focus:outline-none focus:border-white"
+                      >
+                        <option value="minimalist">Minimalist</option>
+                        <option value="tech">Tech / Futuristic</option>
+                        <option value="corporate">Corporate / Professional</option>
+                        <option value="creative">Creative / Bold</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-500 mb-2">Custom Instructions (Optional)</label>
+                      <textarea
+                        value={customInstructions}
+                        onChange={(e) => setCustomInstructions(e.target.value)}
+                        placeholder="e.g., Focus on engagement quality and brand safety for partnership evaluation"
+                        className="w-full px-4 py-2 bg-black border border-gray-800 rounded text-white placeholder-gray-600 focus:outline-none focus:border-white resize-none"
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Payment Button */}
             {pricing.isFree ? (
               <button className="w-full bg-white text-black py-4 rounded font-medium hover:bg-gray-200 transition-colors">
                 Export Now (Free)
               </button>
             ) : (
               <button className="w-full bg-white text-black py-4 rounded font-medium hover:bg-gray-200 transition-colors">
-                Pay ${pricing.price} & Export
+                Pay ${pricing.price + (addGamma ? 50 : 0)} {addGamma && '(Data + Gamma)'}
               </button>
             )}
 
@@ -137,6 +224,13 @@ function ExportContent() {
                 <div>• Change tracking (new/unfollowers)</div>
                 <div>• 30-day storage</div>
                 <div>• Unlimited re-exports</div>
+                {addGamma && (
+                  <>
+                    <div className="text-white">• Premium Gamma presentation</div>
+                    <div className="text-white">• AI-generated visuals ({gammaStyle} style)</div>
+                    <div className="text-white">• Shareable report link</div>
+                  </>
+                )}
               </div>
             </div>
           </div>

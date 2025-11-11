@@ -108,8 +108,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // STEP 3: Start extraction in background (don't wait)
-    startBackgroundExtraction(cleanUsername, profile, price).catch(err => {
+    // STEP 3: Check if requires manual approval (200K+)
+    const requiresApproval = followerCount >= 200000
+
+    if (requiresApproval) {
+      // Don't extract automatically for 200K+ accounts
+      return NextResponse.json({
+        username: cleanUsername,
+        followerCount,
+        isFree: false,
+        price,
+        tier,
+        status: 'requires_approval',
+        requiresApproval: true,
+        message: `⚠️ This account has ${followerCount.toLocaleString()} followers and requires manual verification. Payment first, then we'll extract within 24 hours.`
+      })
+    }
+
+    // STEP 4: Start extraction in background (don't wait)
+    startBackgroundExtraction(cleanUsername, profile, price).catch((err: any) => {
       console.error('[Smart Extract] Background extraction failed:', err)
     })
 
