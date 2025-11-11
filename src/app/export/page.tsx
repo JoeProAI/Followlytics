@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-export default function ExportPage() {
+function ExportContent() {
   const searchParams = useSearchParams()
   const initialUsername = searchParams.get('u') || ''
 
@@ -168,5 +168,17 @@ export default function ExportPage() {
 
       </main>
     </div>
+  )
+}
+
+export default function ExportPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-xl text-gray-400">Loading...</div>
+      </div>
+    }>
+      <ExportContent />
+    </Suspense>
   )
 }
