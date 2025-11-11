@@ -91,8 +91,8 @@ function ExportContent() {
       const basePrice = isLaunchWeek() ? getLaunchDiscount(pricing.price) : pricing.price
       const total = basePrice + (addGamma ? gammaCharge : 0)
 
-      // Create Stripe checkout
-      const res = await fetch('/api/stripe/create-checkout', {
+      // Create Stripe checkout (for follower export)
+      const res = await fetch('/api/export/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -107,7 +107,10 @@ function ExportContent() {
       const data = await res.json()
 
       if (data.url) {
-        // Redirect to Stripe checkout
+        // Redirect to Stripe checkout or success page
+        window.location.href = data.url
+      } else if (data.free) {
+        // Free export - redirect to success page
         window.location.href = data.url
       } else {
         setError('Failed to create checkout session')
