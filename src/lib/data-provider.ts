@@ -57,26 +57,20 @@ class DataProvider {
       const firstFollower = dataset.items[0] as any
       const targetUsername = firstFollower.target_username
       
-      // Check if actor returns the actual follower count
-      // Some actors include target_followers_count or similar field
+      // Get EXACT follower count from actor response - NO ESTIMATES!
       const actualFollowerCount = firstFollower.target_followers_count || 
                                   firstFollower.targetFollowersCount ||
-                                  firstFollower.target_user_followers_count
+                                  firstFollower.target_user_followers_count ||
+                                  firstFollower.followers_count
       
-      let followerCount: number
-      
-      if (actualFollowerCount) {
-        // Use the ACTUAL count from the actor response!
-        followerCount = actualFollowerCount
-        console.log(`[DataProvider] @${targetUsername} has EXACT ${followerCount} followers (from actor)`)
-      } else {
-        // Fallback: Count the sample we extracted
-        const sampleCount = dataset.items.length
-        followerCount = sampleCount >= 1000 
-          ? sampleCount * 10 // Conservative estimate if we hit limit
-          : sampleCount // Exact if under 1000
-        console.log(`[DataProvider] @${targetUsername} - sampled ${sampleCount}, estimated ${followerCount} followers`)
+      if (!actualFollowerCount) {
+        console.error(`[DataProvider] ERROR: Actor did not return exact follower count for @${targetUsername}`)
+        console.error(`[DataProvider] Available fields:`, Object.keys(firstFollower))
+        throw new Error('Actor did not return exact follower count. Cannot provide estimate.')
       }
+      
+      const followerCount = actualFollowerCount
+      console.log(`[DataProvider] @${targetUsername} has EXACT ${followerCount} followers (from actor field)`)
       
       // Return profile with follower count
       return {
