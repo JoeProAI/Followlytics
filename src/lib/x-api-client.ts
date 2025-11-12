@@ -51,7 +51,8 @@ export class XApiClient {
       throw new Error('X_BEARER_TOKEN or (X_API_KEY + X_API_SECRET) required')
     }
 
-    console.log('[X API] Getting app-only Bearer token using API credentials...')
+    console.log('[X API] Generating OAuth 2.0 Bearer token...')
+    console.log('[X API] Using X_API_KEY:', API_KEY?.substring(0, 5) + '...')
     
     const credentials = Buffer.from(`${API_KEY}:${API_SECRET}`).toString('base64')
     
@@ -65,10 +66,13 @@ export class XApiClient {
     })
 
     if (!response.ok) {
-      throw new Error(`Failed to get Bearer token: ${response.status}`)
+      const errorText = await response.text()
+      console.error('[X API] OAuth token generation failed:', response.status, errorText)
+      throw new Error(`Failed to get Bearer token: ${response.status} - ${errorText}`)
     }
 
     const data = await response.json()
+    console.log('[X API] ✅ Fresh Bearer token generated successfully')
     return data.access_token
   }
 
@@ -116,10 +120,12 @@ export class XApiClient {
         console.error(`[X API] Error: ${response.status} - ${error}`)
         
         // If 401 and we have API credentials, try getting a fresh token
-        if (response.status === 401 && API_KEY && API_SECRET && this.bearerToken === (BEARER_TOKEN || '')) {
-          console.log('[X API] 401 with stored token, trying to get fresh token from API credentials...')
+        if (response.status === 401 && API_KEY && API_SECRET) {
+          console.log('[X API] 401 Unauthorized - Generating fresh Bearer token from API credentials...')
           try {
             this.bearerToken = await this.getAppOnlyToken()
+            console.log('[X API] Fresh token generated, retrying request...')
+            
             // Retry with fresh token
             const retryResponse = await fetch(url, {
               headers: {
