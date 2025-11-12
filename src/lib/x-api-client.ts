@@ -115,6 +115,38 @@ export class XApiClient {
         const error = await response.text()
         console.error(`[X API] Error: ${response.status} - ${error}`)
         
+        // If 401 and we have API credentials, try getting a fresh token
+        if (response.status === 401 && API_KEY && API_SECRET && this.bearerToken === (BEARER_TOKEN || '')) {
+          console.log('[X API] 401 with stored token, trying to get fresh token from API credentials...')
+          try {
+            this.bearerToken = await this.getAppOnlyToken()
+            // Retry with fresh token
+            const retryResponse = await fetch(url, {
+              headers: {
+                'Authorization': `Bearer ${this.bearerToken}`
+              }
+            })
+            
+            if (retryResponse.ok) {
+              const retryData: XApiResponse = await retryResponse.json()
+              const followerCount = retryData.data.public_metrics.followers_count
+              console.log(`[X API] ✅ @${cleanUsername} has EXACTLY ${followerCount} followers (with fresh token)`)
+              
+              return {
+                success: true,
+                followerCount: followerCount,
+                name: retryData.data.name,
+                verified: retryData.data.verified || false,
+                bio: retryData.data.description || '',
+                location: retryData.data.location || '',
+                profileImageUrl: retryData.data.profile_image_url || ''
+              }
+            }
+          } catch (retryError: any) {
+            console.error('[X API] Fresh token attempt also failed:', retryError)
+          }
+        }
+        
         if (response.status === 404) {
           return {
             success: false,
