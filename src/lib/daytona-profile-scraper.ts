@@ -88,39 +88,61 @@ import urllib.error
 
 def scrape_profile():
     username = "${username}"
+    
+    # Try both mobile and desktop URLs
+    urls = [
+        f"https://twitter.com/{username}",  # Try old domain first (better for scraping)
+        f"https://x.com/{username}",
+        f"https://mobile.twitter.com/{username}"
+    ]
+    
+    html = None
+    for url in urls:
+        try:
+            print(f"Trying: {url}")
+            
+            # Set user agent to look like a browser
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+            
+            # Make HTTP request
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=15) as response:
+                html = response.read().decode('utf-8')
+            
+            print(f"Success! Fetched {len(html)} bytes of HTML")
+            break
+        except Exception as e:
+            print(f"Failed {url}: {e}")
+            continue
+    
+    if not html:
+        raise Exception("Could not fetch profile from any URL")
+    
     try:
-        # Use mobile X URL for cleaner HTML
-        url = f"https://mobile.x.com/{username}"
-        print(f"Fetching profile: {url}")
-        
-        # Set user agent to look like a browser
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-        
-        # Make HTTP request
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=15) as response:
-            html = response.read().decode('utf-8')
-        
-        print(f"Fetched {len(html)} bytes of HTML")
-        
         # Extract follower count from HTML
-        # Look for patterns like "1,234 Followers" or "1.2M Followers"
+        # Look for patterns in order of reliability
         patterns = [
-            r'"followers_count":([0-9]+)',  # JSON data
-            r'([0-9,.]+[KMB]?)\\s+Followers',  # "1.2M Followers"
-            r'([0-9,]+)\\s+Followers',  # "1,234 Followers"
+            (r'"followers_count":([0-9]+)', 'JSON followers_count'),
+            (r'"statistic.*?([0-9,]+).*?Followers', 'statistic block'),
+            (r'([0-9,.]+[KMB]?)\\s+Followers', 'formatted count'),
+            (r'([0-9,]+)\\s+Followers', 'plain count'),
+            (r'Followers</span>.*?([0-9,]+)', 'reverse lookup'),
         ]
         
         follower_count = 0
-        for pattern in patterns:
-            match = re.search(pattern, html)
+        for pattern, description in patterns:
+            match = re.search(pattern, html, re.IGNORECASE | re.DOTALL)
             if match:
                 count_text = match.group(1)
                 follower_count = parse_count(count_text)
-                print(f"Found follower count: {follower_count} (pattern: {pattern})")
+                print(f"Found follower count: {follower_count} using {description}")
                 break
+        
+        if follower_count == 0:
+            print(f"WARNING: Could not find follower count in HTML")
+            print(f"HTML sample: {html[:500]}...")
         
         # Get name from title tag
         name_match = re.search(r'<title>([^(]+?)\\s*\\(', html)

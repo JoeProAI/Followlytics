@@ -100,6 +100,9 @@ export async function POST(request: NextRequest) {
       followerCount: followerCount,
       verified: profileResult.verified || false,
       bio: profileResult.bio || '',
+      location: '',  // Prevent undefined error
+      website: '',   // Prevent undefined error
+      profileImageUrl: '',  // Prevent undefined error
       botScore: 0,
       botFlags: [],
       isLikelyBot: false
