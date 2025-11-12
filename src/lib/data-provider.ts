@@ -37,59 +37,11 @@ class DataProvider {
       const { ApifyClient } = await import('apify-client')
       const client = new ApifyClient({ token: this.apiKey })
       
-      console.log(`[DataProvider] Using web scraper to get profile page HTML...`)
+      console.log(`[DataProvider] Using Twitter API actor to get profile...`)
       
-      // Use Apify Web Scraper to scrape X profile page directly
-      const run = await client.actor('apify/web-scraper').call({
-        startUrls: [{ url: `https://x.com/${username}` }],
-        linkSelector: '',
-        pageFunction: `async function pageFunction(context) {
-          const { page } = context;
-          
-          // Wait for page to load
-          await page.waitForTimeout(3000);
-          
-          // Get the HTML
-          const html = await page.content();
-          
-          // Try to find follower count in various places
-          const patterns = [
-            /"followers_count":(\\d+)/,
-            /"normal_followers_count":"([\\d,]+)"/,
-            /([\\.\\d]+[KMB]?)\\s*<.*?>\\s*Followers/i,
-            /([\\.\\d]+[KMB]?)\\s*Followers/i
-          ];
-          
-          let followerCount = null;
-          
-          for (const pattern of patterns) {
-            const match = html.match(pattern);
-            if (match) {
-              let countStr = match[1].replace(/,/g, '');
-              
-              // Handle K, M, B notation
-              if (countStr.includes('K')) {
-                followerCount = parseFloat(countStr) * 1000;
-              } else if (countStr.includes('M')) {
-                followerCount = parseFloat(countStr) * 1000000;
-              } else if (countStr.includes('B')) {
-                followerCount = parseFloat(countStr) * 1000000000;
-              } else {
-                followerCount = parseInt(countStr);
-              }
-              
-              console.log('Found follower count:', followerCount, 'from pattern:', pattern);
-              break;
-            }
-          }
-          
-          return {
-            username: '${username}',
-            followerCount: followerCount,
-            html: html.substring(0, 5000) // First 5K chars for debugging
-          };
-        }`,
-        proxyConfiguration: { useApifyProxy: true }
+      // Use Twitter API actor - fast and reliable
+      const run = await client.actor('apify/twitter-user-info').call({
+        handles: [username]
       })
       
       const dataset = await client.dataset(run.defaultDatasetId).listItems()
@@ -98,21 +50,25 @@ class DataProvider {
         return null
       }
       
-      // Get scraped data
-      const scrapedData = dataset.items[0] as any
+      // Get user data
+      const userData = dataset.items[0] as any
       
-      console.log('[DataProvider] DEBUG - Scraped data:', JSON.stringify(scrapedData, null, 2))
+      console.log('[DataProvider] DEBUG - User data fields:', Object.keys(userData))
+      console.log('[DataProvider] DEBUG - User data:', JSON.stringify(userData, null, 2))
       
-      // Get follower count from scraped data
-      const followerCount = scrapedData.followerCount
+      // Get follower count - try multiple possible field names
+      const followerCount = userData.followers_count || 
+                           userData.followersCount || 
+                           userData.followers || 
+                           userData.follower_count
       
-      if (!followerCount) {
-        console.error(`[DataProvider] ERROR: Web scraper did not find follower count`)
-        console.error(`[DataProvider] HTML sample:`, scrapedData.html?.substring(0, 500))
-        throw new Error('Could not find follower count in profile page. Account may be private or suspended.')
+      if (!followerCount && followerCount !== 0) {
+        console.error(`[DataProvider] ERROR: Actor did not return follower count`)
+        console.error(`[DataProvider] Available fields:`, Object.keys(userData))
+        throw new Error('Could not get follower count from Twitter API actor')
       }
       
-      console.log(`[DataProvider] @${username} has EXACT ${followerCount} followers (from web scrape)`)
+      console.log(`[DataProvider] @${username} has EXACT ${followerCount} followers (from Twitter API actor)`)
       
       // Return profile with follower count
       return {
