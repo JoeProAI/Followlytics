@@ -37,13 +37,16 @@ class DataProvider {
       const { ApifyClient } = await import('apify-client')
       const client = new ApifyClient({ token: this.apiKey })
       
-      console.log(`[DataProvider] Using Kai free actor for profile check...`)
+      console.log(`[DataProvider] Using premium X scraper to get profile metadata...`)
       
-      // Try free actor: curious_coder/twitter-scraper
-      const run = await client.actor('curious_coder/twitter-scraper').call({
-        handles: [username],
-        maxItems: 1,
-        includeUserInfo: true
+      // Use YOUR premium actor - extract minimal followers to get target user metadata
+      const run = await client.actor('kaitoeasyapi/premium-x-follower-scraper-following-data').call({
+        user_names: [username],
+        user_ids: [],
+        maxFollowers: 10, // Extract 10 to get reliable metadata
+        maxFollowings: 0,
+        getFollowers: true,
+        getFollowing: false
       })
       
       const dataset = await client.dataset(run.defaultDatasetId).listItems()
