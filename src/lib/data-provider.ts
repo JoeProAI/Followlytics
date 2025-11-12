@@ -45,7 +45,7 @@ class DataProvider {
         user_names: [username],
         user_ids: [],
         maxFollowers: 200, // Minimum required by actor (validated)
-        maxFollowings: 0,
+        maxFollowings: 200, // Also needs to be >= 200!
         getFollowers: true,
         getFollowing: false
       })
