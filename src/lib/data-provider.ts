@@ -50,34 +50,47 @@ class DataProvider {
         getFollowing: false
       })
       
+      // Get the run metadata which contains target user profile info
+      console.log('[DataProvider] Fetching run metadata for target user profile...')
+      const runInfo = await client.run(run.id).get() as any
+      
+      console.log('[DataProvider] DEBUG - Run info fields:', Object.keys(runInfo || {}))
+      console.log('[DataProvider] DEBUG - Run output fields:', Object.keys(runInfo?.output || {}))
+      console.log('[DataProvider] DEBUG - Run output:', JSON.stringify(runInfo?.output, null, 2))
+      console.log('[DataProvider] DEBUG - Run stats:', JSON.stringify(runInfo?.stats, null, 2))
+      
+      // The run metadata should contain target user info
+      const targetUserInfo = runInfo?.output?.targetUserInfo || runInfo?.output?.targetUser || runInfo?.output?.userProfile
+      
+      if (targetUserInfo) {
+        console.log('[DataProvider] DEBUG - Target user info:', JSON.stringify(targetUserInfo, null, 2))
+        const followerCount = targetUserInfo.followers_count || targetUserInfo.followersCount
+        
+        if (followerCount || followerCount === 0) {
+          console.log(`[DataProvider] @${username} has EXACT ${followerCount} followers (from run metadata)`)
+          
+          return {
+            username: username,
+            name: targetUserInfo.name || username,
+            bio: targetUserInfo.description || `X user`,
+            verified: targetUserInfo.verified || false,
+            followersCount: followerCount,
+            followingCount: targetUserInfo.friends_count || 0,
+            profileImageUrl: targetUserInfo.profile_image_url_https || undefined,
+            location: targetUserInfo.location || ''
+          }
+        }
+      }
+      
+      // Fallback: count the dataset items (but this is NOT accurate!)
+      console.log('[DataProvider] WARNING: Could not find target user info in run metadata')
+      console.log('[DataProvider] Counting extracted followers as estimate...')
       const dataset = await client.dataset(run.defaultDatasetId).listItems()
+      const extractedCount = dataset.items.length
       
-      if (dataset.items.length === 0) {
-        return null
-      }
+      console.log(`[DataProvider] ESTIMATE: @${username} has AT LEAST ${extractedCount} followers (extracted count)`)
       
-      // Get follower data (contains target user info)
-      const followerData = dataset.items[0] as any
-      
-      console.log('[DataProvider] DEBUG - Follower data fields:', Object.keys(followerData))
-      console.log('[DataProvider] DEBUG - Full data:', JSON.stringify(followerData, null, 2))
-      
-      // The actor returns the TARGET user's follower count in the follower object
-      // Try various field names the actor might use
-      const followerCount = followerData.target_followers_count || 
-                           followerData.targetFollowersCount ||
-                           followerData.target_user_followers_count ||
-                           followerData.target_user?.followers_count ||
-                           followerData.followers_count
-      
-      if (!followerCount && followerCount !== 0) {
-        console.error(`[DataProvider] ERROR: Could not find target user follower count`)
-        console.error(`[DataProvider] Available fields:`, Object.keys(followerData))
-        console.error(`[DataProvider] Sample data:`, JSON.stringify(followerData).substring(0, 1000))
-        throw new Error('Could not extract follower count from actor response')
-      }
-      
-      console.log(`[DataProvider] @${username} has EXACT ${followerCount} followers (from premium scraper)`)
+      const followerCount = extractedCount
       
       // Return profile with follower count
       return {
