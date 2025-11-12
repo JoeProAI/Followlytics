@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // STEP 2: No data → Get EXACT follower count from X API (FAST & FREE!)
+    // STEP 2: No data → Get EXACT follower count from Apify (RELIABLE!)
     console.log(`[Eligibility] Getting EXACT follower count for @${cleanUsername}`)
     
     // Set initial status
@@ -55,7 +55,8 @@ export async function POST(request: NextRequest) {
       startedAt: new Date()
     })
     
-    const { xApiClient } = await import('@/lib/x-api-client')
+    const { getDataProvider } = await import('@/lib/data-provider')
+    const provider = getDataProvider()
     
     // Update status: getting profile data
     await adminDb.collection('price_check_status').doc(cleanUsername).update({
@@ -63,25 +64,25 @@ export async function POST(request: NextRequest) {
       progress: 50
     })
     
-    // Use X API v2 - returns follower count in ~1 second!
-    const profile = await xApiClient.getUserProfile(cleanUsername)
+    // Use Apify - returns EXACT follower count (~10s, $0.05)
+    const profile = await provider.getUserProfile(cleanUsername)
     
-    if (!profile.success) {
+    if (!profile) {
       // Update status: failed
       await adminDb.collection('price_check_status').doc(cleanUsername).update({
         status: 'failed',
         message: 'Account not found or private',
-        error: profile.error || 'Profile not found',
+        error: 'Profile not found',
         progress: 100
       })
       
       return NextResponse.json({ 
         error: 'Account not found or private',
-        details: profile.error || 'This X account does not exist, is private, or is suspended'
+        details: 'This X account does not exist, is private, or is suspended'
       }, { status: 404 })
     }
     
-    const followerCount = profile.followerCount
+    const followerCount = profile.followersCount || 0
     
     console.log(`[Eligibility] @${cleanUsername} has EXACTLY ${followerCount} followers`)
     

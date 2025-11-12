@@ -6,6 +6,8 @@
 const BEARER_TOKEN = process.env.X_BEARER_TOKEN
 const API_KEY = process.env.X_API_KEY
 const API_SECRET = process.env.X_API_SECRET
+const ACCESS_TOKEN = process.env.X_ACCESS_TOKEN
+const ACCESS_SECRET = process.env.X_ACCESS_TOKEN_SECRET
 
 interface XUserData {
   id: string
@@ -89,8 +91,103 @@ export class XApiClient {
   }
 
   /**
+   * Try X API v1.1 with OAuth 1.0a (might work on free tier!)
+   * GET /1.1/users/show.json
+   */
+  private async getUserProfileV1(username: string): Promise<{
+    success: boolean
+    followerCount: number
+    name: string
+    verified: boolean
+    bio: string
+    location: string
+    profileImageUrl: string
+    error?: string
+  }> {
+    if (!ACCESS_TOKEN || !ACCESS_SECRET || !API_KEY || !API_SECRET) {
+      throw new Error('OAuth 1.0a credentials required')
+    }
+
+    try {
+      console.log('[X API] Trying v1.1 API with OAuth 1.0a...')
+      
+      const crypto = await import('crypto')
+      const cleanUsername = username.replace('@', '')
+      const url = `https://api.twitter.com/1.1/users/show.json?screen_name=${cleanUsername}`
+      
+      // OAuth 1.0a signature
+      const oauth = {
+        oauth_consumer_key: API_KEY,
+        oauth_token: ACCESS_TOKEN,
+        oauth_signature_method: 'HMAC-SHA1',
+        oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
+        oauth_nonce: crypto.randomBytes(16).toString('hex'),
+        oauth_version: '1.0'
+      }
+      
+      // Create signature base string
+      const params = {
+        ...oauth,
+        screen_name: cleanUsername
+      }
+      const sortedParams = Object.keys(params).sort().map(key => 
+        `${key}=${encodeURIComponent((params as any)[key])}`
+      ).join('&')
+      const signatureBase = `GET&${encodeURIComponent('https://api.twitter.com/1.1/users/show.json')}&${encodeURIComponent(sortedParams)}`
+      
+      // Create signing key
+      const signingKey = `${encodeURIComponent(API_SECRET)}&${encodeURIComponent(ACCESS_SECRET)}`
+      
+      // Generate signature
+      const signature = crypto.createHmac('sha1', signingKey).update(signatureBase).digest('base64')
+      
+      // Build Authorization header
+      const authHeader = `OAuth ${Object.entries({...oauth, oauth_signature: signature})
+        .map(([key, value]) => `${key}="${encodeURIComponent(value)}"`)
+        .join(', ')}`
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': authHeader
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('[X API] ✅ v1.1 API works! Follower count:', data.followers_count)
+        
+        return {
+          success: true,
+          followerCount: data.followers_count,
+          name: data.name,
+          verified: data.verified || false,
+          bio: data.description || '',
+          location: data.location || '',
+          profileImageUrl: data.profile_image_url_https || ''
+        }
+      } else {
+        const error = await response.text()
+        console.log('[X API] v1.1 failed:', response.status, error)
+        throw new Error(`v1.1 API failed: ${response.status}`)
+      }
+    } catch (error: any) {
+      console.error('[X API] v1.1 error:', error)
+      return {
+        success: false,
+        error: error.message,
+        followerCount: 0,
+        name: '',
+        verified: false,
+        bio: '',
+        location: '',
+        profileImageUrl: ''
+      }
+    }
+  }
+
+  /**
    * Get user profile with EXACT follower count
-   * Uses X API v2: GET /2/users/by/username/:username
+   * Tries v1.1 first (OAuth 1.0a), then v2 (Bearer token)
    */
   async getUserProfile(username: string): Promise<{
     success: boolean
