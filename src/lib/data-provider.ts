@@ -38,12 +38,13 @@ class DataProvider {
       const client = new ApifyClient({ token: this.apiKey })
       
       console.log(`[DataProvider] Using premium X scraper to get profile metadata...`)
+      console.log(`[DataProvider] Extracting 200 followers to get target user info...`)
       
       // Use YOUR premium actor - extract minimal followers to get target user metadata
       const run = await client.actor('kaitoeasyapi/premium-x-follower-scraper-following-data').call({
         user_names: [username],
         user_ids: [],
-        maxFollowers: 200, // Minimum required by actor
+        maxFollowers: 200, // Minimum required by actor (validated)
         maxFollowings: 0,
         getFollowers: true,
         getFollowing: false
