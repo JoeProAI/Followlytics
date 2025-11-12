@@ -89,11 +89,11 @@ import urllib.error
 def scrape_profile():
     username = "${username}"
     
-    # Try both mobile and desktop URLs
+    # Try X URLs
     urls = [
-        f"https://twitter.com/{username}",  # Try old domain first (better for scraping)
         f"https://x.com/{username}",
-        f"https://mobile.twitter.com/{username}"
+        f"https://mobile.x.com/{username}",
+        f"https://twitter.com/{username}"  # Fallback (redirects to x.com anyway)
     ]
     
     html = None
@@ -122,27 +122,55 @@ def scrape_profile():
     
     try:
         # Extract follower count from HTML
-        # Look for patterns in order of reliability
-        patterns = [
-            (r'"followers_count":([0-9]+)', 'JSON followers_count'),
-            (r'"statistic.*?([0-9,]+).*?Followers', 'statistic block'),
-            (r'([0-9,.]+[KMB]?)\\s+Followers', 'formatted count'),
-            (r'([0-9,]+)\\s+Followers', 'plain count'),
-            (r'Followers</span>.*?([0-9,]+)', 'reverse lookup'),
-        ]
-        
+        # X.com embeds data in script tags as JSON
         follower_count = 0
-        for pattern, description in patterns:
-            match = re.search(pattern, html, re.IGNORECASE | re.DOTALL)
-            if match:
-                count_text = match.group(1)
-                follower_count = parse_count(count_text)
-                print(f"Found follower count: {follower_count} using {description}")
-                break
+        
+        # Method 1: Find in script tags with user data
+        script_match = re.search(r'"followers_count":([0-9]+)', html)
+        if script_match:
+            follower_count = int(script_match.group(1))
+            print(f"Found follower count in JSON: {follower_count}")
+        
+        # Method 2: Look for text patterns (fallback)
+        if follower_count == 0:
+            text_patterns = [
+                r'([0-9,.]+[KMB]?)\\s*<.*?>Followers',
+                r'>([0-9,.]+[KMB]?)\\s*Followers<',
+                r'Followers.*?>([0-9,.]+[KMB]?)<',
+                r'"normal_followers_count":"([0-9,]+)"',
+                r'data-count="([0-9,]+)".*?Followers',
+            ]
+            
+            for pattern in text_patterns:
+                match = re.search(pattern, html, re.IGNORECASE | re.DOTALL)
+                if match:
+                    follower_count = parse_count(match.group(1))
+                    print(f"Found follower count using pattern: {follower_count}")
+                    break
+        
+        # Method 3: Aggressive search - find ALL numbers near "Followers"
+        if follower_count == 0:
+            print("WARNING: Standard patterns failed, trying aggressive search...")
+            # Find sections containing "Followers" and extract nearby numbers
+            sections = re.findall(r'.{0,200}Followers.{0,200}', html, re.IGNORECASE)
+            for section in sections[:5]:  # Check first 5 matches
+                numbers = re.findall(r'([0-9,.]+[KMB]?)', section)
+                for num in numbers:
+                    parsed = parse_count(num)
+                    if parsed > 0:
+                        follower_count = parsed
+                        print(f"Found potential follower count: {follower_count} in section")
+                        break
+                if follower_count > 0:
+                    break
         
         if follower_count == 0:
-            print(f"WARNING: Could not find follower count in HTML")
-            print(f"HTML sample: {html[:500]}...")
+            print(f"ERROR: Could not find follower count!")
+            print(f"HTML length: {len(html)} bytes")
+            # Save snippet for debugging
+            with open('/tmp/debug_html.txt', 'w') as f:
+                f.write(html[:5000])
+            print("Saved HTML snippet to /tmp/debug_html.txt")
         
         # Get name from title tag
         name_match = re.search(r'<title>([^(]+?)\\s*\\(', html)

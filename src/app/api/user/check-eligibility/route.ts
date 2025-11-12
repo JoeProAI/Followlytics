@@ -44,45 +44,45 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // STEP 2: No data → Get EXACT follower count with Daytona profile scraper
+    // STEP 2: No data → Get EXACT follower count from Apify (already paying for it!)
     console.log(`[Eligibility] Getting EXACT follower count for @${cleanUsername}`)
     
     // Set initial status
     await adminDb.collection('price_check_status').doc(cleanUsername).set({
       status: 'analyzing',
-      message: 'Connecting to X...',
+      message: 'Checking account...',
       progress: 10,
       startedAt: new Date()
     })
     
-    const { DaytonaClient } = await import('@/lib/daytona-profile-scraper')
-    const client = new DaytonaClient()
+    const { getDataProvider } = await import('@/lib/data-provider')
+    const provider = getDataProvider()
     
     // Update status: getting profile data
     await adminDb.collection('price_check_status').doc(cleanUsername).update({
-      message: 'Analyzing account...',
+      message: 'Fetching follower count...',
       progress: 50
     })
     
-    // Quick profile scrape - get exact follower count in ~15 seconds
-    const profileResult = await client.getFollowerCount(cleanUsername)
+    // Use Apify to get profile - it returns ACTUAL follower count!
+    const profile = await provider.getUserProfile(cleanUsername)
     
-    if (!profileResult.success) {
+    if (!profile) {
       // Update status: failed
       await adminDb.collection('price_check_status').doc(cleanUsername).update({
         status: 'failed',
         message: 'Account not found or private',
-        error: profileResult.error,
+        error: 'Profile not found',
         progress: 100
       })
       
       return NextResponse.json({ 
         error: 'Account not found or private',
-        details: profileResult.error || 'Unable to access profile'
+        details: 'This X account does not exist, is private, or is suspended'
       }, { status: 404 })
     }
     
-    const followerCount = profileResult.followerCount || 0
+    const followerCount = profile.followersCount || 0
     
     console.log(`[Eligibility] @${cleanUsername} has EXACTLY ${followerCount} followers`)
     
@@ -96,10 +96,10 @@ export async function POST(request: NextRequest) {
     // Store in X database for analytics
     const { xDatabase } = await import('@/lib/firebase-x-database')
     await xDatabase.upsertProfile(cleanUsername, {
-      displayName: profileResult.name || cleanUsername,
+      displayName: profile.name || cleanUsername,
       followerCount: followerCount,
-      verified: profileResult.verified || false,
-      bio: profileResult.bio || '',
+      verified: profile.verified || false,
+      bio: profile.bio || '',
       location: '',  // Prevent undefined error
       website: '',   // Prevent undefined error
       profileImageUrl: '',  // Prevent undefined error
