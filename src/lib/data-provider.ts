@@ -43,7 +43,7 @@ class DataProvider {
       const run = await client.actor('kaitoeasyapi/premium-x-follower-scraper-following-data').call({
         user_names: [username],
         user_ids: [],
-        maxFollowers: 10, // Extract 10 to get reliable metadata
+        maxFollowers: 200, // Minimum required by actor
         maxFollowings: 0,
         getFollowers: true,
         getFollowing: false
