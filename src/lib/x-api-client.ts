@@ -4,6 +4,8 @@
  */
 
 const BEARER_TOKEN = process.env.X_BEARER_TOKEN
+const API_KEY = process.env.X_API_KEY
+const API_SECRET = process.env.X_API_SECRET
 
 interface XUserData {
   id: string
@@ -29,10 +31,53 @@ export class XApiClient {
   private bearerToken: string
 
   constructor(bearerToken?: string) {
-    this.bearerToken = bearerToken || BEARER_TOKEN || ''
+    let token = bearerToken || BEARER_TOKEN || ''
     
+    // Decode URL-encoded tokens (common mistake)
+    if (token.includes('%')) {
+      console.log('[X API] Decoding URL-encoded Bearer token')
+      token = decodeURIComponent(token)
+    }
+    
+    this.bearerToken = token
+  }
+
+  /**
+   * Get Bearer token using OAuth 2.0 Client Credentials
+   * Fallback if X_BEARER_TOKEN is not set but X_API_KEY and X_API_SECRET are
+   */
+  private async getAppOnlyToken(): Promise<string> {
+    if (!API_KEY || !API_SECRET) {
+      throw new Error('X_BEARER_TOKEN or (X_API_KEY + X_API_SECRET) required')
+    }
+
+    console.log('[X API] Getting app-only Bearer token using API credentials...')
+    
+    const credentials = Buffer.from(`${API_KEY}:${API_SECRET}`).toString('base64')
+    
+    const response = await fetch('https://api.twitter.com/oauth2/token', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+      },
+      body: 'grant_type=client_credentials'
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to get Bearer token: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data.access_token
+  }
+
+  /**
+   * Ensure we have a valid Bearer token
+   */
+  private async ensureToken(): Promise<void> {
     if (!this.bearerToken) {
-      throw new Error('X_BEARER_TOKEN is required')
+      this.bearerToken = await this.getAppOnlyToken()
     }
   }
 
@@ -51,6 +96,9 @@ export class XApiClient {
     error?: string
   }> {
     try {
+      // Ensure we have a Bearer token (get one if needed)
+      await this.ensureToken()
+      
       const cleanUsername = username.replace('@', '')
       
       console.log(`[X API] Fetching profile for @${cleanUsername}`)
