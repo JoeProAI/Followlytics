@@ -40,13 +40,14 @@ export async function POST(request: NextRequest) {
 
     // Check if extraction is in progress
     const progress = data?.extractionProgress
-    const isComplete = progress?.status === 'complete' && data?.followers?.length > 0
+    const followerCount = data?.followerCount || 0
+    const isComplete = progress?.status === 'complete' && followerCount > 0
     
     // If not complete, return 202 so success page triggers extraction
     if (!isComplete) {
       return NextResponse.json({
         username,
-        followerCount: data?.followers?.length || 0,
+        followerCount: followerCount,
         ready: false,
         progress: progress || {
           status: 'pending',
@@ -56,10 +57,10 @@ export async function POST(request: NextRequest) {
       }, { status: 202 })
     }
     
-    // Return complete data
+    // Return complete data (followers are in subcollection, not in main doc)
     return NextResponse.json({
       username,
-      followerCount: data?.followers?.length || 0,
+      followerCount: followerCount,
       ready: true,
       extractedAt: data?.lastExtractedAt,
       progress: progress

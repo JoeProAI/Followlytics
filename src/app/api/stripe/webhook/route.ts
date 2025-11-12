@@ -350,9 +350,10 @@ async function triggerDataExtraction(username: string, customerEmail: string) {
       location: f.location || ''
     }))
     
-    // Store in database (overwrites if exists)
+    console.log(`[Extraction] Storing ${cleanFollowers.length} followers in subcollection...`)
+    
+    // Store metadata in main document (NO followers array - avoid 1MB limit!)
     await db.collection('follower_database').doc(username).set({
-      followers: cleanFollowers,
       followerCount: cleanFollowers.length,
       lastExtractedAt: new Date(),
       extractedBy: 'webhook',
@@ -367,7 +368,25 @@ async function triggerDataExtraction(username: string, customerEmail: string) {
       }
     }, { merge: true })
     
-    console.log(`[Extraction] Stored ${cleanFollowers.length} followers in database for @${username}`)
+    // Store followers in SUBCOLLECTION (no size limit!)
+    const followersRef = db.collection('follower_database').doc(username).collection('followers')
+    
+    // Batch write followers (500 per batch - Firestore limit)
+    const batchSize = 500
+    for (let i = 0; i < cleanFollowers.length; i += batchSize) {
+      const batch = db.batch()
+      const chunk = cleanFollowers.slice(i, i + batchSize)
+      
+      chunk.forEach((follower: any) => {
+        const docRef = followersRef.doc(follower.username)
+        batch.set(docRef, follower)
+      })
+      
+      await batch.commit()
+      console.log(`[Extraction] Stored batch ${Math.floor(i / batchSize) + 1} (${chunk.length} followers)`)
+    }
+    
+    console.log(`[Extraction] SUCCESS - Stored ${cleanFollowers.length} followers in subcollection for @${username}`)
     
     // Send email with download links
     if (customerEmail && customerEmail !== 'no-email') {

@@ -36,11 +36,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
-    const followers = data?.followers || []
+    // Fetch followers from SUBCOLLECTION (not from main doc - avoids 1MB limit)
+    console.log(`[Download] Fetching followers from subcollection for @${cleanUsername}`)
+    const followersSnapshot = await adminDb
+      .collection('follower_database')
+      .doc(cleanUsername)
+      .collection('followers')
+      .get()
 
-    if (followers.length === 0) {
+    if (followersSnapshot.empty) {
       return NextResponse.json({ error: 'No followers data available' }, { status: 404 })
     }
+
+    const followers = followersSnapshot.docs.map(doc => doc.data())
+    console.log(`[Download] Retrieved ${followers.length} followers from subcollection`)
 
     // Format data based on request
     switch (format.toLowerCase()) {

@@ -105,9 +105,10 @@ export async function POST(request: NextRequest) {
       location: f.location || ''
     }))
     
-    // Store followers
+    console.log(`[Extraction API] Storing ${cleanFollowers.length} followers in subcollection...`)
+    
+    // Store metadata in main document (NO followers array - avoid 1MB limit!)
     await adminDb.collection('follower_database').doc(cleanUsername).set({
-      followers: cleanFollowers,
       followerCount: cleanFollowers.length,
       lastExtractedAt: new Date(),
       extractedBy: 'extraction-api',
@@ -119,7 +120,25 @@ export async function POST(request: NextRequest) {
       }
     }, { merge: true })
     
-    console.log(`[Extraction API] SUCCESS - Stored ${cleanFollowers.length} followers for @${cleanUsername}`)
+    // Store followers in SUBCOLLECTION (no size limit!)
+    const followersRef = adminDb.collection('follower_database').doc(cleanUsername).collection('followers')
+    
+    // Batch write followers (500 per batch - Firestore limit)
+    const batchSize = 500
+    for (let i = 0; i < cleanFollowers.length; i += batchSize) {
+      const batch = adminDb.batch()
+      const chunk = cleanFollowers.slice(i, i + batchSize)
+      
+      chunk.forEach((follower: any) => {
+        const docRef = followersRef.doc(follower.username)
+        batch.set(docRef, follower)
+      })
+      
+      await batch.commit()
+      console.log(`[Extraction API] Stored batch ${Math.floor(i / batchSize) + 1} (${chunk.length} followers)`)
+    }
+    
+    console.log(`[Extraction API] SUCCESS - Stored ${cleanFollowers.length} followers in subcollection for @${cleanUsername}`)
     
     // Send email
     const customerEmail = data?.customerEmail
