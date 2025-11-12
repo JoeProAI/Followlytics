@@ -3,7 +3,7 @@
  * Get follower count directly from X API - FAST & RELIABLE!
  */
 
-const BEARER_TOKEN = process.env.TWITTER_BEARER_TOKEN
+const BEARER_TOKEN = process.env.X_BEARER_TOKEN
 
 interface XUserData {
   id: string
@@ -32,7 +32,7 @@ export class XApiClient {
     this.bearerToken = bearerToken || BEARER_TOKEN || ''
     
     if (!this.bearerToken) {
-      throw new Error('TWITTER_BEARER_TOKEN is required')
+      throw new Error('X_BEARER_TOKEN is required')
     }
   }
 
