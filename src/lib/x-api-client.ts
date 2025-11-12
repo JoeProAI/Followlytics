@@ -39,6 +39,9 @@ export class XApiClient {
       token = decodeURIComponent(token)
     }
     
+    // Log token info for debugging (first 10 chars only)
+    console.log('[X API] Using Bearer token:', token?.substring(0, 10) + '...')
+    
     this.bearerToken = token
   }
 
