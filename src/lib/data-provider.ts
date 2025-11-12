@@ -57,11 +57,23 @@ class DataProvider {
       const firstFollower = dataset.items[0] as any
       const targetUsername = firstFollower.target_username
       
+      // DEBUG: Log ALL fields to see what actor returns
+      console.log('[DataProvider] DEBUG - First follower object keys:', Object.keys(firstFollower))
+      console.log('[DataProvider] DEBUG - First follower data:', JSON.stringify(firstFollower, null, 2))
+      console.log('[DataProvider] DEBUG - Dataset item count:', dataset.items.length)
+      
       // Get EXACT follower count from actor response - NO ESTIMATES!
       const actualFollowerCount = firstFollower.target_followers_count || 
                                   firstFollower.targetFollowersCount ||
                                   firstFollower.target_user_followers_count ||
-                                  firstFollower.followers_count
+                                  firstFollower.followers_count ||
+                                  firstFollower.target_follower_count ||
+                                  firstFollower.targetFollowerCount
+      
+      console.log('[DataProvider] DEBUG - Extracted follower count:', actualFollowerCount)
+      console.log('[DataProvider] DEBUG - target_followers_count:', firstFollower.target_followers_count)
+      console.log('[DataProvider] DEBUG - targetFollowersCount:', firstFollower.targetFollowersCount)
+      console.log('[DataProvider] DEBUG - followers_count:', firstFollower.followers_count)
       
       if (!actualFollowerCount) {
         console.error(`[DataProvider] ERROR: Actor did not return exact follower count for @${targetUsername}`)
