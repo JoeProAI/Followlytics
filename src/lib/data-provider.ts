@@ -37,11 +37,12 @@ class DataProvider {
       const { ApifyClient } = await import('apify-client')
       const client = new ApifyClient({ token: this.apiKey })
       
-      console.log(`[DataProvider] Using Twitter API actor to get profile...`)
+      console.log(`[DataProvider] Using Twitter Scraper actor to get profile...`)
       
-      // Use Twitter API actor - fast and reliable
-      const run = await client.actor('apify/twitter-user-info').call({
-        handles: [username]
+      // Use Twitter Scraper actor - gets user profile with follower count
+      const run = await client.actor('apidojo/twitter-user-scraper').call({
+        handles: [username],
+        maxItems: 1
       })
       
       const dataset = await client.dataset(run.defaultDatasetId).listItems()
