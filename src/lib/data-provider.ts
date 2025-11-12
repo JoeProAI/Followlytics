@@ -37,12 +37,13 @@ class DataProvider {
       const { ApifyClient } = await import('apify-client')
       const client = new ApifyClient({ token: this.apiKey })
       
-      console.log(`[DataProvider] Using Twitter Scraper actor to get profile...`)
+      console.log(`[DataProvider] Using Kai free actor for profile check...`)
       
-      // Use Twitter Scraper actor - gets user profile with follower count
-      const run = await client.actor('apidojo/twitter-user-scraper').call({
+      // Try free actor: curious_coder/twitter-scraper
+      const run = await client.actor('curious_coder/twitter-scraper').call({
         handles: [username],
-        maxItems: 1
+        maxItems: 1,
+        includeUserInfo: true
       })
       
       const dataset = await client.dataset(run.defaultDatasetId).listItems()
@@ -51,25 +52,28 @@ class DataProvider {
         return null
       }
       
-      // Get user data
-      const userData = dataset.items[0] as any
+      // Get follower data (contains target user info)
+      const followerData = dataset.items[0] as any
       
-      console.log('[DataProvider] DEBUG - User data fields:', Object.keys(userData))
-      console.log('[DataProvider] DEBUG - User data:', JSON.stringify(userData, null, 2))
+      console.log('[DataProvider] DEBUG - Follower data fields:', Object.keys(followerData))
+      console.log('[DataProvider] DEBUG - Full data:', JSON.stringify(followerData, null, 2))
       
-      // Get follower count - try multiple possible field names
-      const followerCount = userData.followers_count || 
-                           userData.followersCount || 
-                           userData.followers || 
-                           userData.follower_count
+      // The actor returns the TARGET user's follower count in the follower object
+      // Try various field names the actor might use
+      const followerCount = followerData.target_followers_count || 
+                           followerData.targetFollowersCount ||
+                           followerData.target_user_followers_count ||
+                           followerData.target_user?.followers_count ||
+                           followerData.followers_count
       
       if (!followerCount && followerCount !== 0) {
-        console.error(`[DataProvider] ERROR: Actor did not return follower count`)
-        console.error(`[DataProvider] Available fields:`, Object.keys(userData))
-        throw new Error('Could not get follower count from Twitter API actor')
+        console.error(`[DataProvider] ERROR: Could not find target user follower count`)
+        console.error(`[DataProvider] Available fields:`, Object.keys(followerData))
+        console.error(`[DataProvider] Sample data:`, JSON.stringify(followerData).substring(0, 1000))
+        throw new Error('Could not extract follower count from actor response')
       }
       
-      console.log(`[DataProvider] @${username} has EXACT ${followerCount} followers (from Twitter API actor)`)
+      console.log(`[DataProvider] @${username} has EXACT ${followerCount} followers (from premium scraper)`)
       
       // Return profile with follower count
       return {
