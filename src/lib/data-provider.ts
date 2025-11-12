@@ -37,14 +37,59 @@ class DataProvider {
       const { ApifyClient } = await import('apify-client')
       const client = new ApifyClient({ token: this.apiKey })
       
-      // Use YOUR premium actor - extract 1000 sample for eligibility check
-      const run = await client.actor('kaitoeasyapi/premium-x-follower-scraper-following-data').call({
-        user_names: [username],
-        user_ids: [],
-        maxFollowers: 1000, // Sample 1000 to verify and estimate count
-        maxFollowings: 200,
-        getFollowers: true,
-        getFollowing: false
+      console.log(`[DataProvider] Using web scraper to get profile page HTML...`)
+      
+      // Use Apify Web Scraper to scrape X profile page directly
+      const run = await client.actor('apify/web-scraper').call({
+        startUrls: [{ url: `https://x.com/${username}` }],
+        linkSelector: '',
+        pageFunction: `async function pageFunction(context) {
+          const { page } = context;
+          
+          // Wait for page to load
+          await page.waitForTimeout(3000);
+          
+          // Get the HTML
+          const html = await page.content();
+          
+          // Try to find follower count in various places
+          const patterns = [
+            /"followers_count":(\\d+)/,
+            /"normal_followers_count":"([\\d,]+)"/,
+            /([\\.\\d]+[KMB]?)\\s*<.*?>\\s*Followers/i,
+            /([\\.\\d]+[KMB]?)\\s*Followers/i
+          ];
+          
+          let followerCount = null;
+          
+          for (const pattern of patterns) {
+            const match = html.match(pattern);
+            if (match) {
+              let countStr = match[1].replace(/,/g, '');
+              
+              // Handle K, M, B notation
+              if (countStr.includes('K')) {
+                followerCount = parseFloat(countStr) * 1000;
+              } else if (countStr.includes('M')) {
+                followerCount = parseFloat(countStr) * 1000000;
+              } else if (countStr.includes('B')) {
+                followerCount = parseFloat(countStr) * 1000000000;
+              } else {
+                followerCount = parseInt(countStr);
+              }
+              
+              console.log('Found follower count:', followerCount, 'from pattern:', pattern);
+              break;
+            }
+          }
+          
+          return {
+            username: '${username}',
+            followerCount: followerCount,
+            html: html.substring(0, 5000) // First 5K chars for debugging
+          };
+        }`,
+        proxyConfiguration: { useApifyProxy: true }
       })
       
       const dataset = await client.dataset(run.defaultDatasetId).listItems()
@@ -53,41 +98,26 @@ class DataProvider {
         return null
       }
       
-      // Get target user info from first follower
-      const firstFollower = dataset.items[0] as any
-      const targetUsername = firstFollower.target_username
+      // Get scraped data
+      const scrapedData = dataset.items[0] as any
       
-      // DEBUG: Log ALL fields to see what actor returns
-      console.log('[DataProvider] DEBUG - First follower object keys:', Object.keys(firstFollower))
-      console.log('[DataProvider] DEBUG - First follower data:', JSON.stringify(firstFollower, null, 2))
-      console.log('[DataProvider] DEBUG - Dataset item count:', dataset.items.length)
+      console.log('[DataProvider] DEBUG - Scraped data:', JSON.stringify(scrapedData, null, 2))
       
-      // Get EXACT follower count from actor response - NO ESTIMATES!
-      const actualFollowerCount = firstFollower.target_followers_count || 
-                                  firstFollower.targetFollowersCount ||
-                                  firstFollower.target_user_followers_count ||
-                                  firstFollower.followers_count ||
-                                  firstFollower.target_follower_count ||
-                                  firstFollower.targetFollowerCount
+      // Get follower count from scraped data
+      const followerCount = scrapedData.followerCount
       
-      console.log('[DataProvider] DEBUG - Extracted follower count:', actualFollowerCount)
-      console.log('[DataProvider] DEBUG - target_followers_count:', firstFollower.target_followers_count)
-      console.log('[DataProvider] DEBUG - targetFollowersCount:', firstFollower.targetFollowersCount)
-      console.log('[DataProvider] DEBUG - followers_count:', firstFollower.followers_count)
-      
-      if (!actualFollowerCount) {
-        console.error(`[DataProvider] ERROR: Actor did not return exact follower count for @${targetUsername}`)
-        console.error(`[DataProvider] Available fields:`, Object.keys(firstFollower))
-        throw new Error('Actor did not return exact follower count. Cannot provide estimate.')
+      if (!followerCount) {
+        console.error(`[DataProvider] ERROR: Web scraper did not find follower count`)
+        console.error(`[DataProvider] HTML sample:`, scrapedData.html?.substring(0, 500))
+        throw new Error('Could not find follower count in profile page. Account may be private or suspended.')
       }
       
-      const followerCount = actualFollowerCount
-      console.log(`[DataProvider] @${targetUsername} has EXACT ${followerCount} followers (from actor field)`)
+      console.log(`[DataProvider] @${username} has EXACT ${followerCount} followers (from web scrape)`)
       
       // Return profile with follower count
       return {
-        username: targetUsername || username,
-        name: targetUsername,
+        username: username,
+        name: username,
         bio: `X user`,
         verified: false,
         followersCount: followerCount,
