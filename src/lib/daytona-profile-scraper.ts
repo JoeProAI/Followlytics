@@ -87,6 +87,7 @@ import urllib.request
 import urllib.error
 
 def scrape_profile():
+    username = "${username}"
     try:
         # Use mobile X URL for cleaner HTML
         url = f"https://mobile.x.com/{username}"
