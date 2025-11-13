@@ -33,125 +33,67 @@ class DataProvider {
   async getUserProfile(username: string): Promise<UserProfile | null> {
     try {
       console.log(`[DataProvider] Getting EXACT follower count for @${username}`)
-      console.log(`[DataProvider] Using direct profile scrape - FREE and FAST!`)
       
       const cleanUsername = username.replace('@', '')
+      const { ApifyClient } = await import('apify-client')
+      const client = new ApifyClient({ token: this.apiKey })
       
-      // Method 1: Try scraping X.com profile page directly
-      try {
-        console.log(`[DataProvider] Scraping x.com/${cleanUsername}...`)
-        
-        const response = await fetch(`https://x.com/${cleanUsername}`, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Referer': 'https://x.com/',
-          }
-        })
-        
-        if (response.ok) {
-          const html = await response.text()
-          
-          // Look for follower count in HTML
-          // X uses patterns like: "followers_count":1700 or <span>1.7K</span> Followers
-          const patterns = [
-            /"followers_count":(\d+)/i,
-            /"profile".*?"followers_count":(\d+)/i,
-            /(\d+(?:,\d+)*)\s*(?:<\/span>)?\s*Followers/i,
-            /"legacy".*?"followers_count":(\d+)/i,
-          ]
-          
-          for (const pattern of patterns) {
-            const match = html.match(pattern)
-            if (match && match[1]) {
-              const count = parseInt(match[1].replace(/,/g, ''))
-              if (!isNaN(count) && count >= 0) {
-                console.log(`[DataProvider] ✅ @${username} has EXACTLY ${count} followers (from x.com scrape)`)
-                
-                return {
-                  username: cleanUsername,
-                  name: cleanUsername,
-                  bio: `X user`,
-                  verified: false,
-                  followersCount: count,
-                  followingCount: 0,
-                  profileImageUrl: undefined,
-                  location: ''
-                }
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.log('[DataProvider] X.com scrape failed, trying Apify Web Scraper...')
+      // Use Twitter Profile Scraper - designed specifically to get profile info!
+      // This is a simple, cheap actor that just gets profile metadata
+      console.log('[DataProvider] Using Twitter Profile Scraper actor...')
+      
+      const run = await client.actor('heLL0w0rld/twitter-profile-scraper').call({
+        handles: [cleanUsername]
+      }, {
+        timeout: 60 // 60 second timeout
+      })
+      
+      console.log('[DataProvider] Waiting for profile data...')
+      await client.run(run.id).waitForFinish()
+      
+      const dataset = await client.dataset(run.defaultDatasetId).listItems()
+      
+      if (dataset.items.length === 0) {
+        console.error('[DataProvider] No profile data returned - account may not exist')
+        return null
       }
       
-      // Method 2: Use Apify Web Scraper (free tier available)
-      try {
-        const { ApifyClient } = await import('apify-client')
-        const client = new ApifyClient({ token: this.apiKey })
-        
-        console.log('[DataProvider] Using Apify Web Scraper...')
-        
-        const run = await client.actor('apify/web-scraper').call({
-          startUrls: [{ url: `https://x.com/${cleanUsername}` }],
-          linkSelector: 'none',
-          pageFunction: `async function pageFunction(context) {
-            const { page } = context;
-            
-            // Wait for page to load
-            await page.waitForTimeout(3000);
-            
-            // Get the full HTML
-            const html = await page.content();
-            
-            // Look for follower count
-            const patterns = [
-              /"followers_count":(\\d+)/i,
-              /(\\d+(?:,\\d+)*)\\s*Followers/i,
-            ];
-            
-            for (const pattern of patterns) {
-              const match = html.match(pattern);
-              if (match && match[1]) {
-                const count = parseInt(match[1].replace(/,/g, ''));
-                if (!isNaN(count)) {
-                  return { followersCount: count };
-                }
-              }
-            }
-            
-            return { followersCount: null };
-          }`,
-        })
-        
-        await client.run(run.id).waitForFinish()
-        const dataset = await client.dataset(run.defaultDatasetId).listItems()
-        
-        const firstItem = dataset.items[0] as any
-        if (dataset.items.length > 0 && firstItem?.followersCount) {
-          const count = firstItem.followersCount as number
-          console.log(`[DataProvider] ✅ @${username} has EXACTLY ${count} followers (from Apify Web Scraper)`)
-          
-          return {
-            username: cleanUsername,
-            name: cleanUsername,
-            bio: `X user`,
-            verified: false,
-            followersCount: count,
-            followingCount: 0,
-            profileImageUrl: undefined,
-            location: ''
-          }
-        }
-      } catch (error) {
-        console.log('[DataProvider] Apify Web Scraper failed:', error)
+      const profile = dataset.items[0] as any
+      
+      console.log('[DataProvider] DEBUG - Profile fields:', Object.keys(profile))
+      console.log('[DataProvider] DEBUG - Profile sample:', JSON.stringify({
+        username: profile.username || profile.screen_name,
+        followers: profile.followers_count || profile.followers || profile.followersCount,
+        name: profile.name,
+      }, null, 2))
+      
+      // Extract follower count from various possible fields
+      const followerCount = 
+        profile.followers_count ||
+        profile.followersCount ||
+        profile.followers ||
+        profile.public_metrics?.followers_count ||
+        profile.follower_count ||
+        null
+      
+      if (followerCount === null || followerCount === undefined) {
+        console.error('[DataProvider] Could not find follower count in profile data')
+        console.error('[DataProvider] Available fields:', Object.keys(profile))
+        return null
       }
       
-      // All methods failed
-      console.error('[DataProvider] ❌ All methods failed to get follower count')
-      return null
+      console.log(`[DataProvider] ✅ @${username} has EXACTLY ${followerCount} followers`)
+      
+      return {
+        username: profile.username || profile.screen_name || cleanUsername,
+        name: profile.name || cleanUsername,
+        bio: profile.description || profile.bio || `X user`,
+        verified: profile.verified || false,
+        followersCount: followerCount,
+        followingCount: profile.friends_count || profile.following || profile.followingCount || 0,
+        profileImageUrl: profile.profile_image_url_https || profile.profile_image_url || undefined,
+        location: profile.location || ''
+      }
       
     } catch (error: any) {
       console.error('[DataProvider] Profile fetch failed:', error)
