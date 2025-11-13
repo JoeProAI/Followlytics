@@ -93,20 +93,39 @@ class DataProvider {
         }
       }
       
-      // Fallback: Use extracted count as MINIMUM estimate
-      // This is not ideal but better than nothing
+      // Fallback: Use extracted count
+      // For accounts with <200 followers, this IS the exact count!
+      // For accounts with >200 followers, this is the minimum
       const extractedCount = dataset.items.length
-      console.log(`[DataProvider] ⚠️ Could not find exact count, using extracted count as minimum: ${extractedCount}`)
       
-      return {
-        username: username,
-        name: username,
-        bio: `X user (minimum ${extractedCount} followers)`,
-        verified: false,
-        followersCount: extractedCount, // This is a MINIMUM, not exact
-        followingCount: 0,
-        profileImageUrl: undefined,
-        location: ''
+      if (extractedCount < 200) {
+        // If we got less than 200, that's ALL their followers!
+        console.log(`[DataProvider] ✅ @${username} has ${extractedCount} followers (extracted ALL followers)`)
+        
+        return {
+          username: username,
+          name: username,
+          bio: `X user`,
+          verified: false,
+          followersCount: extractedCount, // This IS the exact count
+          followingCount: 0,
+          profileImageUrl: undefined,
+          location: ''
+        }
+      } else {
+        // Got 200 = they have 200 OR MORE
+        console.log(`[DataProvider] ⚠️ @${username} has at least ${extractedCount} followers (may have more)`)
+        
+        return {
+          username: username,
+          name: username,
+          bio: `X user`,
+          verified: false,
+          followersCount: extractedCount, // This is a MINIMUM
+          followingCount: 0,
+          profileImageUrl: undefined,
+          location: ''
+        }
       }
       
     } catch (error: any) {
