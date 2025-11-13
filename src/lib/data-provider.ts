@@ -59,19 +59,18 @@ class DataProvider {
       const profile = dataset.items[0] as any
       
       console.log('[DataProvider] DEBUG - Profile fields:', Object.keys(profile))
-      console.log('[DataProvider] DEBUG - Profile sample:', JSON.stringify({
-        username: profile.username || profile.screen_name,
-        followers: profile.followers_count || profile.followers || profile.followersCount,
-        name: profile.name,
-      }, null, 2))
+      console.log('[DataProvider] DEBUG - Nested relationship_counts:', JSON.stringify(profile.relationship_counts, null, 2))
+      console.log('[DataProvider] DEBUG - Nested core:', JSON.stringify(profile.core, null, 2))
       
-      // Extract follower count from various possible fields
+      // Extract follower count from nested fields
       const followerCount = 
+        profile.relationship_counts?.followers ||
+        profile.relationship_counts?.follower_count ||
+        profile.core?.followers_count ||
         profile.followers_count ||
         profile.followersCount ||
         profile.followers ||
         profile.public_metrics?.followers_count ||
-        profile.follower_count ||
         null
       
       if (followerCount === null || followerCount === undefined) {
@@ -83,13 +82,13 @@ class DataProvider {
       console.log(`[DataProvider] ✅ @${username} has EXACTLY ${followerCount} followers`)
       
       return {
-        username: profile.username || profile.screen_name || cleanUsername,
-        name: profile.name || cleanUsername,
-        bio: profile.description || profile.bio || `X user`,
-        verified: profile.verified || false,
+        username: profile.core?.user_id?.screen_name || profile.screen_name || cleanUsername,
+        name: profile.core?.user_id?.name || profile.name || cleanUsername,
+        bio: profile.profile_bio?.text || profile.description || profile.bio || `X user`,
+        verified: profile.verification?.is_verified || profile.verified || false,
         followersCount: followerCount,
-        followingCount: profile.friends_count || profile.following || profile.followingCount || 0,
-        profileImageUrl: profile.profile_image_url_https || profile.profile_image_url || undefined,
+        followingCount: profile.relationship_counts?.following || profile.friends_count || 0,
+        profileImageUrl: profile.avatar?.url || profile.profile_image_url_https || undefined,
         location: profile.location || ''
       }
       
