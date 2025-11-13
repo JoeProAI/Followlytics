@@ -32,7 +32,41 @@ class DataProvider {
   
   async getUserProfile(username: string): Promise<UserProfile | null> {
     try {
-      console.log(`[DataProvider] Fetching profile for @${username}`)
+      console.log(`[DataProvider] Getting follower count for @${username} (spam protection)`)
+      
+      // SIMPLE CHECK: Just get the follower count for eligibility
+      // This is FAST, FREE, and SIMPLE - perfect for spam protection!
+      const { getFollowerCount } = await import('./simple-follower-check')
+      const followerCount = await getFollowerCount(username)
+      
+      if (followerCount === null) {
+        console.error('[DataProvider] Could not get follower count')
+        return null
+      }
+      
+      console.log(`[DataProvider] ✅ @${username} has ${followerCount} followers`)
+      
+      // Return profile with follower count
+      return {
+        username: username,
+        name: username,
+        bio: `X user`,
+        verified: false,
+        followersCount: followerCount,
+        followingCount: 0,
+        profileImageUrl: undefined,
+        location: ''
+      }
+    } catch (error: any) {
+      console.error('[DataProvider] Profile fetch failed:', error)
+      return null
+    }
+  }
+  
+  // OLD COMPLEX CODE - keeping for reference
+  async getUserProfile_OLD(username: string): Promise<UserProfile | null> {
+    try {
+      console.log(`[DataProvider] Fetching profile for @${username} (OLD METHOD)`)
       
       const { ApifyClient } = await import('apify-client')
       const client = new ApifyClient({ token: this.apiKey })
