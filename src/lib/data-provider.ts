@@ -67,45 +67,38 @@ class DataProvider {
       
       console.log('[DataProvider] DEBUG - Dataset items extracted:', dataset.items.length)
       
-      // Get the ACTUAL follower count from the target user's profile
-      // The actor must fetch the target profile to know how many followers to extract
-      // Check the first follower item for target user info
-      const firstItem = dataset.items[0] as any
+      // IMPORTANT: Kai actor returns FOLLOWER profiles, not target user profile
+      // We need to find if there's a summary item or check the Key-Value store
       
-      console.log('[DataProvider] DEBUG - Checking for target user total follower count...')
-      console.log('[DataProvider] DEBUG - First item fields:', Object.keys(firstItem))
-      console.log('[DataProvider] DEBUG - First item sample:', JSON.stringify({
-        type: firstItem.type,
-        target_username: firstItem.target_username,
-        target_name: firstItem.target_name,
-        followers_count: firstItem.followers_count,
-        target_followers_count: firstItem.target_followers_count,
-        target_normal_followers_count: firstItem.target_normal_followers_count,
-      }, null, 2))
+      // Check if last item is the target user (some actors do this)
+      const lastItem = dataset.items[dataset.items.length - 1] as any
+      console.log('[DataProvider] DEBUG - Last item type:', lastItem.type, 'screen_name:', lastItem.screen_name)
       
-      // The actual follower count should be in the target user metadata
-      // Look for fields like: target_followers_count, target_user_followers_count, etc.
-      const actualFollowerCount = 
-        firstItem.target_followers_count ||
-        firstItem.target_user_followers_count ||
-        firstItem.targetFollowersCount ||
-        firstItem.target_normal_followers_count ||
-        null
-      
-      if (actualFollowerCount !== null && actualFollowerCount !== undefined) {
-        console.log(`[DataProvider] ✅ @${username} has ${actualFollowerCount} followers (from Kai actor metadata)`)
+      // Check Key-Value store for target user info
+      try {
+        const kvStore = await client.keyValueStore(run.defaultKeyValueStoreId)
+        const kvKeys = await kvStore.listKeys()
+        console.log('[DataProvider] DEBUG - KV Store keys:', kvKeys.items.map((k: any) => k.key))
         
-        return {
-          username: username,
-          name: firstItem.target_name || username,
-          bio: `X user`,
-          verified: false,
-          followersCount: actualFollowerCount,
-          followingCount: 0,
-          profileImageUrl: undefined,
-          location: ''
+        // Look for common keys that might have target user info
+        const possibleKeys = ['OUTPUT', 'INPUT', 'target_user', 'user_info', 'metadata']
+        for (const key of possibleKeys) {
+          try {
+            const record = await kvStore.getRecord(key)
+            if (record && record.value) {
+              console.log(`[DataProvider] DEBUG - KV Store ${key}:`, JSON.stringify(record.value, null, 2))
+            }
+          } catch (e) {
+            // Key doesn't exist, continue
+          }
         }
+      } catch (e) {
+        console.log('[DataProvider] KV Store check failed:', e)
       }
+      
+      // Since Kai actor doesn't return target user total, we MUST use extracted count logic
+      console.log('[DataProvider] ⚠️ Kai actor does not return target user total follower count!')
+      console.log('[DataProvider] Using extracted count logic...')
       
       // Fallback: Use extracted count
       // For accounts with <200 followers, this IS the exact count!
