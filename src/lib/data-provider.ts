@@ -32,70 +32,126 @@ class DataProvider {
   
   async getUserProfile(username: string): Promise<UserProfile | null> {
     try {
-      console.log(`[DataProvider] Getting follower count for @${username} (eligibility check)`)
-      console.log(`[DataProvider] Using Kai actor - cost: $0.05 per check (extracts up to 500)`)
+      console.log(`[DataProvider] Getting EXACT follower count for @${username}`)
+      console.log(`[DataProvider] Using direct profile scrape - FREE and FAST!`)
       
-      const { ApifyClient } = await import('apify-client')
-      const client = new ApifyClient({ token: this.apiKey })
+      const cleanUsername = username.replace('@', '')
       
-      // Use Kai premium actor - extract up to 500 followers for eligibility check
-      // Smart approach: If account has <500, we get exact count. If ≥500, they pay.
-      // Cost: $0.05 per check (500/1000 * $0.1)
-      const run = await client.actor('kaitoeasyapi/premium-x-follower-scraper-following-data').call({
-        user_names: [username],
-        user_ids: [],
-        maxFollowers: 500, // Extract up to 500 for eligibility check
-        maxFollowings: 200, // Minimum required  
-        getFollowers: true,
-        getFollowing: false
-      })
-      
-      // Wait for completion (this will take longer for accounts with many followers)
-      console.log('[DataProvider] Waiting for actor to complete...')
-      await client.run(run.id).waitForFinish()
-      
-      // Get the dataset
-      const dataset = await client.dataset(run.defaultDatasetId).listItems()
-      
-      if (dataset.items.length === 0) {
-        console.error('[DataProvider] Actor returned no data - account may not exist')
-        return null
+      // Method 1: Try scraping X.com profile page directly
+      try {
+        console.log(`[DataProvider] Scraping x.com/${cleanUsername}...`)
+        
+        const response = await fetch(`https://x.com/${cleanUsername}`, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Referer': 'https://x.com/',
+          }
+        })
+        
+        if (response.ok) {
+          const html = await response.text()
+          
+          // Look for follower count in HTML
+          // X uses patterns like: "followers_count":1700 or <span>1.7K</span> Followers
+          const patterns = [
+            /"followers_count":(\d+)/i,
+            /"profile".*?"followers_count":(\d+)/i,
+            /(\d+(?:,\d+)*)\s*(?:<\/span>)?\s*Followers/i,
+            /"legacy".*?"followers_count":(\d+)/i,
+          ]
+          
+          for (const pattern of patterns) {
+            const match = html.match(pattern)
+            if (match && match[1]) {
+              const count = parseInt(match[1].replace(/,/g, ''))
+              if (!isNaN(count) && count >= 0) {
+                console.log(`[DataProvider] ✅ @${username} has EXACTLY ${count} followers (from x.com scrape)`)
+                
+                return {
+                  username: cleanUsername,
+                  name: cleanUsername,
+                  bio: `X user`,
+                  verified: false,
+                  followersCount: count,
+                  followingCount: 0,
+                  profileImageUrl: undefined,
+                  location: ''
+                }
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.log('[DataProvider] X.com scrape failed, trying Apify Web Scraper...')
       }
       
-      // Smart counting logic:
-      // - If extracted < 500: That's ALL their followers (exact count, FREE tier)
-      // - If extracted = 500: They have 500+ (PAID tier, exact count unknown)
-      const extractedCount = dataset.items.length
-      
-      if (extractedCount < 500) {
-        console.log(`[DataProvider] ✅ @${username} has EXACTLY ${extractedCount} followers (FREE tier)`)
+      // Method 2: Use Apify Web Scraper (free tier available)
+      try {
+        const { ApifyClient } = await import('apify-client')
+        const client = new ApifyClient({ token: this.apiKey })
         
-        return {
-          username: username,
-          name: username,
-          bio: `X user`,
-          verified: false,
-          followersCount: extractedCount, // Exact count
-          followingCount: 0,
-          profileImageUrl: undefined,
-          location: ''
-        }
-      } else {
-        // They have 500+ followers (paid tier)
-        // Return 500 as minimum - exact count will be determined during full extraction
-        console.log(`[DataProvider] ✅ @${username} has 500+ followers (PAID tier)`)
+        console.log('[DataProvider] Using Apify Web Scraper...')
         
-        return {
-          username: username,
-          name: username,
-          bio: `X user`,
-          verified: false,
-          followersCount: 500, // Minimum count for paid tier
-          followingCount: 0,
-          profileImageUrl: undefined,
-          location: ''
+        const run = await client.actor('apify/web-scraper').call({
+          startUrls: [{ url: `https://x.com/${cleanUsername}` }],
+          linkSelector: 'none',
+          pageFunction: `async function pageFunction(context) {
+            const { page } = context;
+            
+            // Wait for page to load
+            await page.waitForTimeout(3000);
+            
+            // Get the full HTML
+            const html = await page.content();
+            
+            // Look for follower count
+            const patterns = [
+              /"followers_count":(\\d+)/i,
+              /(\\d+(?:,\\d+)*)\\s*Followers/i,
+            ];
+            
+            for (const pattern of patterns) {
+              const match = html.match(pattern);
+              if (match && match[1]) {
+                const count = parseInt(match[1].replace(/,/g, ''));
+                if (!isNaN(count)) {
+                  return { followersCount: count };
+                }
+              }
+            }
+            
+            return { followersCount: null };
+          }`,
+        })
+        
+        await client.run(run.id).waitForFinish()
+        const dataset = await client.dataset(run.defaultDatasetId).listItems()
+        
+        const firstItem = dataset.items[0] as any
+        if (dataset.items.length > 0 && firstItem?.followersCount) {
+          const count = firstItem.followersCount as number
+          console.log(`[DataProvider] ✅ @${username} has EXACTLY ${count} followers (from Apify Web Scraper)`)
+          
+          return {
+            username: cleanUsername,
+            name: cleanUsername,
+            bio: `X user`,
+            verified: false,
+            followersCount: count,
+            followingCount: 0,
+            profileImageUrl: undefined,
+            location: ''
+          }
         }
+      } catch (error) {
+        console.log('[DataProvider] Apify Web Scraper failed:', error)
       }
+      
+      // All methods failed
+      console.error('[DataProvider] ❌ All methods failed to get follower count')
+      return null
       
     } catch (error: any) {
       console.error('[DataProvider] Profile fetch failed:', error)
