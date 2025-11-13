@@ -37,129 +37,94 @@ class DataProvider {
       const { ApifyClient } = await import('apify-client')
       const client = new ApifyClient({ token: this.apiKey })
       
-      console.log(`[DataProvider] Using premium X scraper to get profile metadata...`)
-      console.log(`[DataProvider] Extracting 200 followers to get target user info...`)
+      console.log(`[DataProvider] Using YOUR premium X scraper (kaitoeasyapi)...`)
       
-      // Use YOUR premium actor - extract minimal followers to get target user metadata
+      // Use YOUR premium actor - the one you're paying for!
+      // Extract 200 followers to get access to run metadata
       const run = await client.actor('kaitoeasyapi/premium-x-follower-scraper-following-data').call({
         user_names: [username],
         user_ids: [],
-        maxFollowers: 200, // Minimum required by actor (validated)
-        maxFollowings: 200, // Also needs to be >= 200!
+        maxFollowers: 200, // Minimum required
+        maxFollowings: 200, // Minimum required
         getFollowers: true,
         getFollowing: false
       })
       
-      // Check Key-Value Store for target user profile metadata
-      console.log('[DataProvider] Checking Key-Value Store for target user profile...')
+      console.log('[DataProvider] Waiting for run to complete...')
+      await client.run(run.id).waitForFinish()
+      
+      console.log('[DataProvider] Checking run statistics for target user info...')
       const runInfo = await client.run(run.id).get() as any
-      const kvStoreId = runInfo.defaultKeyValueStoreId
       
-      if (kvStoreId) {
-        console.log('[DataProvider] Found KV Store:', kvStoreId)
-        
-        // Try common keys where actors store metadata
-        const possibleKeys = ['INPUT', 'OUTPUT', 'STATE', 'METADATA', 'TARGET_USER', 'USER_PROFILE']
-        
-        for (const key of possibleKeys) {
-          try {
-            const record = await client.keyValueStore(kvStoreId).getRecord(key)
-            if (record?.value) {
-              console.log(`[DataProvider] DEBUG - KV Store [${key}]:`, JSON.stringify(record.value, null, 2))
-              
-              // Check if this has target user info
-              const kvData = record.value as any
-              if (kvData.followers_count || kvData.followersCount || kvData.targetUser || kvData.userProfile) {
-                const targetUser = kvData.targetUser || kvData.userProfile || kvData
-                const followerCount = targetUser.followers_count || targetUser.followersCount
-                
-                if (followerCount || followerCount === 0) {
-                  console.log(`[DataProvider] @${username} has EXACT ${followerCount} followers (from KV Store)`)
-                  
-                  return {
-                    username: username,
-                    name: targetUser.name || username,
-                    bio: targetUser.description || `X user`,
-                    verified: targetUser.verified || false,
-                    followersCount: followerCount,
-                    followingCount: targetUser.friends_count || 0,
-                    profileImageUrl: targetUser.profile_image_url_https || undefined,
-                    location: targetUser.location || ''
-                  }
-                }
-              }
-            }
-          } catch (error) {
-            // Key doesn't exist, try next one
-            console.log(`[DataProvider] Key ${key} not found in KV Store`)
-          }
-        }
+      // Log everything to find where target user info is stored
+      console.log('[DataProvider] DEBUG - Run stats:', JSON.stringify(runInfo.stats, null, 2))
+      console.log('[DataProvider] DEBUG - Run status message:', runInfo.statusMessage)
+      console.log('[DataProvider] DEBUG - Run meta:', JSON.stringify(runInfo.meta, null, 2))
+      
+      // Check if run has custom data
+      if (runInfo.meta && runInfo.meta.customData) {
+        console.log('[DataProvider] DEBUG - Custom data:', JSON.stringify(runInfo.meta.customData, null, 2))
       }
       
-      // Last resort: Get dataset and look for target user data in ALL items
-      console.log('[DataProvider] Checking dataset for target user info in items...')
+      // Get first follower item to see target_username confirmation
       const dataset = await client.dataset(run.defaultDatasetId).listItems()
-      
-      // Check if any item has target user profile data (not just username)
-      const firstItem = dataset.items[0] as any
-      if (firstItem && firstItem.target_username) {
-        console.log('[DataProvider] Dataset items only have follower data, not target user profile')
-        console.log('[DataProvider] Need to scrape target user profile separately...')
+      if (dataset.items.length > 0) {
+        const firstFollower = dataset.items[0] as any
+        console.log('[DataProvider] Confirmed target username:', firstFollower.target_username)
         
-        // Use simple HTTP scrape of profile page
-        const profileUrl = `https://x.com/${username}`
-        console.log('[DataProvider] Fetching profile page:', profileUrl)
+        // HACK: The actor MUST have fetched the target user profile to extract followers
+        // Let's check if ANY item in the dataset has the target user's full profile
+        // Look for an item where screen_name === target_username
+        const targetUserItem = dataset.items.find((item: any) => 
+          item.screen_name === username || item.screen_name === username.replace('@', '')
+        )
         
-        try {
-          const response = await fetch(profileUrl)
-          const html = await response.text()
+        if (targetUserItem) {
+          const targetData = targetUserItem as any
+          const followerCount = targetData.followers_count
+          console.log(`[DataProvider] FOUND target user in dataset! @${username} has ${followerCount} followers`)
           
-          // Try to extract follower count from HTML
-          const patterns = [
-            /"followers_count":(\d+)/,
-            /"normal_followers_count":"([\d,]+)"/,
-            /([\d.]+[KMB]?)\s*Followers/i
-          ]
-          
-          for (const pattern of patterns) {
-            const match = html.match(pattern)
-            if (match) {
-              let countStr = match[1].replace(/,/g, '')
-              let followerCount = 0
-              
-              if (countStr.includes('K')) {
-                followerCount = Math.round(parseFloat(countStr) * 1000)
-              } else if (countStr.includes('M')) {
-                followerCount = Math.round(parseFloat(countStr) * 1000000)
-              } else {
-                followerCount = parseInt(countStr)
-              }
-              
-              console.log(`[DataProvider] @${username} has EXACT ${followerCount} followers (from profile page scrape)`)
-              
-              return {
-                username: username,
-                name: username,
-                bio: `X user`,
-                verified: false,
-                followersCount: followerCount,
-                followingCount: 0,
-                profileImageUrl: undefined,
-                location: ''
-              }
-            }
+          return {
+            username: targetData.screen_name || username,
+            name: targetData.name || username,
+            bio: targetData.description || `X user`,
+            verified: targetData.verified || false,
+            followersCount: followerCount,
+            followingCount: targetData.friends_count || 0,
+            profileImageUrl: targetData.profile_image_url_https || undefined,
+            location: targetData.location || ''
           }
-        } catch (error) {
-          console.error('[DataProvider] Failed to scrape profile page:', error)
         }
       }
       
-      // Absolute fallback
-      console.log('[DataProvider] WARNING: Could not find target user follower count anywhere')
-      console.log('[DataProvider] Using extracted count as minimum estimate...')
+      // If we can't find target user profile, we need to make a direct API call
+      console.log('[DataProvider] Target user profile not in dataset, using X API...')
+      
+      // Import X API client and get profile directly
+      const { XApiClient } = await import('./x-api-client')
+      const xClient = new XApiClient()
+      const xProfile = await xClient.getUserProfile(username)
+      
+      if (xProfile && xProfile.success) {
+        console.log(`[DataProvider] @${username} has EXACT ${xProfile.followerCount} followers (from X API)`)
+        
+        return {
+          username: username,
+          name: xProfile.name,
+          bio: xProfile.bio,
+          verified: xProfile.verified,
+          followersCount: xProfile.followerCount,
+          followingCount: 0,
+          profileImageUrl: xProfile.profileImageUrl,
+          location: xProfile.location
+        }
+      }
+      
+      // Last resort fallback - use extracted count as minimum estimate
+      console.log('[DataProvider] WARNING: Using extracted count as minimum estimate')
       const followerCount = dataset.items.length
       
-      // Return profile with follower count
+      // Return profile with estimated count
       return {
         username: username,
         name: username,
