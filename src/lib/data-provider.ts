@@ -51,7 +51,11 @@ class DataProvider {
       
       // Wait for completion
       console.log('[DataProvider] Waiting for actor to complete...')
-      await client.run(run.id).waitForFinish()
+      const finalRun = await client.run(run.id).waitForFinish()
+      
+      // Check run info for target user stats
+      console.log('[DataProvider] DEBUG - Run status message:', finalRun.statusMessage)
+      console.log('[DataProvider] DEBUG - Run stats:', JSON.stringify(finalRun.stats, null, 2))
       
       // Get the dataset
       const dataset = await client.dataset(run.defaultDatasetId).listItems()
@@ -61,6 +65,8 @@ class DataProvider {
         return null
       }
       
+      console.log('[DataProvider] DEBUG - Dataset items extracted:', dataset.items.length)
+      
       // Get the ACTUAL follower count from the target user's profile
       // The actor must fetch the target profile to know how many followers to extract
       // Check the first follower item for target user info
@@ -68,6 +74,14 @@ class DataProvider {
       
       console.log('[DataProvider] DEBUG - Checking for target user total follower count...')
       console.log('[DataProvider] DEBUG - First item fields:', Object.keys(firstItem))
+      console.log('[DataProvider] DEBUG - First item sample:', JSON.stringify({
+        type: firstItem.type,
+        target_username: firstItem.target_username,
+        target_name: firstItem.target_name,
+        followers_count: firstItem.followers_count,
+        target_followers_count: firstItem.target_followers_count,
+        target_normal_followers_count: firstItem.target_normal_followers_count,
+      }, null, 2))
       
       // The actual follower count should be in the target user metadata
       // Look for fields like: target_followers_count, target_user_followers_count, etc.
