@@ -6,8 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebase-admin'
 
-// Allow up to 5 minutes for large follower extractions
-export const maxDuration = 300
+// Allow up to 2 minutes for eligibility check (max 500 followers)
+export const maxDuration = 120
 
 export async function POST(request: NextRequest) {
   try {

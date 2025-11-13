@@ -63,11 +63,11 @@ function ExportContent() {
       }
     }, 2000) // Poll every 2 seconds
 
-    // Cleanup after 5 minutes (large accounts need time)
+    // Cleanup after 2 minutes (max 500 followers per check)
     setTimeout(() => {
       clearInterval(interval)
       setStatusPolling(false)
-    }, 300000)
+    }, 120000)
   }
 
   const checkPrice = async (user: string) => {
@@ -80,9 +80,9 @@ function ExportContent() {
     pollStatus(user)
 
     try {
-      // Add 5 minute timeout (large accounts take time to extract all followers)
+      // Add 2 minute timeout (eligibility check extracts max 500 followers)
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 300000)
+      const timeoutId = setTimeout(() => controller.abort(), 120000)
 
       const res = await fetch('/api/user/check-eligibility', {
         method: 'POST',

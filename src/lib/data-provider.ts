@@ -33,18 +33,18 @@ class DataProvider {
   async getUserProfile(username: string): Promise<UserProfile | null> {
     try {
       console.log(`[DataProvider] Getting follower count for @${username} (eligibility check)`)
-      console.log(`[DataProvider] Using Kai actor - cost: $0.1 per 1000 followers extracted`)
+      console.log(`[DataProvider] Using Kai actor - cost: $0.05 per check (extracts up to 500)`)
       
       const { ApifyClient } = await import('apify-client')
       const client = new ApifyClient({ token: this.apiKey })
       
-      // Use Kai premium actor - extract ALL followers to get exact count
-      // Set maxFollowers VERY HIGH so we get all followers
-      // Cost: Varies by account size ($0.1 per 1000 followers extracted)
+      // Use Kai premium actor - extract up to 500 followers for eligibility check
+      // Smart approach: If account has <500, we get exact count. If ≥500, they pay.
+      // Cost: $0.05 per check (500/1000 * $0.1)
       const run = await client.actor('kaitoeasyapi/premium-x-follower-scraper-following-data').call({
         user_names: [username],
         user_ids: [],
-        maxFollowers: 999999, // Extract ALL followers (up to 1 million)
+        maxFollowers: 500, // Extract up to 500 for eligibility check
         maxFollowings: 200, // Minimum required  
         getFollowers: true,
         getFollowing: false
@@ -62,20 +62,39 @@ class DataProvider {
         return null
       }
       
-      // Since we set maxFollowers to 999999, we extracted ALL followers
-      // The extracted count IS the exact follower count!
+      // Smart counting logic:
+      // - If extracted < 500: That's ALL their followers (exact count, FREE tier)
+      // - If extracted = 500: They have 500+ (PAID tier, exact count unknown)
       const extractedCount = dataset.items.length
-      console.log(`[DataProvider] ✅ @${username} has EXACTLY ${extractedCount} followers`)
       
-      return {
-        username: username,
-        name: username,
-        bio: `X user`,
-        verified: false,
-        followersCount: extractedCount, // This IS the exact count
-        followingCount: 0,
-        profileImageUrl: undefined,
-        location: ''
+      if (extractedCount < 500) {
+        console.log(`[DataProvider] ✅ @${username} has EXACTLY ${extractedCount} followers (FREE tier)`)
+        
+        return {
+          username: username,
+          name: username,
+          bio: `X user`,
+          verified: false,
+          followersCount: extractedCount, // Exact count
+          followingCount: 0,
+          profileImageUrl: undefined,
+          location: ''
+        }
+      } else {
+        // They have 500+ followers (paid tier)
+        // Return 500 as minimum - exact count will be determined during full extraction
+        console.log(`[DataProvider] ✅ @${username} has 500+ followers (PAID tier)`)
+        
+        return {
+          username: username,
+          name: username,
+          bio: `X user`,
+          verified: false,
+          followersCount: 500, // Minimum count for paid tier
+          followingCount: 0,
+          profileImageUrl: undefined,
+          location: ''
+        }
       }
       
     } catch (error: any) {
