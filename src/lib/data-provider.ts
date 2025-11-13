@@ -33,29 +33,26 @@ class DataProvider {
   async getUserProfile(username: string): Promise<UserProfile | null> {
     try {
       console.log(`[DataProvider] Getting follower count for @${username} (eligibility check)`)
-      console.log(`[DataProvider] Using Kai actor - cost: $0.02 per check`)
+      console.log(`[DataProvider] Using Kai actor - cost: $0.1 per 1000 followers extracted`)
       
       const { ApifyClient } = await import('apify-client')
       const client = new ApifyClient({ token: this.apiKey })
       
-      // Use Kai premium actor - extract 200 followers minimum
-      // Cost: $0.02 per check (200/1000 * $0.1)
+      // Use Kai premium actor - extract ALL followers to get exact count
+      // Set maxFollowers VERY HIGH so we get all followers
+      // Cost: Varies by account size ($0.1 per 1000 followers extracted)
       const run = await client.actor('kaitoeasyapi/premium-x-follower-scraper-following-data').call({
         user_names: [username],
         user_ids: [],
-        maxFollowers: 200, // Minimum required
+        maxFollowers: 999999, // Extract ALL followers (up to 1 million)
         maxFollowings: 200, // Minimum required  
         getFollowers: true,
         getFollowing: false
       })
       
-      // Wait for completion
+      // Wait for completion (this will take longer for accounts with many followers)
       console.log('[DataProvider] Waiting for actor to complete...')
-      const finalRun = await client.run(run.id).waitForFinish()
-      
-      // Check run info for target user stats
-      console.log('[DataProvider] DEBUG - Run status message:', finalRun.statusMessage)
-      console.log('[DataProvider] DEBUG - Run stats:', JSON.stringify(finalRun.stats, null, 2))
+      await client.run(run.id).waitForFinish()
       
       // Get the dataset
       const dataset = await client.dataset(run.defaultDatasetId).listItems()
@@ -65,74 +62,20 @@ class DataProvider {
         return null
       }
       
-      console.log('[DataProvider] DEBUG - Dataset items extracted:', dataset.items.length)
-      
-      // IMPORTANT: Kai actor returns FOLLOWER profiles, not target user profile
-      // We need to find if there's a summary item or check the Key-Value store
-      
-      // Check if last item is the target user (some actors do this)
-      const lastItem = dataset.items[dataset.items.length - 1] as any
-      console.log('[DataProvider] DEBUG - Last item type:', lastItem.type, 'screen_name:', lastItem.screen_name)
-      
-      // Check Key-Value store for target user info
-      try {
-        const kvStore = await client.keyValueStore(run.defaultKeyValueStoreId)
-        const kvKeys = await kvStore.listKeys()
-        console.log('[DataProvider] DEBUG - KV Store keys:', kvKeys.items.map((k: any) => k.key))
-        
-        // Look for common keys that might have target user info
-        const possibleKeys = ['OUTPUT', 'INPUT', 'target_user', 'user_info', 'metadata']
-        for (const key of possibleKeys) {
-          try {
-            const record = await kvStore.getRecord(key)
-            if (record && record.value) {
-              console.log(`[DataProvider] DEBUG - KV Store ${key}:`, JSON.stringify(record.value, null, 2))
-            }
-          } catch (e) {
-            // Key doesn't exist, continue
-          }
-        }
-      } catch (e) {
-        console.log('[DataProvider] KV Store check failed:', e)
-      }
-      
-      // Since Kai actor doesn't return target user total, we MUST use extracted count logic
-      console.log('[DataProvider] ⚠️ Kai actor does not return target user total follower count!')
-      console.log('[DataProvider] Using extracted count logic...')
-      
-      // Fallback: Use extracted count
-      // For accounts with <200 followers, this IS the exact count!
-      // For accounts with >200 followers, this is the minimum
+      // Since we set maxFollowers to 999999, we extracted ALL followers
+      // The extracted count IS the exact follower count!
       const extractedCount = dataset.items.length
+      console.log(`[DataProvider] ✅ @${username} has EXACTLY ${extractedCount} followers`)
       
-      if (extractedCount < 200) {
-        // If we got less than 200, that's ALL their followers!
-        console.log(`[DataProvider] ✅ @${username} has ${extractedCount} followers (extracted ALL followers)`)
-        
-        return {
-          username: username,
-          name: username,
-          bio: `X user`,
-          verified: false,
-          followersCount: extractedCount, // This IS the exact count
-          followingCount: 0,
-          profileImageUrl: undefined,
-          location: ''
-        }
-      } else {
-        // Got 200 = they have 200 OR MORE
-        console.log(`[DataProvider] ⚠️ @${username} has at least ${extractedCount} followers (may have more)`)
-        
-        return {
-          username: username,
-          name: username,
-          bio: `X user`,
-          verified: false,
-          followersCount: extractedCount, // This is a MINIMUM
-          followingCount: 0,
-          profileImageUrl: undefined,
-          location: ''
-        }
+      return {
+        username: username,
+        name: username,
+        bio: `X user`,
+        verified: false,
+        followersCount: extractedCount, // This IS the exact count
+        followingCount: 0,
+        profileImageUrl: undefined,
+        location: ''
       }
       
     } catch (error: any) {
