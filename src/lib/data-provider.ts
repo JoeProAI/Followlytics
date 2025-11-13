@@ -38,14 +38,12 @@ class DataProvider {
       const { ApifyClient } = await import('apify-client')
       const client = new ApifyClient({ token: this.apiKey })
       
-      // Use Twitter Profile Scraper - designed specifically to get profile info!
-      // This is a simple, cheap actor that just gets profile metadata
-      console.log('[DataProvider] Using Twitter Profile Scraper actor...')
+      // Use Kai's premium user scraper - just gets profile info, not followers!
+      // Cost: $0.15 per 1000 users = $0.00015 per profile (essentially free!)
+      console.log('[DataProvider] Using Kai premium user scraper...')
       
-      const run = await client.actor('heLL0w0rld/twitter-profile-scraper').call({
-        handles: [cleanUsername]
-      }, {
-        timeout: 60 // 60 second timeout
+      const run = await client.actor('kaitoeasyapi/premium-twitter-user-scraper-pay-per-result').call({
+        user_names: [cleanUsername]
       })
       
       console.log('[DataProvider] Waiting for profile data...')
