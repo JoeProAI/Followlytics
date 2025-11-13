@@ -32,31 +32,83 @@ class DataProvider {
   
   async getUserProfile(username: string): Promise<UserProfile | null> {
     try {
-      console.log(`[DataProvider] Getting follower count for @${username} (spam protection)`)
+      console.log(`[DataProvider] Getting follower count for @${username} (eligibility check)`)
+      console.log(`[DataProvider] Using Kai actor - cost: $0.02 per check`)
       
-      // SIMPLE CHECK: Just get the follower count for eligibility
-      // This is FAST, FREE, and SIMPLE - perfect for spam protection!
-      const { getFollowerCount } = await import('./simple-follower-check')
-      const followerCount = await getFollowerCount(username)
+      const { ApifyClient } = await import('apify-client')
+      const client = new ApifyClient({ token: this.apiKey })
       
-      if (followerCount === null) {
-        console.error('[DataProvider] Could not get follower count')
+      // Use Kai premium actor - extract 200 followers minimum
+      // Cost: $0.02 per check (200/1000 * $0.1)
+      const run = await client.actor('kaitoeasyapi/premium-x-follower-scraper-following-data').call({
+        user_names: [username],
+        user_ids: [],
+        maxFollowers: 200, // Minimum required
+        maxFollowings: 200, // Minimum required  
+        getFollowers: true,
+        getFollowing: false
+      })
+      
+      // Wait for completion
+      console.log('[DataProvider] Waiting for actor to complete...')
+      await client.run(run.id).waitForFinish()
+      
+      // Get the dataset
+      const dataset = await client.dataset(run.defaultDatasetId).listItems()
+      
+      if (dataset.items.length === 0) {
+        console.error('[DataProvider] Actor returned no data - account may not exist')
         return null
       }
       
-      console.log(`[DataProvider] ✅ @${username} has ${followerCount} followers`)
+      // Get the ACTUAL follower count from the target user's profile
+      // The actor must fetch the target profile to know how many followers to extract
+      // Check the first follower item for target user info
+      const firstItem = dataset.items[0] as any
       
-      // Return profile with follower count
+      console.log('[DataProvider] DEBUG - Checking for target user total follower count...')
+      console.log('[DataProvider] DEBUG - First item fields:', Object.keys(firstItem))
+      
+      // The actual follower count should be in the target user metadata
+      // Look for fields like: target_followers_count, target_user_followers_count, etc.
+      const actualFollowerCount = 
+        firstItem.target_followers_count ||
+        firstItem.target_user_followers_count ||
+        firstItem.targetFollowersCount ||
+        firstItem.target_normal_followers_count ||
+        null
+      
+      if (actualFollowerCount !== null && actualFollowerCount !== undefined) {
+        console.log(`[DataProvider] ✅ @${username} has ${actualFollowerCount} followers (from Kai actor metadata)`)
+        
+        return {
+          username: username,
+          name: firstItem.target_name || username,
+          bio: `X user`,
+          verified: false,
+          followersCount: actualFollowerCount,
+          followingCount: 0,
+          profileImageUrl: undefined,
+          location: ''
+        }
+      }
+      
+      // Fallback: Use extracted count as MINIMUM estimate
+      // This is not ideal but better than nothing
+      const extractedCount = dataset.items.length
+      console.log(`[DataProvider] ⚠️ Could not find exact count, using extracted count as minimum: ${extractedCount}`)
+      
       return {
         username: username,
         name: username,
-        bio: `X user`,
+        bio: `X user (minimum ${extractedCount} followers)`,
         verified: false,
-        followersCount: followerCount,
+        followersCount: extractedCount, // This is a MINIMUM, not exact
         followingCount: 0,
         profileImageUrl: undefined,
         location: ''
       }
+      
     } catch (error: any) {
       console.error('[DataProvider] Profile fetch failed:', error)
       return null
