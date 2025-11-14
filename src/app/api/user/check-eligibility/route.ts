@@ -141,20 +141,22 @@ export async function POST(request: NextRequest) {
       completedAt: new Date()
     })
 
+    // Use the actual count they'll receive (extracted if available, API if needs extraction)
+    const displayCount = needsExtraction ? currentFollowerCount : cachedCount
+    
     return NextResponse.json({
       username: cleanUsername,
-      followerCount: currentFollowerCount,
-      extractedCount: cachedCount, // Show actual extracted count
+      followerCount: displayCount, // Show the count they'll actually get
       isFree,
       price,
       tier,
       needsExtraction,
       status: 'pending_payment',
       message: isFree 
-        ? `🎉 You have ${currentFollowerCount} followers - FREE download!`
+        ? `🎉 You have ${displayCount.toLocaleString()} followers - FREE download!`
         : needsExtraction
-          ? `💰 ${currentFollowerCount.toLocaleString()} followers - Pay $${price} to extract and download.`
-          : `💰 ${currentFollowerCount.toLocaleString()} followers (${cachedCount} available) - Pay $${price} to download instantly!`
+          ? `💰 ${currentFollowerCount.toLocaleString()} followers detected - Pay $${price} to extract and download.`
+          : `💰 ${displayCount.toLocaleString()} followers ready - Pay $${price} to download instantly!`
     })
 
   } catch (error: any) {
