@@ -24,8 +24,10 @@
 ### Step 2: Run AI Analysis
 1. After extraction completes, scroll to the results
 2. Click **"📊 Analyze Top 50"** button
-3. Wait ~30 seconds for GPT-4o to analyze
+3. Wait ~20-30 seconds for Grok-2 to analyze (faster than GPT-4o!)
 4. Alert will show completion with Overall Score
+
+**Note:** System automatically uses Grok-2 (X's AI) if `XAI_API_KEY` is set, otherwise falls back to GPT-4o
 
 ### Step 3: View Deep Analytics
 After page reloads, scroll down to see the **AI Follower Analysis Results** section:
@@ -130,8 +132,13 @@ Try analyzing followers from different categories to see theme variations:
 
 ## 📊 Expected Costs
 
-- **AI Analysis**: ~$0.01-0.05 per 50 followers (GPT-4o)
+- **AI Analysis**: 
+  - Grok-2: ~$0.008-0.04 per 50 followers (20% cheaper than GPT-4o!)
+  - GPT-4o: ~$0.01-0.05 per 50 followers (fallback)
 - **Gamma Generation**: Free (using your Gamma API key)
+
+**Grok-2 Pricing:** $2/M input tokens, $10/M output tokens
+**GPT-4o Pricing:** $2.50/M input tokens, $10/M output tokens
 
 ## 🔥 Quick Test Sequence
 

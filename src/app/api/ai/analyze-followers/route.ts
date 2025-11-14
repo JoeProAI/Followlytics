@@ -27,10 +27,16 @@ export async function POST(request: NextRequest) {
 
     console.log(`[AI Analysis] Analyzing ${followers.length} followers for user ${userId}`)
 
-    // Initialize OpenAI at runtime
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
+    // Initialize Grok (xAI) - faster and native to X/Twitter
+    // Falls back to OpenAI if XAI_API_KEY not available
+    const useGrok = !!process.env.XAI_API_KEY
+    const aiClient = new OpenAI({
+      apiKey: useGrok ? process.env.XAI_API_KEY : process.env.OPENAI_API_KEY,
+      baseURL: useGrok ? 'https://api.x.ai/v1' : 'https://api.openai.com/v1'
     })
+    
+    const modelName = useGrok ? 'grok-2-1212' : 'gpt-4o'
+    console.log(`[AI Analysis] Using ${modelName} for analysis`)
 
     // Prepare follower data for analysis
     const followerSummary = followers.map(f => ({
@@ -165,8 +171,8 @@ Format as JSON with this EXACT structure:
   "summary": "Executive summary with specific, data-backed insights and clear ROI potential"
 }`
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
+    const completion = await aiClient.chat.completions.create({
+      model: modelName,
       messages: [
         {
           role: 'system',
@@ -193,12 +199,15 @@ Format as JSON with this EXACT structure:
     const inputTokens = usage?.prompt_tokens || 0
     const outputTokens = usage?.completion_tokens || 0
     
-    // GPT-4o pricing: $2.50 per 1M input tokens, $10.00 per 1M output tokens
-    const inputCost = (inputTokens / 1_000_000) * 2.50
-    const outputCost = (outputTokens / 1_000_000) * 10.00
+    // Pricing: Grok-2: $2.00 per 1M input, $10.00 per 1M output
+    //          GPT-4o: $2.50 per 1M input, $10.00 per 1M output
+    const inputRate = useGrok ? 2.00 : 2.50
+    const outputRate = 10.00 // Same for both
+    const inputCost = (inputTokens / 1_000_000) * inputRate
+    const outputCost = (outputTokens / 1_000_000) * outputRate
     const totalCost = inputCost + outputCost
 
-    console.log(`[AI Analysis] Cost: $${totalCost.toFixed(4)} (${inputTokens} input + ${outputTokens} output tokens)`)
+    console.log(`[AI Analysis] ${modelName} Cost: $${totalCost.toFixed(4)} (${inputTokens} input + ${outputTokens} output tokens)`)
 
     // Store analysis in Firestore with cost tracking
     const analysisRef = await adminDb
@@ -211,7 +220,8 @@ Format as JSON with this EXACT structure:
         analysis,
         analyzed_followers: followers.map(f => f.username),
         created_at: new Date().toISOString(),
-        model: 'gpt-4o',
+        model: modelName,
+        ai_provider: useGrok ? 'xai' : 'openai',
         cost: {
           input_tokens: inputTokens,
           output_tokens: outputTokens,
@@ -280,7 +290,8 @@ Format as JSON with this EXACT structure:
         total_cost: totalCost,
         input_tokens: inputTokens,
         output_tokens: outputTokens,
-        model: 'gpt-4o'
+        model: modelName,
+        ai_provider: useGrok ? 'xai' : 'openai'
       }
     })
 

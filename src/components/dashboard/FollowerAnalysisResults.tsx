@@ -20,6 +20,8 @@ interface Analysis {
   target_username: string
   follower_count: number
   created_at: string
+  model?: string
+  ai_provider?: 'xai' | 'openai'
   analysis: {
     individualAnalyses?: IndividualAnalysis[]
     aggregateAnalysis?: {
@@ -1001,8 +1003,16 @@ export default function FollowerAnalysisResults() {
           <div>
             Analysis Date: {new Date(selectedAnalysis.created_at).toLocaleString()}
           </div>
-          <div>
-            Model: GPT-4o
+          <div className="flex items-center gap-2">
+            <span>Model:</span>
+            <span className="text-cyan-400 font-medium">
+              {selectedAnalysis.model || 'gpt-4o'}
+            </span>
+            {selectedAnalysis.ai_provider && (
+              <span className="text-xs px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/20 rounded text-cyan-400">
+                {selectedAnalysis.ai_provider === 'xai' ? '⚡ Grok' : 'OpenAI'}
+              </span>
+            )}
           </div>
         </div>
       </div>
