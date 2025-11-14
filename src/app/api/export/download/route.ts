@@ -132,11 +132,7 @@ export async function POST(request: NextRequest) {
           Bio: f.bio || '',
           Followers: f.followersCount || 0,
           Following: f.followingCount || 0,
-          Tweets: f.tweetsCount || 0,
-          Verified: f.isVerified ? 'Yes' : 'No',
-          'Created At': f.createdAt || '',
-          Location: f.location || '',
-          Website: f.website || ''
+          Location: f.location || ''
         }))
         
         const worksheet = XLSX.utils.json_to_sheet(excelData)
@@ -192,8 +188,8 @@ export async function POST(request: NextRequest) {
 function convertToCSV(followers: any[]): string {
   if (followers.length === 0) return ''
 
-  // CSV headers
-  const headers = ['Username', 'Name', 'Bio', 'Followers', 'Following', 'Tweets', 'Verified', 'Created At', 'Location', 'Website']
+  // CSV headers - only columns with data
+  const headers = ['Username', 'Name', 'Bio', 'Followers', 'Following', 'Location']
   
   // CSV rows
   const rows = followers.map(f => [
@@ -202,11 +198,7 @@ function convertToCSV(followers: any[]): string {
     (f.bio || '').replace(/[\r\n,]/g, ' '), // Clean bio for CSV
     f.followersCount || 0,
     f.followingCount || 0,
-    f.tweetsCount || 0,
-    f.isVerified ? 'Yes' : 'No',
-    f.createdAt || '',
-    (f.location || '').replace(/,/g, ' '),
-    f.website || ''
+    (f.location || '').replace(/,/g, ' ')
   ])
 
   // Build CSV
@@ -223,11 +215,11 @@ function convertToMarkdown(followers: any[], username: string): string {
   md += `Total Followers: ${followers.length.toLocaleString()}\n\n`
   md += `---\n\n`
   
-  md += `| Username | Name | Followers | Following | Verified |\n`
+  md += `| Username | Name | Followers | Following | Location |\n`
   md += `|----------|------|-----------|-----------|----------|\n`
   
   followers.forEach(f => {
-    md += `| @${f.username} | ${f.name || '-'} | ${(f.followersCount || 0).toLocaleString()} | ${(f.followingCount || 0).toLocaleString()} | ${f.isVerified ? '✓' : ''} |\n`
+    md += `| @${f.username} | ${f.name || '-'} | ${(f.followersCount || 0).toLocaleString()} | ${(f.followingCount || 0).toLocaleString()} | ${f.location || '-'} |\n`
   })
   
   return md
