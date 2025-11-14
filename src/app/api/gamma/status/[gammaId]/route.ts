@@ -96,13 +96,13 @@ export async function GET(
               
               console.log(`[Gamma Status] ✅ Email sent successfully`)
               
-              // Mark as sent (with error handling)
+              // Mark as sent (with error handling) - use set with merge to avoid FAILED_PRECONDITION
               try {
-                await genRef.update({ 
+                await genRef.set({ 
                   emailSent: true,
                   completedAt: new Date(),
                   viewUrl: result.urls.view
-                })
+                }, { merge: true })
                 console.log('[Gamma Status] ✅ Marked as sent in database')
               } catch (updateErr) {
                 console.error('[Gamma Status] Warning: Could not update emailSent flag:', updateErr)

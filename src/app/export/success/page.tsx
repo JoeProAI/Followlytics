@@ -174,66 +174,73 @@ function SuccessContent() {
               console.error('[Success Page] Failed to trigger analysis:', err)
             })
             
-            // ALSO trigger auto-Gamma generation in parallel (only once)
-            if (user && !gammaTriggered) {
+            // ALSO trigger auto-Gamma generation in parallel (only once) - works with OR without login
+            if ((user || sessionId) && !gammaTriggered) {
               gammaTriggered = true
               console.log('[Success Page] Starting Gamma generation...')
               setGammaStatus({ generating: true })
               
-              user.getIdToken().then(token => {
-                const gammaPayload = {
-                  username,
-                  customInstructions: data.customInstructions || 'AI and Tech',
-                  gammaStyle: data.gammaStyle || 'professional',
-                  sessionId: sessionId
-                }
-                console.log('[Success Page] Gamma payload:', gammaPayload)
-                
-                fetch('/api/gamma/auto-generate', {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${token}`,
+              const triggerGamma = async () => {
+                try {
+                  let token = ''
+                  if (user) {
+                    token = await user.getIdToken()
+                  }
+                  
+                  const gammaPayload = {
+                    username,
+                    customInstructions: data.customInstructions || 'AI and Tech',
+                    gammaStyle: data.gammaStyle || 'professional',
+                    sessionId: sessionId
+                  }
+                  console.log('[Success Page] Gamma payload:', gammaPayload)
+                  
+                  const headers: any = {
                     'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify(gammaPayload)
-                }).then(res => {
+                  }
+                  if (token) {
+                    headers['Authorization'] = `Bearer ${token}`
+                  }
+                  
+                  const res = await fetch('/api/gamma/auto-generate', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(gammaPayload)
+                  })
+                  
                   console.log('[Success Page] Gamma response status:', res.status)
-                  return res.json()
-                })
-                  .then(gammaData => {
-                    console.log('[Success Page] Gamma response:', gammaData)
-                    if (gammaData.success) {
-                      console.log('[Success Page] Gamma generation started:', gammaData.gammaId)
-                      setGammaStatus({
-                        gammaId: gammaData.gammaId,
-                        status: 'processing',
-                        generating: true
-                      })
-                      // Start polling for Gamma completion
-                      pollGammaStatus(gammaData.gammaId)
-                    } else if (gammaData.requiresPayment) {
-                      console.log('[Success Page] Gamma requires $5 payment')
-                      setGammaStatus({ 
-                        generating: false, 
-                        status: 'payment_required',
-                        requiresPayment: true,
-                        amount: gammaData.amount
-                      })
-                    } else {
-                      console.error('[Success Page] Gamma failed:', gammaData.error)
-                      setGammaStatus({ generating: false, status: 'failed' })
-                    }
-                  })
-                  .catch(err => {
-                    console.error('[Success Page] Gamma generation failed:', err)
+                  const gammaData = await res.json()
+                  console.log('[Success Page] Gamma response:', gammaData)
+                  
+                  if (gammaData.success) {
+                    console.log('[Success Page] Gamma generation started:', gammaData.gammaId)
+                    setGammaStatus({
+                      gammaId: gammaData.gammaId,
+                      status: 'processing',
+                      generating: true
+                    })
+                    pollGammaStatus(gammaData.gammaId)
+                  } else if (gammaData.requiresPayment) {
+                    console.log(`[Success Page] Gamma requires $${gammaData.amount} payment`)
+                    setGammaStatus({ 
+                      generating: false, 
+                      status: 'payment_required',
+                      requiresPayment: true,
+                      amount: gammaData.amount || 2.99
+                    })
+                  } else {
+                    console.error('[Success Page] Gamma failed:', gammaData.error)
                     setGammaStatus({ generating: false, status: 'failed' })
-                  })
-              }).catch(err => {
-                console.error('[Success Page] Token error:', err)
-                setGammaStatus({ generating: false, status: 'failed' })
-              })
+                  }
+                } catch (err) {
+                  console.error('[Success Page] Gamma generation error:', err)
+                  setGammaStatus({ generating: false, status: 'failed' })
+                }
+              }
+              
+              triggerGamma()
             } else {
-              console.log('[Success Page] No user - skipping Gamma')
+              console.log('[Success Page] No user/sessionId or already triggered - skipping Gamma')
             }
           }
           
@@ -270,73 +277,83 @@ function SuccessContent() {
           }
         }
         
-        // Trigger Gamma for ALL users (will show upgrade if needed) - only if not already exists
+        // Trigger Gamma for ALL users (even not logged in, using sessionId) - only if not already exists
         const user = auth.currentUser
         console.log('[Success Page] Gamma check:', { 
           hasUser: !!user, 
+          hasSessionId: !!sessionId,
           gammaTriggered, 
           hasData: !!data, 
           existingGamma: !!data.gamma,
           free,
-          shouldTrigger: !!(user && !gammaTriggered && data && !data.gamma)
+          shouldTrigger: !!(!gammaTriggered && data && !data.gamma && (user || sessionId))
         })
         
-        if (user && !gammaTriggered && data && !data.gamma) {
+        // Trigger Gamma if: (1) user is logged in OR has valid sessionId, AND (2) Gamma hasn't been triggered, AND (3) no existing Gamma
+        if (!gammaTriggered && data && !data.gamma && (user || sessionId)) {
           gammaTriggered = true
           console.log('[Success Page] ✅ TRIGGERING GAMMA GENERATION')
           setGammaStatus({ generating: true })
           
-          user.getIdToken().then(token => {
-            const gammaPayload = {
-              username,
-              customInstructions: data.customInstructions || 'AI and Tech',
-              gammaStyle: data.gammaStyle || 'professional',
-              sessionId: sessionId
-            }
-            console.log('[Success Page] Gamma payload:', gammaPayload)
-            
-            fetch('/api/gamma/auto-generate', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`,
+          const triggerGamma = async () => {
+            try {
+              let token = ''
+              if (user) {
+                token = await user.getIdToken()
+              }
+              
+              const gammaPayload = {
+                username,
+                customInstructions: data.customInstructions || 'AI and Tech',
+                gammaStyle: data.gammaStyle || 'professional',
+                sessionId: sessionId
+              }
+              console.log('[Success Page] Gamma payload:', gammaPayload)
+              
+              const headers: any = {
                 'Content-Type': 'application/json'
-              },
-              body: JSON.stringify(gammaPayload)
-            }).then(res => {
+              }
+              if (token) {
+                headers['Authorization'] = `Bearer ${token}`
+              }
+              
+              const res = await fetch('/api/gamma/auto-generate', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(gammaPayload)
+              })
+              
               console.log('[Success Page] Gamma response status:', res.status)
-              return res.json()
-            })
-              .then(gammaData => {
-                console.log('[Success Page] Gamma response:', gammaData)
-                if (gammaData.success) {
-                  console.log('[Success Page] Gamma generation started:', gammaData.gammaId)
-                  setGammaStatus({
-                    gammaId: gammaData.gammaId,
-                    status: 'processing',
-                    generating: true
-                  })
-                  pollGammaStatus(gammaData.gammaId)
-                } else if (gammaData.requiresPayment) {
-                  console.log(`[Success Page] Gamma requires $${gammaData.amount} payment`)
-                  setGammaStatus({ 
-                    generating: false, 
-                    status: 'payment_required',
-                    requiresPayment: true,
-                    amount: gammaData.amount || 2.99
-                  })
-                } else {
-                  console.error('[Success Page] Gamma failed:', gammaData.error)
-                  setGammaStatus({ generating: false, status: 'failed' })
-                }
-              })
-              .catch(err => {
-                console.error('[Success Page] Gamma generation failed:', err)
+              const gammaData = await res.json()
+              console.log('[Success Page] Gamma response:', gammaData)
+              
+              if (gammaData.success) {
+                console.log('[Success Page] Gamma generation started:', gammaData.gammaId)
+                setGammaStatus({
+                  gammaId: gammaData.gammaId,
+                  status: 'processing',
+                  generating: true
+                })
+                pollGammaStatus(gammaData.gammaId)
+              } else if (gammaData.requiresPayment) {
+                console.log(`[Success Page] Gamma requires $${gammaData.amount} payment`)
+                setGammaStatus({ 
+                  generating: false, 
+                  status: 'payment_required',
+                  requiresPayment: true,
+                  amount: gammaData.amount || 2.99
+                })
+              } else {
+                console.error('[Success Page] Gamma failed:', gammaData.error)
                 setGammaStatus({ generating: false, status: 'failed' })
-              })
-          }).catch(err => {
-            console.error('[Success Page] Token error:', err)
-            setGammaStatus({ generating: false, status: 'failed' })
-          })
+              }
+            } catch (err) {
+              console.error('[Success Page] Gamma generation error:', err)
+              setGammaStatus({ generating: false, status: 'failed' })
+            }
+          }
+          
+          triggerGamma()
         }
       } catch (err: any) {
         setError('Failed to load data. Please check your email for download link.')
