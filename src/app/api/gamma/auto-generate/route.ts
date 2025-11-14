@@ -53,14 +53,14 @@ export async function POST(request: NextRequest) {
       const hasPaidForExport = sessionDoc?.exists && sessionDoc.data()?.status === 'complete'
       
       if (!hasPaidForExport) {
-        // Free tier user needs to pay $5 for Gamma
-        console.log(`[Auto-Gamma] Free tier user (@${cleanUsername}, ${followerCount} followers) - requires $5 Gamma payment`)
+        // Free tier user can add Gamma for $2.99
+        console.log(`[Auto-Gamma] Free tier user (@${cleanUsername}, ${followerCount} followers) - requires $2.99 Gamma upgrade`)
         
         return NextResponse.json({ 
           error: 'Payment required',
-          message: 'Gamma AI presentations require a $5 upgrade for accounts under 500 followers',
+          message: '🔥 Launch Special: Add AI presentation for just $2.99 (normally $4.99)',
           requiresPayment: true,
-          amount: 5,
+          amount: 2.99,
           followerCount,
           upgradeUrl: '/gamma/upgrade'
         }, { status: 402 })

@@ -580,10 +580,10 @@ function SuccessContent() {
               <div className="space-y-4">
                 <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-700/50 rounded-lg p-4 sm:p-6">
                   <div className="flex items-start gap-3 mb-4">
-                    <div className="text-2xl sm:text-3xl">🎨</div>
+                    <div className="text-2xl sm:text-3xl">🔥</div>
                     <div>
-                      <h3 className="text-sm sm:text-base font-semibold mb-1">Upgrade to Gamma AI Presentation</h3>
-                      <p className="text-xs sm:text-sm text-gray-400">Get a professional AI-generated presentation analyzing your audience</p>
+                      <h3 className="text-sm sm:text-base font-semibold mb-1">Launch Special: AI Presentation</h3>
+                      <p className="text-xs sm:text-sm text-gray-400">Professional audience intelligence report (normally $4.99)</p>
                     </div>
                   </div>
                   

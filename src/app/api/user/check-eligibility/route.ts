@@ -204,25 +204,9 @@ function calculatePricing(followerCount: number) {
   let tier = 'FREE (Under 500 followers)'
 
   if (!isFree) {
-    if (followerCount < 2000) {
-      price = 5
-      tier = '500-2,000 followers'
-    } else if (followerCount < 5000) {
-      price = 10
-      tier = '2,000-5,000 followers'
-    } else if (followerCount < 10000) {
-      price = 15
-      tier = '5,000-10,000 followers'
-    } else if (followerCount < 50000) {
-      price = 20
-      tier = '10,000-50,000 followers'
-    } else if (followerCount < 100000) {
-      price = 50
-      tier = '50,000-100,000 followers'
-    } else {
-      price = 100
-      tier = '100,000+ followers'
-    }
+    // 🔥 LAUNCH SPECIAL: Flat $2.99 for any account size!
+    price = 2.99
+    tier = `🔥 Launch Special: $2.99 (normally $4.99+)`
   }
 
   return { isFree, price, tier }
