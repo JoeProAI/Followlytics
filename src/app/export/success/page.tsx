@@ -627,10 +627,33 @@ function SuccessContent() {
             )}
             
             {gammaStatus.generating && !gammaStatus.url && (
-              <div className="space-y-3">
-                <div className="text-center">
-                  <p className="text-gray-400 text-sm mb-2">Generating presentation...</p>
-                  <p className="text-gray-500 text-xs">This could take up to 2 minutes</p>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <svg className="w-6 h-6 text-gray-400 animate-pulse" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                    </svg>
+                    <div className="absolute inset-0 animate-ping">
+                      <svg className="w-6 h-6 text-gray-400 opacity-50" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                      </svg>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-gray-300 text-sm font-medium">Generating your presentation</p>
+                    <p className="text-gray-500 text-xs">Analyzing audience insights • Up to 2 minutes</p>
+                  </div>
+                </div>
+                <div className="relative w-full bg-gray-900 rounded-full h-2 overflow-hidden border border-gray-800">
+                  <div className="absolute inset-0 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 animate-pulse" />
+                  <div 
+                    className="relative h-full bg-gradient-to-r from-white via-gray-300 to-white transition-all duration-1000 ease-in-out" 
+                    style={{ 
+                      width: '60%',
+                      animation: 'shimmer 2s infinite linear',
+                      backgroundSize: '200% 100%'
+                    }} 
+                  />
                 </div>
               </div>
             )}
