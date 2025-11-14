@@ -153,32 +153,13 @@ export async function POST(request: NextRequest) {
     const selectedModel = premiumModels[Math.floor(Math.random() * premiumModels.length)]
     console.log(`[Auto-Gamma] Selected image model: ${selectedModel}`)
     
-    // Use creative themes instead of default
-    const creativeThemes = [
-      'aurora',          // Modern gradient theme
-      'bloom',           // Floral, organic theme
-      'neon',            // Bold, vibrant neon
-      'midnight',        // Dark, professional
-      'sunset',          // Warm, inviting
-      'ocean',           // Cool, calming blues
-      'forest',          // Natural, earthy
-      'cosmic',          // Space, futuristic
-      'minimal',         // Clean, simple
-      'bold',            // High contrast, impactful
-      'elegant',         // Sophisticated, refined
-      'vibrant',         // Energetic, colorful
-      'corporate',       // Professional, business
-      'creative',        // Artistic, unique
-      'tech'             // Modern, tech-focused
-    ]
-    
-    const selectedTheme = creativeThemes[Math.floor(Math.random() * creativeThemes.length)]
-    console.log(`[Auto-Gamma] Selected theme: ${selectedTheme}`)
+    // Note: Gamma has its own intelligent theme selection based on content
+    // Letting Gamma choose the best theme automatically for each presentation
     
     const result = await gamma.generate({
       text: aiPrompt,
       type: 'presentation',
-      themeId: selectedTheme,  // Apply creative theme
+      // No themeId - let Gamma's AI choose the best theme for the content
       imageOptions: {
         model: selectedModel
       },
@@ -195,7 +176,6 @@ export async function POST(request: NextRequest) {
       prompt: aiPrompt.substring(0, 500), // Store first 500 chars
       customInstructions,
       gammaStyle,
-      theme: selectedTheme,  // Track which theme was used
       imageModel: selectedModel,  // Track which image model was used
       followerCount,
       createdAt: new Date(),
