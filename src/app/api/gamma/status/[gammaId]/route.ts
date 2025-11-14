@@ -71,7 +71,7 @@ export async function GET(
               console.log(`[Gamma Status] Sending email to ${customerEmail}`)
               
               await resend.emails.send({
-                from: 'Followlytics <notifications@followlytics.io>',
+                from: 'Followlytics <notifications@followlytics.joepro.ai>',
                 to: customerEmail,
                 subject: `🎨 Your Audience Intelligence Presentation is Ready!`,
                 html: `

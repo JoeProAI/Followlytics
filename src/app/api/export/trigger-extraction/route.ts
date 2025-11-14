@@ -291,7 +291,7 @@ export async function POST(request: NextRequest) {
         const downloadUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://followlytics-zeta.vercel.app'}/export/success?username=${cleanUsername}&session_id=email_access`
         
         await resend.emails.send({
-          from: 'Followlytics <notifications@followlytics.io>',
+          from: 'Followlytics <notifications@followlytics.joepro.ai>',
           to: customerEmail,
           subject: `✅ Your ${cleanFollowers.length} Followers Are Ready!`,
           html: `
