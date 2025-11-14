@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 300 // 5 minutes for extraction
+export const maxDuration = 300 // 5 minutes for analysis
 
 // Sanitize username helper
 function sanitizeUsername(username: string): string {
@@ -15,7 +15,7 @@ function sanitizeUsername(username: string): string {
     .trim() || `unknown_${Date.now()}`
 }
 
-// DEDICATED extraction endpoint - NOT in webhook!
+// DEDICATED analysis endpoint - NOT in webhook!
 export async function POST(request: NextRequest) {
   try {
     const { username, userId } = await request.json()
@@ -25,17 +25,17 @@ export async function POST(request: NextRequest) {
     }
     
     const cleanUsername = username.toLowerCase().replace(/^@/, '')
-    console.log(`[Extraction API] Starting extraction for @${cleanUsername}`)
+    console.log(`[Analysis API] Starting analysis for @${cleanUsername}`)
     
-    // Check if fresh extraction is needed (from eligibility check)
+    // Check if fresh analysis is needed (from eligibility check)
     const followerDbDoc = await adminDb.collection('follower_database').doc(cleanUsername).get()
     const needsExtraction = followerDbDoc.data()?.needsExtraction ?? true
     
-    console.log(`[Extraction API] needsExtraction flag: ${needsExtraction}`)
+    console.log(`[Analysis API] needsAnalysis flag: ${needsExtraction}`)
     
-    // FIRST: Check if user already has dashboard data (faster!) - but only if extraction not needed
+    // FIRST: Check if user already has dashboard data (faster!) - but only if analysis not needed
     if (userId && !needsExtraction) {
-      console.log(`[Extraction API] Checking dashboard data for user ${userId} (no new followers detected)`)
+      console.log(`[Analysis API] Checking dashboard data for user ${userId} (no new followers detected)`)
       const dashboardFollowers = await adminDb
         .collection('users')
         .doc(userId)
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
         .get()
       
       if (!dashboardFollowers.empty) {
-        console.log(`[Extraction API] Found ${dashboardFollowers.size} dashboard followers, using cached data!`)
+        console.log(`[Analysis API] Found ${dashboardFollowers.size} dashboard followers, using cached data!`)
         
         const followers = dashboardFollowers.docs.map(doc => doc.data())
         
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
           await batch.commit()
         }
         
-        console.log(`[Extraction API] SUCCESS - Used dashboard cache (${followers.length} followers)`)
+        console.log(`[Analysis API] SUCCESS - Used dashboard cache (${followers.length} followers)`)
         
         return NextResponse.json({
           success: true,
@@ -88,58 +88,58 @@ export async function POST(request: NextRequest) {
           message: `Ready! ${followers.length} followers from cache (no changes detected)`
         })
       } else {
-        console.log(`[Extraction API] No dashboard data found, will extract fresh`)
+        console.log(`[Analysis API] No dashboard data found, will analyze fresh`)
       }
     } else if (needsExtraction) {
-      console.log(`[Extraction API] New followers detected - extracting fresh to get latest ${followerDbDoc.data()?.followerCount || 'all'} followers`)
+      console.log(`[Analysis API] New followers detected - analyzing fresh to get latest ${followerDbDoc.data()?.followerCount || 'all'} followers`)
     }
     
-    // Check if extraction already in progress
+    // Check if analysis already in progress
     const existing = await adminDb.collection('follower_database').doc(cleanUsername).get()
     const data = existing.data()
     
     if (data?.extractionProgress?.status === 'extracting') {
-      console.log(`[Extraction API] Already extracting @${cleanUsername}`)
+      console.log(`[Analysis API] Already analyzing @${cleanUsername}`)
       return NextResponse.json({ 
-        message: 'Extraction already in progress',
+        message: 'Analysis already in progress',
         status: data.extractionProgress 
       })
     }
     
-    // Check if already complete (but allow re-extraction if needsExtraction flag is set)
+    // Check if already complete (but allow re-analysis if needsExtraction flag is set)
     if (data?.extractionProgress?.status === 'complete' && !needsExtraction) {
-      console.log(`[Extraction API] Already complete for @${cleanUsername}, using cached ${data.followerCount}`)
+      console.log(`[Analysis API] Already complete for @${cleanUsername}, using cached ${data.followerCount}`)
       return NextResponse.json({ 
-        message: 'Extraction already complete',
+        message: 'Analysis already complete',
         followerCount: data.followerCount,
         status: 'complete'
       })
     } else if (data?.extractionProgress?.status === 'complete' && needsExtraction) {
-      console.log(`[Extraction API] Cached data exists but needsExtraction=true, will extract fresh`)
+      console.log(`[Analysis API] Cached data exists but needsAnalysis=true, will analyze fresh`)
     }
     
     // Set starting state
     await adminDb.collection('follower_database').doc(cleanUsername).set({
       extractionProgress: {
         status: 'starting',
-        message: 'Starting extraction...',
+        message: 'Starting analysis...',
         percentage: 0,
         startedAt: new Date()
       },
       username: cleanUsername
     }, { merge: true })
     
-    console.log(`[Extraction API] Running actor for @${cleanUsername}...`)
+    console.log(`[Analysis API] Running actor for @${cleanUsername}...`)
     
     // Import and run actor
     const { getDataProvider } = await import('@/lib/data-provider')
     const provider = getDataProvider()
     
-    // Update to extracting
+    // Update to analyzing
     await adminDb.collection('follower_database').doc(cleanUsername).set({
       extractionProgress: {
         status: 'extracting',
-        message: 'Extracting followers from X...',
+        message: 'Analyzing followers from X...',
         percentage: 25
       }
     }, { merge: true })
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
     
     const duration = Math.round((Date.now() - startTime) / 1000)
     
-    console.log(`[Extraction API] Actor finished - success: ${result.success}, followers: ${result.followers?.length || 0}, duration: ${duration}s`)
+    console.log(`[Analysis API] Actor finished - success: ${result.success}, followers: ${result.followers?.length || 0}, duration: ${duration}s`)
     
     if (!result.success || !result.followers || result.followers.length === 0) {
       await adminDb.collection('follower_database').doc(cleanUsername).set({
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
         extractionFailed: true,
         extractionProgress: {
           status: 'failed',
-          message: result.error || 'Extraction failed',
+          message: result.error || 'Analysis failed',
           percentage: 0
         }
       }, { merge: true })
@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
       location: f.location || ''
     }))
     
-    // DETECT CHANGES: Compare with previous extraction
+    // DETECT CHANGES: Compare with previous analysis
     let unfollows: any[] = []
     let newFollows: any[] = []
     
@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
           }
         })
         
-        console.log(`[Extraction API] Changes detected: ${newFollows.length} new followers, ${unfollows.length} unfollows`)
+        console.log(`[Analysis API] Changes detected: ${newFollows.length} new followers, ${unfollows.length} unfollows`)
       }
     }
     
@@ -242,13 +242,13 @@ export async function POST(request: NextRequest) {
     
     // Store metadata in main document (NO followers array - avoid 1MB limit!)
     await adminDb.collection('follower_database').doc(cleanUsername).set({
-      followerCount: cleanFollowers.length, // Actual extracted count (800)
+      followerCount: cleanFollowers.length, // Actual analyzed count (800)
       apiFollowerCount: apiCount, // What API said (805) - preserve from eligibility check
       lastExtractedAt: new Date(),
       extractedBy: 'extraction-api',
       extractionProgress: {
         status: 'complete',
-        message: 'Extraction complete!',
+        message: 'Analysis complete!',
         percentage: 100,
         completedAt: new Date()
       },
@@ -276,10 +276,10 @@ export async function POST(request: NextRequest) {
       })
       
       await batch.commit()
-      console.log(`[Extraction API] Stored batch ${Math.floor(i / batchSize) + 1} (${chunk.length} followers)`)
+      console.log(`[Analysis API] Stored batch ${Math.floor(i / batchSize) + 1} (${chunk.length} followers)`)
     }
     
-    console.log(`[Extraction API] SUCCESS - Stored ${cleanFollowers.length} followers in subcollection for @${cleanUsername}`)
+    console.log(`[Analysis API] SUCCESS - Stored ${cleanFollowers.length} followers in subcollection for @${cleanUsername}`)
     
     // Send email
     const customerEmail = data?.customerEmail
@@ -297,7 +297,7 @@ export async function POST(request: NextRequest) {
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <h1 style="color: #1DA1F2;">🎉 Your Follower Export is Ready!</h1>
-              <p>Great news! We've successfully extracted <strong>${cleanFollowers.length} followers</strong> from <strong>@${cleanUsername}</strong>.</p>
+              <p>Great news! We've successfully analyzed <strong>${cleanFollowers.length} followers</strong> from <strong>@${cleanUsername}</strong>.</p>
               <div style="background: #f5f8fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
                 <h3 style="margin-top: 0;">📊 What You Get:</h3>
                 <ul>
@@ -320,9 +320,9 @@ export async function POST(request: NextRequest) {
           `
         })
         
-        console.log(`[Extraction API] Email sent to ${customerEmail}`)
+        console.log(`[Analysis API] Email sent to ${customerEmail}`)
       } catch (emailError: any) {
-        console.error(`[Extraction API] Email failed:`, emailError)
+        console.error(`[Analysis API] Email failed:`, emailError)
       }
     }
     
@@ -343,14 +343,14 @@ export async function POST(request: NextRequest) {
         unfollowsList: unfollows.slice(0, 10) // Show first 10
       },
       message: inaccessibleCount > 0
-        ? `Extracted ${cleanFollowers.length} of ${apiCount} followers (${inaccessibleCount} private/protected) in ${duration}s`
+        ? `Analyzed ${cleanFollowers.length} of ${apiCount} followers (${inaccessibleCount} private/protected) in ${duration}s`
         : unfollows.length > 0 || newFollows.length > 0
-          ? `Extracted ${cleanFollowers.length} followers (+${newFollows.length} new, -${unfollows.length} unfollowed) in ${duration}s`
-          : `Extracted ${cleanFollowers.length} followers in ${duration}s`
+          ? `Analyzed ${cleanFollowers.length} followers (+${newFollows.length} new, -${unfollows.length} unfollowed) in ${duration}s`
+          : `Analyzed ${cleanFollowers.length} followers in ${duration}s`
     })
     
   } catch (error: any) {
-    console.error('[Extraction API] Error:', error)
+    console.error('[Analysis API] Error:', error)
     return NextResponse.json({ 
       error: error.message,
       success: false
