@@ -26,24 +26,47 @@ interface Analysis {
       audienceComposition: {
         types: string[]
         summary: string
+        networkPotential?: string
       }
       influenceLevel: {
         score: number
         summary: string
+        viralCoefficient?: number
       }
       industryPatterns: {
         themes: string[]
         summary: string
+        opportunities?: string[]
       }
       engagementPotential: {
         score: number
         summary: string
+        contentPreferences?: string[]
+        collaborationTargets?: string[]
+      }
+      growthIntelligence?: {
+        viralTriggers: string[]
+        networkEffects: string
+        superConnectors: string[]
+      }
+      riskAssessment?: {
+        botScore: number
+        inactiveRate: string
+        brandSafety: string
+        authenticityScore: number
       }
       recommendations: string[]
       redFlags: {
         concerns: string[]
         summary: string
       }
+    }
+    actionPlan?: {
+      immediate: string[]
+      shortTerm: string[]
+      longTerm: string[]
+      contentThemes: string[]
+      priorityCollaborations: string[]
     }
     // Legacy fields for backward compatibility
     audienceComposition?: {
@@ -783,6 +806,174 @@ export default function FollowerAnalysisResults() {
               ))}
             </ul>
           </div>
+
+          {/* Growth Intelligence */}
+          {analysis.aggregateAnalysis.growthIntelligence && (
+            <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-lg p-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <span>📈</span> Growth Intelligence
+              </h3>
+              
+              {analysis.aggregateAnalysis.growthIntelligence.viralTriggers && (
+                <div className="mb-4">
+                  <div className="text-sm font-medium text-cyan-400 mb-2">🔥 Viral Triggers</div>
+                  <div className="flex flex-wrap gap-2">
+                    {analysis.aggregateAnalysis.growthIntelligence.viralTriggers.map((trigger: string, i: number) => (
+                      <span key={i} className="px-3 py-1 bg-cyan-500/20 border border-cyan-500/30 rounded-full text-xs text-cyan-300">
+                        {trigger}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {analysis.aggregateAnalysis.growthIntelligence.networkEffects && (
+                <div className="mb-4">
+                  <div className="text-sm font-medium text-blue-400 mb-2">🌐 Network Effects</div>
+                  <p className="text-sm text-gray-400">{analysis.aggregateAnalysis.growthIntelligence.networkEffects}</p>
+                </div>
+              )}
+              
+              {analysis.aggregateAnalysis.growthIntelligence.superConnectors && (
+                <div>
+                  <div className="text-sm font-medium text-purple-400 mb-2">⭐ Super-Connectors</div>
+                  <div className="space-y-2">
+                    {analysis.aggregateAnalysis.growthIntelligence.superConnectors.map((connector: string, i: number) => (
+                      <div key={i} className="text-sm text-gray-300 flex items-start gap-2">
+                        <span className="text-purple-400">→</span>
+                        <span>{connector}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Risk Assessment */}
+          {analysis.aggregateAnalysis.riskAssessment && (
+            <div className="bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border border-orange-500/30 rounded-lg p-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <span>🛡️</span> Risk Assessment
+              </h3>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className="bg-black/30 rounded-lg p-3">
+                  <div className="text-xs text-gray-400 mb-1">Bot Score</div>
+                  <div className={`text-xl font-bold ${analysis.aggregateAnalysis.riskAssessment.botScore > 7 ? 'text-red-400' : analysis.aggregateAnalysis.riskAssessment.botScore > 4 ? 'text-yellow-400' : 'text-green-400'}`}>
+                    {analysis.aggregateAnalysis.riskAssessment.botScore}/10
+                  </div>
+                </div>
+                
+                <div className="bg-black/30 rounded-lg p-3">
+                  <div className="text-xs text-gray-400 mb-1">Inactive Rate</div>
+                  <div className="text-xl font-bold text-orange-400">
+                    {analysis.aggregateAnalysis.riskAssessment.inactiveRate}
+                  </div>
+                </div>
+                
+                <div className="bg-black/30 rounded-lg p-3">
+                  <div className="text-xs text-gray-400 mb-1">Brand Safety</div>
+                  <div className="text-sm font-medium text-blue-400 mt-1">
+                    {typeof analysis.aggregateAnalysis.riskAssessment.brandSafety === 'string' 
+                      ? analysis.aggregateAnalysis.riskAssessment.brandSafety.split(' ')[0]
+                      : 'N/A'}
+                  </div>
+                </div>
+                
+                <div className="bg-black/30 rounded-lg p-3">
+                  <div className="text-xs text-gray-400 mb-1">Authenticity</div>
+                  <div className={`text-xl font-bold ${analysis.aggregateAnalysis.riskAssessment.authenticityScore > 7 ? 'text-green-400' : analysis.aggregateAnalysis.riskAssessment.authenticityScore > 4 ? 'text-yellow-400' : 'text-red-400'}`}>
+                    {analysis.aggregateAnalysis.riskAssessment.authenticityScore}/10
+                  </div>
+                </div>
+              </div>
+              
+              {typeof analysis.aggregateAnalysis.riskAssessment.brandSafety === 'string' && (
+                <p className="text-sm text-gray-400">{analysis.aggregateAnalysis.riskAssessment.brandSafety}</p>
+              )}
+            </div>
+          )}
+
+          {/* Action Plan */}
+          {analysis.actionPlan && (
+            <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-lg p-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <span>🎯</span> Action Plan
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <div className="text-sm font-semibold text-purple-400 mb-3 flex items-center gap-2">
+                    <span>⚡</span> Immediate (24h)
+                  </div>
+                  <ul className="space-y-2">
+                    {analysis.actionPlan.immediate?.map((action: string, i: number) => (
+                      <li key={i} className="text-sm text-gray-300 flex items-start gap-2">
+                        <span className="text-purple-400">•</span>
+                        <span>{action}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                
+                <div>
+                  <div className="text-sm font-semibold text-pink-400 mb-3 flex items-center gap-2">
+                    <span>📅</span> Short-Term (1 week)
+                  </div>
+                  <ul className="space-y-2">
+                    {analysis.actionPlan.shortTerm?.map((action: string, i: number) => (
+                      <li key={i} className="text-sm text-gray-300 flex items-start gap-2">
+                        <span className="text-pink-400">•</span>
+                        <span>{action}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                
+                <div>
+                  <div className="text-sm font-semibold text-blue-400 mb-3 flex items-center gap-2">
+                    <span>🎯</span> Long-Term (1 month)
+                  </div>
+                  <ul className="space-y-2">
+                    {analysis.actionPlan.longTerm?.map((action: string, i: number) => (
+                      <li key={i} className="text-sm text-gray-300 flex items-start gap-2">
+                        <span className="text-blue-400">•</span>
+                        <span>{action}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              
+              {analysis.actionPlan.contentThemes && analysis.actionPlan.contentThemes.length > 0 && (
+                <div className="mt-6 pt-6 border-t border-gray-700">
+                  <div className="text-sm font-semibold text-green-400 mb-3">🎨 Priority Content Themes</div>
+                  <div className="flex flex-wrap gap-2">
+                    {analysis.actionPlan.contentThemes.map((theme: string, i: number) => (
+                      <span key={i} className="px-3 py-1 bg-green-500/20 border border-green-500/30 rounded-full text-xs text-green-300">
+                        {theme}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {analysis.actionPlan.priorityCollaborations && analysis.actionPlan.priorityCollaborations.length > 0 && (
+                <div className="mt-4">
+                  <div className="text-sm font-semibold text-cyan-400 mb-3">🤝 Priority Collaborations</div>
+                  <div className="space-y-2">
+                    {analysis.actionPlan.priorityCollaborations.map((collab: string, i: number) => (
+                      <div key={i} className="text-sm text-gray-300 flex items-start gap-2">
+                        <span className="text-cyan-400">→</span>
+                        <span>{collab}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Red Flags */}
           {analysis.aggregateAnalysis.redFlags && analysis.aggregateAnalysis.redFlags.concerns.length > 0 && (

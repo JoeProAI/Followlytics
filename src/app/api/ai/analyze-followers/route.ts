@@ -41,31 +41,66 @@ export async function POST(request: NextRequest) {
       verified: f.verified || false
     }))
 
-    // Create AI analysis prompt with both individual AND aggregate analysis
-    const prompt = `Analyze these ${followers.length} followers. Provide BOTH individual analysis for each follower AND aggregate insights about the group.
+    // Create DEEP AI analysis prompt with advanced insights
+    const prompt = `You are an elite social media strategist analyzing ${followers.length} followers. Provide DEEP, actionable insights with data-backed recommendations.
 
-FOLLOWERS TO ANALYZE:
+FOLLOWERS DATA:
 ${JSON.stringify(followerSummary, null, 2)}
 
-Provide a comprehensive analysis with:
+Deliver a comprehensive, professional analysis with:
 
-1. **INDIVIDUAL FOLLOWER ANALYSIS** - For EACH follower, provide:
-   - Category: (e.g., "Tech Influencer", "Entrepreneur", "Content Creator", "Brand", "Investor", etc.)
-   - Influence Score: 1-10 based on follower count and verification
-   - Engagement Value: HIGH/MEDIUM/LOW - likelihood to engage/amplify
-   - Strategic Value: Why this follower matters to you
-   - Action: One specific recommendation for engaging with them
-   - Priority: HIGH/MEDIUM/LOW for outreach
+1. **INDIVIDUAL FOLLOWER ANALYSIS** - For EACH follower:
+   - Category: Specific niche (e.g., "AI/ML Engineer", "SaaS Founder", "Tech Journalist", "VC Investor")
+   - Influence Score: 1-10 (weighted by followers, verification, engagement potential)
+   - Engagement Value: HIGH/MEDIUM/LOW with reasoning
+   - Strategic Value: SPECIFIC insights on why they matter to growth strategy
+   - Action: ONE concrete, personalized engagement tactic
+   - Priority: HIGH/MEDIUM/LOW for immediate outreach
+   - Hidden Gems: Unexpected opportunities or connections
 
-2. **AGGREGATE ANALYSIS** - Overall insights about the group:
-   - Audience Composition: What types of people follow this account
-   - Overall Influence Level: Score 1-10
-   - Key Themes: Common industries/interests
-   - Engagement Potential: Score 1-10
-   - Strategic Recommendations: How to leverage this audience
-   - Red Flags: Any concerns
+2. **AGGREGATE INTELLIGENCE** - Deep audience insights:
+   
+   **Audience DNA:**
+   - Detailed breakdown of follower archetypes with percentages
+   - Psychographic profiles (motivations, pain points, interests)
+   - Network overlap potential (who knows who)
+   
+   **Influence Mapping:**
+   - Overall influence score (1-10) with tier breakdown
+   - Amplification potential (viral coefficient estimate)
+   - Authority distribution across categories
+   
+   **Strategic Themes:**
+   - Top 5 industry verticals with weighted importance
+   - Emerging trends in follower base
+   - Content gaps and opportunities
+   
+   **Engagement Dynamics:**
+   - Engagement score (1-10) with confidence level
+   - Best engagement windows and tactics
+   - Content preferences and formats
+   - Collaboration opportunities
+   
+   **Growth Intelligence:**
+   - Viral growth triggers in this audience
+   - Network effect multipliers
+   - Partnership opportunities
+   - Hidden super-connectors
+   
+   **Risk Assessment:**
+   - Bot likelihood score (if any suspicious accounts)
+   - Inactive account percentage
+   - Brand safety concerns
+   - Engagement authenticity score
 
-Format as JSON:
+3. **ACTION PLAN** - Executable strategy:
+   - Immediate actions (next 24 hours)
+   - Short-term tactics (next week)
+   - Long-term strategy (next month)
+   - Content themes to prioritize
+   - Collaboration targets
+
+Format as JSON with this EXACT structure:
 {
   "individualAnalyses": [
     {
@@ -76,19 +111,58 @@ Format as JSON:
       "engagementValue": "HIGH/MEDIUM/LOW",
       "strategicValue": "...",
       "actionRecommendation": "...",
-      "priority": "HIGH/MEDIUM/LOW"
+      "priority": "HIGH/MEDIUM/LOW",
+      "hiddenValue": "..."
     }
   ],
   "aggregateAnalysis": {
-    "audienceComposition": { "types": ["type1"], "summary": "..." },
-    "influenceLevel": { "score": 1-10, "summary": "..." },
-    "industryPatterns": { "themes": ["theme1"], "summary": "..." },
-    "engagementPotential": { "score": 1-10, "summary": "..." },
-    "recommendations": ["rec1", "rec2"],
-    "redFlags": { "concerns": ["concern1"], "summary": "..." }
+    "audienceComposition": { 
+      "types": ["type1 (25%)", "type2 (20%)", ...],
+      "summary": "Detailed psychographic breakdown",
+      "networkPotential": "Network overlap analysis"
+    },
+    "influenceLevel": { 
+      "score": 1-10, 
+      "summary": "Tier breakdown with amplification potential",
+      "viralCoefficient": 1-10
+    },
+    "industryPatterns": { 
+      "themes": ["theme1 - importance score", ...],
+      "summary": "Emerging trends and content gaps",
+      "opportunities": ["specific opportunity 1", ...]
+    },
+    "engagementPotential": { 
+      "score": 1-10, 
+      "summary": "Best tactics and timing",
+      "contentPreferences": ["format1", "format2", ...],
+      "collaborationTargets": ["username1", "username2", ...]
+    },
+    "growthIntelligence": {
+      "viralTriggers": ["trigger1", "trigger2", ...],
+      "networkEffects": "Multiplier analysis",
+      "superConnectors": ["username1 - reason", ...]
+    },
+    "riskAssessment": {
+      "botScore": 1-10,
+      "inactiveRate": "X%",
+      "brandSafety": "score and analysis",
+      "authenticityScore": 1-10
+    },
+    "recommendations": ["actionable rec 1", "actionable rec 2", ...],
+    "redFlags": { 
+      "concerns": ["specific concern 1", ...], 
+      "summary": "Risk mitigation strategies" 
+    }
+  },
+  "actionPlan": {
+    "immediate": ["action 1", "action 2", "action 3"],
+    "shortTerm": ["tactic 1", "tactic 2", "tactic 3"],
+    "longTerm": ["strategy 1", "strategy 2", "strategy 3"],
+    "contentThemes": ["theme 1", "theme 2", "theme 3"],
+    "priorityCollaborations": ["username1 - why", "username2 - why"]
   },
   "overallScore": 1-100,
-  "summary": "Executive summary"
+  "summary": "Executive summary with specific, data-backed insights and clear ROI potential"
 }`
 
     const completion = await openai.chat.completions.create({
