@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebase-admin'
+import { randomBytes } from 'crypto'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300 // 5 minutes for analysis
@@ -281,6 +282,18 @@ export async function POST(request: NextRequest) {
     
     console.log(`[Analysis API] SUCCESS - Stored ${cleanFollowers.length} followers in subcollection for @${cleanUsername}`)
     
+    // Generate secure download token
+    const downloadToken = randomBytes(32).toString('hex') // 64 character secure token
+    
+    // Store token in database
+    await adminDb.collection('download_tokens').doc(downloadToken).set({
+      username: cleanUsername,
+      createdAt: new Date(),
+      followerCount: cleanFollowers.length
+    })
+    
+    console.log(`[Analysis API] Generated download token: ${downloadToken.substring(0, 16)}...`)
+    
     // Send email
     const customerEmail = data?.customerEmail
     if (customerEmail && customerEmail !== 'no-email') {
@@ -288,7 +301,7 @@ export async function POST(request: NextRequest) {
         const { Resend } = await import('resend')
         const resend = new Resend(process.env.RESEND_API_KEY)
         
-        const downloadUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://followlytics-zeta.vercel.app'}/export/success?username=${cleanUsername}&session_id=email_access`
+        const downloadUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://followlytics-zeta.vercel.app'}/download/${downloadToken}`
         
         await resend.emails.send({
           from: 'Followlytics <notifications@followlytics.joepro.ai>',
@@ -310,7 +323,7 @@ export async function POST(request: NextRequest) {
               <a href="${downloadUrl}" style="display: inline-block; background: #1DA1F2; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 20px 0;">
                 Download Your Followers
               </a>
-              <p style="color: #657786; font-size: 14px;">This link will remain active for 30 days.</p>
+              <p style="color: #657786; font-size: 14px;">This secure link will remain active indefinitely.</p>
               <hr style="border: none; border-top: 1px solid #e1e8ed; margin: 30px 0;">
               <p style="color: #657786; font-size: 12px;">
                 Questions? Reply to this email or visit our help center.<br>
