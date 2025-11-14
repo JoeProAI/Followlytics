@@ -173,7 +173,74 @@ export async function POST(request: NextRequest) {
       location: f.location || ''
     }))
     
+    // DETECT CHANGES: Compare with previous extraction
+    let unfollows: any[] = []
+    let newFollows: any[] = []
+    
+    // Get existing data to compare
+    const existingDoc = await adminDb.collection('follower_database').doc(cleanUsername).get()
+    
+    if (existingDoc.exists) {
+      const oldData = existingDoc.data()!
+      
+      // Get old followers from subcollection
+      const oldFollowersSnapshot = await adminDb
+        .collection('follower_database')
+        .doc(cleanUsername)
+        .collection('followers')
+        .get()
+      
+      if (!oldFollowersSnapshot.empty) {
+        const oldFollowers = new Map(
+          oldFollowersSnapshot.docs.map(doc => [sanitizeUsername(doc.data().username), doc.data()])
+        )
+        const newFollowersSet = new Set(cleanFollowers.map((f: any) => sanitizeUsername(f.username)))
+        
+        // Detect unfollows (in old but not in new)
+        oldFollowers.forEach((followerData, username) => {
+          if (!newFollowersSet.has(username)) {
+            unfollows.push({
+              username: followerData.username,
+              name: followerData.name,
+              followersCount: followerData.followersCount,
+              unfollowedAt: new Date()
+            })
+          }
+        })
+        
+        // Detect new follows (in new but not in old)
+        cleanFollowers.forEach((follower: any) => {
+          const sanitized = sanitizeUsername(follower.username)
+          if (!oldFollowers.has(sanitized)) {
+            newFollows.push({
+              username: follower.username,
+              name: follower.name,
+              followersCount: follower.followersCount,
+              followedAt: new Date()
+            })
+          }
+        })
+        
+        console.log(`[Extraction API] Changes detected: ${newFollows.length} new followers, ${unfollows.length} unfollows`)
+      }
+    }
+    
     console.log(`[Extraction API] Storing ${cleanFollowers.length} followers in subcollection...`)
+    
+    // Store changes in a separate collection for analytics
+    if (unfollows.length > 0 || newFollows.length > 0) {
+      const changeRef = await adminDb.collection('follower_changes').add({
+        username: cleanUsername,
+        extractedAt: new Date(),
+        newFollows: newFollows,
+        unfollows: unfollows,
+        newFollowsCount: newFollows.length,
+        unfollowsCount: unfollows.length,
+        netChange: newFollows.length - unfollows.length
+      })
+      
+      console.log(`[Extraction API] Stored follower changes: ${changeRef.id}`)
+    }
     
     // Store metadata in main document (NO followers array - avoid 1MB limit!)
     await adminDb.collection('follower_database').doc(cleanUsername).set({
@@ -185,6 +252,12 @@ export async function POST(request: NextRequest) {
         message: 'Extraction complete!',
         percentage: 100,
         completedAt: new Date()
+      },
+      lastChanges: {
+        newFollows: newFollows.length,
+        unfollows: unfollows.length,
+        netChange: newFollows.length - unfollows.length,
+        detectedAt: new Date()
       }
     }, { merge: true })
     
@@ -258,7 +331,16 @@ export async function POST(request: NextRequest) {
       success: true,
       followerCount: cleanFollowers.length,
       duration,
-      message: `Extracted ${cleanFollowers.length} followers in ${duration}s`
+      changes: {
+        newFollows: newFollows.length,
+        unfollows: unfollows.length,
+        netChange: newFollows.length - unfollows.length,
+        newFollowersList: newFollows.slice(0, 10), // Show first 10
+        unfollowsList: unfollows.slice(0, 10) // Show first 10
+      },
+      message: unfollows.length > 0 || newFollows.length > 0
+        ? `Extracted ${cleanFollowers.length} followers (+${newFollows.length} new, -${unfollows.length} unfollowed) in ${duration}s`
+        : `Extracted ${cleanFollowers.length} followers in ${duration}s`
     })
     
   } catch (error: any) {
