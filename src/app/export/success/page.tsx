@@ -38,6 +38,8 @@ function SuccessContent() {
     status?: string
     url?: string
     generating?: boolean
+    requiresPayment?: boolean
+    amount?: number
   }>({})
 
   // Poll for Gamma completion
@@ -164,6 +166,14 @@ function SuccessContent() {
                       })
                       // Start polling for Gamma completion
                       pollGammaStatus(gammaData.gammaId)
+                    } else if (gammaData.requiresPayment) {
+                      console.log('[Success Page] Gamma requires $5 payment')
+                      setGammaStatus({ 
+                        generating: false, 
+                        status: 'payment_required',
+                        requiresPayment: true,
+                        amount: gammaData.amount
+                      })
                     } else {
                       console.error('[Success Page] Gamma failed:', gammaData.error)
                       setGammaStatus({ generating: false, status: 'failed' })
@@ -243,6 +253,14 @@ function SuccessContent() {
                     generating: true
                   })
                   pollGammaStatus(gammaData.gammaId)
+                } else if (gammaData.requiresPayment) {
+                  console.log('[Success Page] Gamma requires $5 payment')
+                  setGammaStatus({ 
+                    generating: false, 
+                    status: 'payment_required',
+                    requiresPayment: true,
+                    amount: gammaData.amount
+                  })
                 } else {
                   console.error('[Success Page] Gamma failed:', gammaData.error)
                   setGammaStatus({ generating: false, status: 'failed' })
@@ -491,9 +509,73 @@ function SuccessContent() {
         )}
 
         {/* Presentation Generation Status */}
-        {(gammaStatus.generating || gammaStatus.url) && (
+        {(gammaStatus.generating || gammaStatus.url || gammaStatus.requiresPayment) && (
           <div className="border border-gray-900 rounded-lg p-8 mb-8">
-            <h2 className="text-2xl font-light mb-6">Presentation</h2>
+            <h2 className="text-2xl font-light mb-6">AI Presentation</h2>
+            
+            {gammaStatus.requiresPayment && (
+              <div className="space-y-4">
+                <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-700/50 rounded-lg p-6">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="text-3xl">🎨</div>
+                    <div>
+                      <h3 className="font-semibold mb-1">Upgrade to Gamma AI Presentation</h3>
+                      <p className="text-sm text-gray-400">Get a professional AI-generated presentation analyzing your audience</p>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-black/50 rounded-lg p-4 mb-4">
+                    <div className="text-sm text-gray-400 mb-2">Includes:</div>
+                    <ul className="text-sm space-y-1">
+                      <li className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        AI-powered audience insights
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Top influencer analysis
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Professional slides & charts
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Shareable presentation link
+                      </li>
+                    </ul>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-2xl font-bold">${gammaStatus.amount}</div>
+                      <div className="text-xs text-gray-500">one-time upgrade</div>
+                    </div>
+                    <button
+                      className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-6 py-3 rounded-lg font-medium hover:from-purple-600 hover:to-blue-600 transition-all"
+                      onClick={() => {
+                        // TODO: Trigger Stripe payment for Gamma
+                        window.location.href = `/gamma/upgrade?username=${username}&session_id=${sessionId}`
+                      }}
+                    >
+                      Upgrade Now
+                    </button>
+                  </div>
+                </div>
+                
+                <p className="text-xs text-center text-gray-500">
+                  💡 Accounts with 500+ followers get presentations included free!
+                </p>
+              </div>
+            )}
             
             {gammaStatus.generating && !gammaStatus.url && (
               <div className="space-y-3">

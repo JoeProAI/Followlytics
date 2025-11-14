@@ -44,6 +44,33 @@ export async function POST(request: NextRequest) {
     const followerCount = data.apiFollowerCount || data.followerCount || 0
     const extractedCount = data.followerCount || 0
     
+    // Check if Gamma requires payment (free tier: under 500 followers)
+    const isFreeTier = followerCount < 500
+    
+    if (isFreeTier) {
+      // Check if user has already paid for this export
+      const sessionDoc = sessionId ? await adminDb.collection('payment_sessions').doc(sessionId).get() : null
+      const hasPaidForExport = sessionDoc?.exists && sessionDoc.data()?.status === 'complete'
+      
+      if (!hasPaidForExport) {
+        // Free tier user needs to pay $5 for Gamma
+        console.log(`[Auto-Gamma] Free tier user (@${cleanUsername}, ${followerCount} followers) - requires $5 Gamma payment`)
+        
+        return NextResponse.json({ 
+          error: 'Payment required',
+          message: 'Gamma AI presentations require a $5 upgrade for accounts under 500 followers',
+          requiresPayment: true,
+          amount: 5,
+          followerCount,
+          upgradeUrl: '/gamma/upgrade'
+        }, { status: 402 })
+      }
+      
+      console.log(`[Auto-Gamma] Free tier but already paid for export - including Gamma!`)
+    } else {
+      console.log(`[Auto-Gamma] ${followerCount} followers - Gamma included for free!`)
+    }
+    
     // Get ALL followers for comprehensive analysis (not just 50!)
     const followersSnapshot = await adminDb
       .collection('follower_database')
@@ -126,9 +153,32 @@ export async function POST(request: NextRequest) {
     const selectedModel = premiumModels[Math.floor(Math.random() * premiumModels.length)]
     console.log(`[Auto-Gamma] Selected image model: ${selectedModel}`)
     
+    // Use creative themes instead of default
+    const creativeThemes = [
+      'aurora',          // Modern gradient theme
+      'bloom',           // Floral, organic theme
+      'neon',            // Bold, vibrant neon
+      'midnight',        // Dark, professional
+      'sunset',          // Warm, inviting
+      'ocean',           // Cool, calming blues
+      'forest',          // Natural, earthy
+      'cosmic',          // Space, futuristic
+      'minimal',         // Clean, simple
+      'bold',            // High contrast, impactful
+      'elegant',         // Sophisticated, refined
+      'vibrant',         // Energetic, colorful
+      'corporate',       // Professional, business
+      'creative',        // Artistic, unique
+      'tech'             // Modern, tech-focused
+    ]
+    
+    const selectedTheme = creativeThemes[Math.floor(Math.random() * creativeThemes.length)]
+    console.log(`[Auto-Gamma] Selected theme: ${selectedTheme}`)
+    
     const result = await gamma.generate({
       text: aiPrompt,
       type: 'presentation',
+      themeId: selectedTheme,  // Apply creative theme
       imageOptions: {
         model: selectedModel
       },
@@ -145,6 +195,8 @@ export async function POST(request: NextRequest) {
       prompt: aiPrompt.substring(0, 500), // Store first 500 chars
       customInstructions,
       gammaStyle,
+      theme: selectedTheme,  // Track which theme was used
+      imageModel: selectedModel,  // Track which image model was used
       followerCount,
       createdAt: new Date(),
       status: 'processing'
