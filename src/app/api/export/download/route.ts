@@ -6,7 +6,7 @@ import { adminAuth, adminDb } from '@/lib/firebase-admin'
 
 export async function POST(request: NextRequest) {
   try {
-    const { sessionId, username, format = 'csv' } = await request.json()
+    const { sessionId, username, format = 'csv', exportId } = await request.json()
 
     if (!username) {
       return NextResponse.json({ error: 'Username required' }, { status: 400 })
@@ -14,42 +14,74 @@ export async function POST(request: NextRequest) {
 
     const cleanUsername = username.replace('@', '').toLowerCase()
 
-    // Get followers from database
-    const dataDoc = await adminDb.collection('follower_database').doc(cleanUsername).get()
+    let followers: any[] = []
 
-    if (!dataDoc.exists) {
-      return NextResponse.json({ error: 'No data found for this username' }, { status: 404 })
+    // Try to get from authenticated user's export first
+    const authHeader = request.headers.get('authorization')
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const idToken = authHeader.split('Bearer ')[1]
+        const decodedToken = await adminAuth.verifyIdToken(idToken)
+        const userId = decodedToken.uid
+
+        // Check user's exports
+        const exportsSnapshot = await adminDb
+          .collection('users')
+          .doc(userId)
+          .collection('follower_exports')
+          .where('username', '==', cleanUsername)
+          .where('status', '==', 'completed')
+          .orderBy('completedAt', 'desc')
+          .limit(1)
+          .get()
+
+        if (!exportsSnapshot.empty) {
+          const exportData = exportsSnapshot.docs[0].data()
+          followers = exportData.followers || []
+          console.log(`[Download] Retrieved ${followers.length} followers from user export`)
+        }
+      } catch (authError) {
+        console.log('[Download] Auth check failed, trying fallback', authError)
+      }
     }
 
-    const data = dataDoc.data()
-    
-    // Verify access (free, test, or paid with matching session)
-    const hasAccess = sessionId === 'email_access' || // Email link access
-                      sessionId === 'free' || 
-                      sessionId === 'manual-test' ||
-                      sessionId === 'test' ||
-                      data?.accessGranted?.includes(sessionId) ||
-                      data?.accessGranted?.includes('test') ||
-                      data?.paidAccess?.some((p: any) => p.sessionId === sessionId)
+    // Fallback: Check follower_database collection (legacy)
+    if (followers.length === 0) {
+      const dataDoc = await adminDb.collection('follower_database').doc(cleanUsername).get()
 
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+      if (dataDoc.exists) {
+        const data = dataDoc.data()
+        
+        // Verify access
+        const hasAccess = sessionId === 'email_access' ||
+                          sessionId === 'free' || 
+                          sessionId === 'manual-test' ||
+                          sessionId === 'test' ||
+                          data?.accessGranted?.includes(sessionId) ||
+                          data?.accessGranted?.includes('test') ||
+                          data?.paidAccess?.some((p: any) => p.sessionId === sessionId)
+
+        if (!hasAccess) {
+          return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+        }
+
+        // Fetch from subcollection
+        const followersSnapshot = await adminDb
+          .collection('follower_database')
+          .doc(cleanUsername)
+          .collection('followers')
+          .get()
+
+        if (!followersSnapshot.empty) {
+          followers = followersSnapshot.docs.map(doc => doc.data())
+          console.log(`[Download] Retrieved ${followers.length} followers from follower_database`)
+        }
+      }
     }
 
-    // Fetch followers from SUBCOLLECTION (not from main doc - avoids 1MB limit)
-    console.log(`[Download] Fetching followers from subcollection for @${cleanUsername}`)
-    const followersSnapshot = await adminDb
-      .collection('follower_database')
-      .doc(cleanUsername)
-      .collection('followers')
-      .get()
-
-    if (followersSnapshot.empty) {
+    if (followers.length === 0) {
       return NextResponse.json({ error: 'No followers data available' }, { status: 404 })
     }
-
-    const followers = followersSnapshot.docs.map(doc => doc.data())
-    console.log(`[Download] Retrieved ${followers.length} followers from subcollection`)
 
     // Format data based on request
     switch (format.toLowerCase()) {

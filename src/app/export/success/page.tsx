@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { auth } from '@/lib/firebase'
 
 interface ExtractionProgress {
   status: string
@@ -109,9 +110,21 @@ function SuccessContent() {
     setDownloading(format)
     
     try {
+      // Get auth token if user is logged in
+      const user = auth.currentUser
+      const token = user ? await user.getIdToken() : null
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+      
       const res = await fetch('/api/export/download', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ 
           sessionId: sessionId || 'free',
           username,

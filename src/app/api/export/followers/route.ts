@@ -187,10 +187,11 @@ async function extractAndCacheFollowers(userId: string, username: string, export
       lastExtractedBy: userId
     })
 
-    // Update export record
+    // Update export record with followers data
     await exportRef.update({
       status: 'completed',
       followerCount: result.followers.length,
+      followers: result.followers, // Store followers in export record for download
       completedAt: new Date(),
       progress: {
         phase: 'completed',
