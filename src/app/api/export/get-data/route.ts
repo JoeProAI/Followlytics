@@ -43,6 +43,11 @@ export async function POST(request: NextRequest) {
     const followerCount = data?.followerCount || 0
     const isComplete = progress?.status === 'complete' && followerCount > 0
     
+    // Get payment details for Gamma generation
+    const payment = data?.paidAccess?.find((p: any) => p.sessionId === sessionId)
+    const customInstructions = payment?.customInstructions || data?.customerEmail || 'AI and Tech'
+    const gammaStyle = payment?.gammaStyle || 'professional'
+    
     // If not complete, return 202 so success page triggers extraction
     if (!isComplete) {
       return NextResponse.json({
@@ -53,7 +58,9 @@ export async function POST(request: NextRequest) {
           status: 'pending',
           message: 'Preparing extraction...',
           percentage: 0
-        }
+        },
+        customInstructions,
+        gammaStyle
       }, { status: 202 })
     }
     

@@ -121,23 +121,31 @@ function SuccessContent() {
             
             // ALSO trigger auto-Gamma generation in parallel
             if (user) {
+              console.log('[Success Page] Starting Gamma generation...')
               setGammaStatus({ generating: true })
               
               user.getIdToken().then(token => {
+                const gammaPayload = {
+                  username,
+                  customInstructions: data.customInstructions || 'AI and Tech',
+                  gammaStyle: data.gammaStyle || 'professional',
+                  sessionId: sessionId
+                }
+                console.log('[Success Page] Gamma payload:', gammaPayload)
+                
                 fetch('/api/gamma/auto-generate', {
                   method: 'POST',
                   headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                   },
-                  body: JSON.stringify({
-                    username,
-                    customInstructions: data.customInstructions || 'AI and Tech',
-                    gammaStyle: data.gammaStyle || 'professional',
-                    sessionId: sessionId
-                  })
-                }).then(res => res.json())
+                  body: JSON.stringify(gammaPayload)
+                }).then(res => {
+                  console.log('[Success Page] Gamma response status:', res.status)
+                  return res.json()
+                })
                   .then(gammaData => {
+                    console.log('[Success Page] Gamma response:', gammaData)
                     if (gammaData.success) {
                       console.log('[Success Page] Gamma generation started:', gammaData.gammaId)
                       setGammaStatus({
@@ -147,13 +155,21 @@ function SuccessContent() {
                       })
                       // Start polling for Gamma completion
                       pollGammaStatus(gammaData.gammaId)
+                    } else {
+                      console.error('[Success Page] Gamma failed:', gammaData.error)
+                      setGammaStatus({ generating: false, status: 'failed' })
                     }
                   })
                   .catch(err => {
                     console.error('[Success Page] Gamma generation failed:', err)
-                    setGammaStatus({ generating: false })
+                    setGammaStatus({ generating: false, status: 'failed' })
                   })
+              }).catch(err => {
+                console.error('[Success Page] Token error:', err)
+                setGammaStatus({ generating: false, status: 'failed' })
               })
+            } else {
+              console.log('[Success Page] No user - skipping Gamma')
             }
           }
           
@@ -405,64 +421,45 @@ function SuccessContent() {
           </div>
         )}
 
-        {/* Gamma AI Presentation Status */}
+        {/* Presentation Generation Status */}
         {(gammaStatus.generating || gammaStatus.url) && (
           <div className="border border-gray-900 rounded-lg p-8 mb-8">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="text-4xl">🎨</div>
-              <h2 className="text-2xl font-light">AI Presentation</h2>
-            </div>
+            <h2 className="text-2xl font-light mb-6">Presentation</h2>
             
             {gammaStatus.generating && !gammaStatus.url && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 text-yellow-400">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-400"></div>
-                  <span className="font-medium">AI is creating your custom presentation...</span>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-400">Generating presentation...</span>
+                  <span className="text-gray-500">~60s</span>
                 </div>
-                <p className="text-sm text-gray-400">
-                  Our AI is analyzing your follower data and generating a beautiful, data-driven presentation. 
-                  This usually takes 30-60 seconds.
-                </p>
                 <div className="w-full bg-gray-900 rounded-full h-2 overflow-hidden">
-                  <div className="bg-gradient-to-r from-purple-500 to-blue-500 h-full w-2/3 animate-pulse" />
+                  <div className="bg-gradient-to-r from-purple-500 to-blue-500 h-full w-2/3 transition-all duration-500" 
+                       style={{ animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
                 </div>
               </div>
             )}
             
             {gammaStatus.url && (
               <div className="space-y-4">
-                <div className="p-4 bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-700/50 rounded-lg">
-                  <div className="flex items-center gap-2 text-green-400 mb-3">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span className="font-semibold">Your presentation is ready!</span>
-                  </div>
-                  <p className="text-sm text-gray-300 mb-4">
-                    AI-generated insights about your {downloadData?.followerCount.toLocaleString()} followers, 
-                    including top influencers, geographic distribution, and growth opportunities.
-                  </p>
-                  <a
-                    href={gammaStatus.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 px-6 rounded-lg font-semibold text-center hover:from-purple-700 hover:to-blue-700 transition-all"
-                  >
-                    🎯 View Your AI Presentation
-                  </a>
+                <div className="flex items-center gap-2 text-green-400 mb-3">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="font-medium">Ready</span>
                 </div>
-                <p className="text-xs text-gray-500 text-center">
-                  Share this presentation with brands, investors, or stakeholders
-                </p>
+                <a
+                  href={gammaStatus.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block w-full bg-white text-black py-3 px-6 rounded font-medium text-center hover:bg-gray-200 transition-colors"
+                >
+                  View Presentation
+                </a>
               </div>
             )}
             
             {gammaStatus.status === 'failed' && (
-              <div className="p-4 bg-red-900/20 border border-red-700/50 rounded-lg">
-                <p className="text-red-400 text-sm">
-                  ⚠️ Presentation generation failed. Please contact support if you'd like us to retry.
-                </p>
-              </div>
+              <p className="text-red-400 text-sm">Generation failed</p>
             )}
           </div>
         )}
