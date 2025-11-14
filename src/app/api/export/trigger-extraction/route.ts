@@ -252,9 +252,13 @@ export async function POST(request: NextRequest) {
       console.log(`[Extraction API] Stored follower changes: ${changeRef.id}`)
     }
     
+    // Get the API count that was stored during eligibility check
+    const apiCount = followerDbDoc.data()?.apiFollowerCount || cleanFollowers.length
+    
     // Store metadata in main document (NO followers array - avoid 1MB limit!)
     await adminDb.collection('follower_database').doc(cleanUsername).set({
-      followerCount: cleanFollowers.length,
+      followerCount: cleanFollowers.length, // Actual extracted count (800)
+      apiFollowerCount: apiCount, // What API said (805) - preserve from eligibility check
       lastExtractedAt: new Date(),
       extractedBy: 'extraction-api',
       extractionProgress: {

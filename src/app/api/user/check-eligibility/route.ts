@@ -66,17 +66,20 @@ export async function POST(request: NextRequest) {
     const cached = await cachedRef.get()
     let needsExtraction = true
     let cachedCount = 0
+    let cachedApiCount = 0
     
     if (cached.exists) {
       const data = cached.data()!
-      cachedCount = data.followerCount || 0
+      cachedCount = data.followerCount || 0 // Actual extracted count
+      cachedApiCount = data.apiFollowerCount || 0 // What API said last time
       
-      // Compare counts - if same, we can use cached data
-      if (cachedCount === currentFollowerCount && cachedCount > 0) {
+      // Compare API counts (not extracted counts) to detect real changes
+      // This handles the 805 API vs 800 extracted discrepancy
+      if (cachedApiCount === currentFollowerCount && cachedApiCount > 0) {
         needsExtraction = false
-        console.log(`[Eligibility] Cached data matches current count (${cachedCount}) - extraction not needed!`)
+        console.log(`[Eligibility] API count unchanged (${currentFollowerCount}) - using cached ${cachedCount} extracted followers`)
       } else {
-        console.log(`[Eligibility] Count changed: cached=${cachedCount}, current=${currentFollowerCount} - needs fresh extraction`)
+        console.log(`[Eligibility] API count changed: ${cachedApiCount} → ${currentFollowerCount} (${currentFollowerCount - cachedApiCount > 0 ? '+' : ''}${currentFollowerCount - cachedApiCount}) - needs fresh extraction`)
       }
     } else {
       console.log(`[Eligibility] No cached data - needs extraction`)
@@ -109,7 +112,8 @@ export async function POST(request: NextRequest) {
     await adminDb.collection('follower_database').doc(cleanUsername).set({
       username: cleanUsername,
       followers: [], // Empty - will extract after payment
-      followerCount: currentFollowerCount,
+      apiFollowerCount: currentFollowerCount, // What Twitter API says (805)
+      followerCount: needsExtraction ? 0 : cachedCount, // What we actually extracted (800) - only set if not extracting
       lastCheckedAt: new Date(),
       extractedBy: 'pending-payment',
       accessGranted: [],
@@ -140,6 +144,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       username: cleanUsername,
       followerCount: currentFollowerCount,
+      extractedCount: cachedCount, // Show actual extracted count
       isFree,
       price,
       tier,
@@ -148,8 +153,8 @@ export async function POST(request: NextRequest) {
       message: isFree 
         ? `🎉 You have ${currentFollowerCount} followers - FREE download!`
         : needsExtraction
-          ? `💰 ${currentFollowerCount.toLocaleString()} followers found (${currentFollowerCount - cachedCount > 0 ? '+' : ''}${currentFollowerCount - cachedCount} new) - Pay $${price} to extract and download.`
-          : `💰 ${currentFollowerCount.toLocaleString()} followers found - Pay $${price} to download (data ready!).`
+          ? `💰 ${currentFollowerCount.toLocaleString()} followers - Pay $${price} to extract and download.`
+          : `💰 ${currentFollowerCount.toLocaleString()} followers (${cachedCount} available) - Pay $${price} to download instantly!`
     })
 
   } catch (error: any) {
