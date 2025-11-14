@@ -144,28 +144,17 @@ export async function POST(request: NextRequest) {
           followerCount: followers.length
         })
 
-        // Store followers in SUBCOLLECTION with sanitized usernames as doc IDs
-        // This makes the database searchable and queryable
+        // Store followers in SUBCOLLECTION with usernames as doc IDs
+        // Usernames are pre-sanitized from extraction API
         // Process in batches of 500 (Firestore limit)
         const batchSize = 500
         for (let i = 0; i < followers.length; i += batchSize) {
           const batch = adminDb.batch()
           const chunk = followers.slice(i, i + batchSize)
           chunk.forEach((follower: any) => {
-            // Sanitize username for Firestore (same logic as dashboard)
-            const sanitizedUsername = (follower.username || `user_${Date.now()}_${Math.random()}`)
-              .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores (fixes __Firefly__)
-              .replace(/\//g, '_') // Replace slashes
-              .replace(/\./g, '_') // Replace dots
-              .replace(/__+/g, '_') // Replace multiple underscores with single
-              || `unknown_${Date.now()}`
-            
-            const followerRef = exportRef.collection('followers').doc(sanitizedUsername)
-            batch.set(followerRef, {
-              ...follower,
-              _docId: sanitizedUsername, // Store sanitized ID for reference
-              _originalUsername: follower.username // Preserve original
-            })
+            // Username is already sanitized from extraction, use directly
+            const followerRef = exportRef.collection('followers').doc(follower.username)
+            batch.set(followerRef, follower)
           })
           await batch.commit()
         }
@@ -266,26 +255,16 @@ async function extractAndCacheFollowers(userId: string, username: string, export
       }
     })
 
-    // Store followers in subcollection with sanitized usernames
+    // Store followers in subcollection
+    // Usernames pre-sanitized from extraction
     const batchSize = 500
     for (let i = 0; i < result.followers.length; i += batchSize) {
       const batch = adminDb.batch()
       const chunk = result.followers.slice(i, i + batchSize)
       chunk.forEach((follower: any) => {
-        // Sanitize username for Firestore
-        const sanitizedUsername = (follower.username || `user_${Date.now()}_${Math.random()}`)
-          .replace(/^_+|_+$/g, '')
-          .replace(/\//g, '_')
-          .replace(/\./g, '_')
-          .replace(/__+/g, '_')
-          || `unknown_${Date.now()}`
-        
-        const followerRef = exportRef.collection('followers').doc(sanitizedUsername)
-        batch.set(followerRef, {
-          ...follower,
-          _docId: sanitizedUsername,
-          _originalUsername: follower.username
-        })
+        // Username already sanitized, use directly
+        const followerRef = exportRef.collection('followers').doc(follower.username)
+        batch.set(followerRef, follower)
       })
       await batch.commit()
     }

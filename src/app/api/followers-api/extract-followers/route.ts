@@ -8,6 +8,19 @@ const MIN_REQUEST_FOLLOWERS = 1
 
 export const maxDuration = 300 // 5 minutes for extraction + auto-enrichment
 
+// Sanitize username for Firestore and consistency
+function sanitizeUsername(username: string): string {
+  if (!username) return `unknown_${Date.now()}`
+  
+  return username
+    .replace(/^_+|_+$/g, '')     // Remove leading/trailing underscores (fixes __Firefly__)
+    .replace(/\//g, '_')          // Replace slashes
+    .replace(/\./g, '_')          // Replace dots
+    .replace(/__+/g, '_')         // Collapse multiple underscores to single
+    .trim()
+    || `unknown_${Date.now()}`
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication
@@ -259,8 +272,13 @@ export async function POST(request: NextRequest) {
         follower.verified_type
       )
       
+      // Extract and sanitize username (removes problematic characters)
+      const rawUsername = follower.screen_name || follower.username || follower.user_name || 'unknown'
+      const cleanUsername = sanitizeUsername(rawUsername)
+      
       return {
-        username: follower.screen_name || follower.username || follower.user_name || 'unknown',
+        username: cleanUsername,
+        _originalUsername: rawUsername !== cleanUsername ? rawUsername : undefined, // Only store if different
         name: follower.name || follower.display_name || '',
         bio: follower.description || follower.bio || '', // Empty string instead of undefined
         followers_count: follower.followers_count || follower.followersCount || 0,
@@ -311,15 +329,9 @@ export async function POST(request: NextRequest) {
 
     let savedVerifiedCount = 0
     followersToPersist.forEach((follower: any, index: number) => {
-      // Sanitize username for Firestore (no leading/trailing __, no /, etc)
-      const sanitizedUsername = follower.username
-        .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
-        .replace(/\//g, '_') // Replace slashes with underscores
-        .replace(/\./g, '_') // Replace dots with underscores
-        || 'unknown_user' // Fallback if username becomes empty
-      
-      const docRef = followerCollectionRef.doc(sanitizedUsername)
-      const existing = existingFollowers.get(sanitizedUsername)
+      // Username is already sanitized from extraction
+      const docRef = followerCollectionRef.doc(follower.username)
+      const existing = existingFollowers.get(follower.username)
 
       // If follower exists, update; if new, mark first_seen
       const followerData = {
@@ -389,12 +401,8 @@ export async function POST(request: NextRequest) {
       
       // Detect re-follows (people who unfollowed before but are now following again)
       followersToPersist.forEach((follower: any) => {
-        const sanitizedUsername = follower.username
-          .replace(/^_+|_+$/g, '')
-          .replace(/\//g, '_')
-          .replace(/\./g, '_') || 'unknown_user'
-        
-        const existing = existingFollowers.get(sanitizedUsername)
+        // Username is already sanitized from extraction
+        const existing = existingFollowers.get(follower.username)
         if (existing && existing.status === 'unfollowed') {
           console.log(`[Apify] Re-follow detected: ${follower.username}`)
           
