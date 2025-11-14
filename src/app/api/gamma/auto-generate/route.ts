@@ -111,14 +111,27 @@ export async function POST(request: NextRequest) {
     const gamma = getGammaClient()
     console.log('[Auto-Gamma] Gamma client initialized')
     
+    // Use variety of BEST image models (rotate for different presentations)
+    const topModels = [
+      'imagen-4-ultra',      // Google's best - photorealistic
+      'flux-1-ultra',        // Amazing quality and coherence
+      'ideogram-v3-quality', // Best for text in images
+      'leonardo-phoenix',    // Great for creative/artistic
+      'recraft-v3'          // Modern, clean aesthetic
+    ]
+    
+    // Pick random top model for variety
+    const selectedModel = topModels[Math.floor(Math.random() * topModels.length)]
+    console.log(`[Auto-Gamma] Selected image model: ${selectedModel}`)
+    
     const result = await gamma.generate({
       text: aiPrompt,
       type: 'presentation',
       imageOptions: {
-        model: 'dalle3'
+        model: selectedModel
       },
       textOptions: {
-        language: 'en' // Use language code 'en' not 'English'
+        language: 'en'
       }
     })
 
@@ -175,14 +188,14 @@ function generateSmartPrompt(params: {
 }): string {
   const { username, followerCount, extractedCount, topFollowers, insights, customInstructions } = params
   
-  // Base analysis
-  let prompt = `Create a professional follower analysis presentation for @${username}
+  // Epic presentation prompt
+  let prompt = `Create an EPIC, visually stunning audience intelligence presentation for @${username} that will WOW brands, investors, and stakeholders.
 
-AUDIENCE OVERVIEW:
-- Total Followers: ${followerCount.toLocaleString()}
-- Accessible Accounts: ${extractedCount.toLocaleString()}
-- Average Follower Influence: ${insights.avgFollowers.toLocaleString()} followers each
-- Total Network Reach: ${insights.totalInfluence.toLocaleString()} people
+🎯 AUDIENCE POWER METRICS:
+• Total Followers: ${followerCount.toLocaleString()}
+• Verified Accessible: ${extractedCount.toLocaleString()}
+• Average Follower Reach: ${insights.avgFollowers.toLocaleString()} followers each
+• 🔥 TOTAL NETWORK INFLUENCE: ${insights.totalInfluence.toLocaleString()} people
 
 `
 
@@ -210,17 +223,32 @@ ${customInstructions}
 `
   }
 
-  // Add presentation guidelines
-  prompt += `PRESENTATION REQUIREMENTS:
-- Create a visually stunning, data-driven presentation
-- Include charts showing follower influence distribution
-- Highlight key insights about the audience composition
-- Show growth potential and engagement opportunities
-- Use professional design with modern aesthetics
-- Include actionable recommendations
-- Make it suitable for sharing with brands, investors, or stakeholders
+  // Epic presentation requirements
+  prompt += `🎨 PRESENTATION STYLE:
+Create an EPIC, magazine-quality presentation with:
+- Ultra-modern design with bold, impactful visuals
+- Stunning charts and data visualizations that tell a story
+- Professional photography-style imagery
+- Clear hierarchy and premium layouts
+- Color schemes that command attention
 
-Focus on making this presentation impressive, shareable, and valuable for understanding the audience and its potential.`
+📊 MUST INCLUDE:
+1. Powerful opening with key impact metric
+2. Audience power breakdown with impressive stats
+3. Top influencer showcase with visual impact
+4. Geographic reach insights with map/charts
+5. Growth opportunities and strategies
+6. Strong closing with actionable next steps
+
+💎 QUALITY GOAL:
+Make this presentation so impressive it could:
+- Close brand partnership deals
+- Attract investor attention
+- Win media coverage
+- Demonstrate real influence and reach
+- Be proudly shared on social media
+
+This is a SHOWPIECE. Every slide should be stunning, data-driven, and professionally crafted to showcase audience power and opportunity.`
 
   return prompt
 }

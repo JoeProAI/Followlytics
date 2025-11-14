@@ -480,64 +480,6 @@ function SuccessContent() {
             <p className="text-center text-sm text-gray-500 mt-6">
               Download link also sent to your email ✉️
             </p>
-            
-            {/* DEBUG: Manual Gamma Trigger */}
-            <button
-              onClick={async () => {
-                console.log('[DEBUG] Manual Gamma trigger clicked')
-                const user = auth.currentUser
-                if (!user) {
-                  console.error('[DEBUG] No user logged in')
-                  return
-                }
-                
-                setGammaStatus({ generating: true })
-                console.log('[DEBUG] Set generating state')
-                
-                try {
-                  const token = await user.getIdToken()
-                  console.log('[DEBUG] Got token')
-                  
-                  const payload = {
-                    username,
-                    customInstructions: 'Tech and AI influencers',
-                    gammaStyle: 'professional',
-                    sessionId: sessionId
-                  }
-                  console.log('[DEBUG] Payload:', payload)
-                  
-                  const res = await fetch('/api/gamma/auto-generate', {
-                    method: 'POST',
-                    headers: {
-                      'Authorization': `Bearer ${token}`,
-                      'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                  })
-                  
-                  console.log('[DEBUG] Response status:', res.status)
-                  const result = await res.json()
-                  console.log('[DEBUG] Response data:', result)
-                  
-                  if (result.success) {
-                    setGammaStatus({
-                      gammaId: result.gammaId,
-                      status: 'processing',
-                      generating: true
-                    })
-                    pollGammaStatus(result.gammaId)
-                  } else {
-                    setGammaStatus({ generating: false, status: 'failed' })
-                  }
-                } catch (err) {
-                  console.error('[DEBUG] Error:', err)
-                  setGammaStatus({ generating: false, status: 'failed' })
-                }
-              }}
-              className="mt-4 w-full bg-purple-600 text-white py-2 px-4 rounded text-sm hover:bg-purple-700"
-            >
-              🧪 TEST: Generate Presentation
-            </button>
           </div>
         )}
 
