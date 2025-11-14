@@ -27,9 +27,15 @@ export async function POST(request: NextRequest) {
     const cleanUsername = username.toLowerCase().replace(/^@/, '')
     console.log(`[Extraction API] Starting extraction for @${cleanUsername}`)
     
-    // FIRST: Check if user already has dashboard data (faster!)
-    if (userId) {
-      console.log(`[Extraction API] Checking dashboard data for user ${userId}`)
+    // Check if fresh extraction is needed (from eligibility check)
+    const followerDbDoc = await adminDb.collection('follower_database').doc(cleanUsername).get()
+    const needsExtraction = followerDbDoc.data()?.needsExtraction ?? true
+    
+    console.log(`[Extraction API] needsExtraction flag: ${needsExtraction}`)
+    
+    // FIRST: Check if user already has dashboard data (faster!) - but only if extraction not needed
+    if (userId && !needsExtraction) {
+      console.log(`[Extraction API] Checking dashboard data for user ${userId} (no new followers detected)`)
       const dashboardFollowers = await adminDb
         .collection('users')
         .doc(userId)
@@ -39,7 +45,7 @@ export async function POST(request: NextRequest) {
         .get()
       
       if (!dashboardFollowers.empty) {
-        console.log(`[Extraction API] Found ${dashboardFollowers.size} dashboard followers, using them!`)
+        console.log(`[Extraction API] Found ${dashboardFollowers.size} dashboard followers, using cached data!`)
         
         const followers = dashboardFollowers.docs.map(doc => doc.data())
         
@@ -79,9 +85,13 @@ export async function POST(request: NextRequest) {
           success: true,
           followerCount: followers.length,
           cached: true,
-          message: `Ready! ${followers.length} followers from dashboard`
+          message: `Ready! ${followers.length} followers from cache (no changes detected)`
         })
+      } else {
+        console.log(`[Extraction API] No dashboard data found, will extract fresh`)
       }
+    } else if (needsExtraction) {
+      console.log(`[Extraction API] New followers detected - extracting fresh to get latest ${followerDbDoc.data()?.followerCount || 'all'} followers`)
     }
     
     // Check if extraction already in progress
