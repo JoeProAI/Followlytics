@@ -44,12 +44,11 @@ export async function POST(request: NextRequest) {
     const followerCount = data.apiFollowerCount || data.followerCount || 0
     const extractedCount = data.followerCount || 0
     
-    // Get sample of top followers for AI context
+    // Get ALL followers for comprehensive analysis (not just 50!)
     const followersSnapshot = await adminDb
       .collection('follower_database')
       .doc(cleanUsername)
       .collection('followers')
-      .limit(50)
       .get()
     
     let topFollowers: any[] = []
@@ -191,14 +190,14 @@ function generateSmartPrompt(params: {
 }): string {
   const { username, followerCount, extractedCount, topFollowers, insights, customInstructions } = params
   
-  // Epic presentation prompt
-  let prompt = `Create an EPIC, visually stunning audience intelligence presentation for @${username} that will WOW brands, investors, and stakeholders.
+  // Data-driven, specific prompt tied to user's custom instructions
+  let prompt = `Create a professional, data-driven audience intelligence presentation for @${username}.
 
-🎯 AUDIENCE POWER METRICS:
-• Total Followers: ${followerCount.toLocaleString()}
-• Verified Accessible: ${extractedCount.toLocaleString()}
-• Average Follower Reach: ${insights.avgFollowers.toLocaleString()} followers each
-• 🔥 TOTAL NETWORK INFLUENCE: ${insights.totalInfluence.toLocaleString()} people
+📊 REAL DATA - AUDIENCE ANALYSIS:
+• Total Twitter Followers: ${followerCount.toLocaleString()}
+• Analyzed Accounts: ${extractedCount.toLocaleString()}
+• Average Follower Influence: ${insights.avgFollowers.toLocaleString()} followers each
+• Combined Network Reach: ${insights.totalInfluence.toLocaleString()} people
 
 `
 
@@ -218,40 +217,33 @@ Top Locations: ${insights.topLocations.join(', ')}
 `
   }
 
-  // Add user's custom instructions
+  // PRIORITIZE user's custom instructions - this is what they care about!
   if (customInstructions && customInstructions.trim()) {
-    prompt += `CUSTOM FOCUS:
+    prompt += `🎯 PRIMARY FOCUS (CRITICAL - Build entire presentation around this):
 ${customInstructions}
+
+Analyze the follower list specifically for people/accounts related to this topic. Highlight relevant influencers, experts, and connections in this niche. Show how @${username}'s audience aligns with or relates to this focus area.
 
 `
   }
 
-  // Epic presentation requirements
-  prompt += `🎨 PRESENTATION STYLE:
-Create an EPIC, magazine-quality presentation with:
-- Ultra-modern design with bold, impactful visuals
-- Stunning charts and data visualizations that tell a story
-- Professional photography-style imagery
-- Clear hierarchy and premium layouts
-- Color schemes that command attention
+  // Clear, actionable presentation requirements
+  prompt += `📋 PRESENTATION REQUIREMENTS:
 
-📊 MUST INCLUDE:
-1. Powerful opening with key impact metric
-2. Audience power breakdown with impressive stats
-3. Top influencer showcase with visual impact
-4. Geographic reach insights with map/charts
-5. Growth opportunities and strategies
-6. Strong closing with actionable next steps
+1. OPENING: Start with the most impressive stat tied to the custom focus
+2. AUDIENCE BREAKDOWN: Show who follows @${username} with real data and percentages
+3. TOP INFLUENCERS: Highlight the 10 most influential followers WITH their specific relevance to the custom focus
+4. GEOGRAPHIC INSIGHTS: Map showing where the audience is located
+5. OPPORTUNITY ANALYSIS: Based on the follower data, what opportunities exist related to "${customInstructions}"?
+6. ACTIONABLE NEXT STEPS: Specific recommendations for leveraging this audience
 
-💎 QUALITY GOAL:
-Make this presentation so impressive it could:
-- Close brand partnership deals
-- Attract investor attention
-- Win media coverage
-- Demonstrate real influence and reach
-- Be proudly shared on social media
+🎨 DESIGN:
+- Clean, professional, modern aesthetic
+- Data visualizations (charts, graphs, maps)
+- Easy to read and understand
+- Suitable for sharing with partners, brands, or investors
 
-This is a SHOWPIECE. Every slide should be stunning, data-driven, and professionally crafted to showcase audience power and opportunity.`
+⚠️ CRITICAL: Every insight must be backed by the actual follower data provided. No generic statements. Use specific numbers, names, and facts from the analysis above.`
 
   return prompt
 }
