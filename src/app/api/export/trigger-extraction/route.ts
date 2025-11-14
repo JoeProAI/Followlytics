@@ -235,23 +235,6 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    console.log(`[Extraction API] Storing ${cleanFollowers.length} followers in subcollection...`)
-    
-    // Store changes in a separate collection for analytics
-    if (unfollows.length > 0 || newFollows.length > 0) {
-      const changeRef = await adminDb.collection('follower_changes').add({
-        username: cleanUsername,
-        extractedAt: new Date(),
-        newFollows: newFollows,
-        unfollows: unfollows,
-        newFollowsCount: newFollows.length,
-        unfollowsCount: unfollows.length,
-        netChange: newFollows.length - unfollows.length
-      })
-      
-      console.log(`[Extraction API] Stored follower changes: ${changeRef.id}`)
-    }
-    
     // Get the API count that was stored during eligibility check
     const apiCount = followerDbDoc.data()?.apiFollowerCount || cleanFollowers.length
     
@@ -341,9 +324,14 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    // Calculate inaccessible accounts
+    const inaccessibleCount = apiCount > cleanFollowers.length ? apiCount - cleanFollowers.length : 0
+    
     return NextResponse.json({
       success: true,
       followerCount: cleanFollowers.length,
+      totalFollowers: apiCount,
+      inaccessibleCount: inaccessibleCount,
       duration,
       changes: {
         newFollows: newFollows.length,
@@ -352,9 +340,11 @@ export async function POST(request: NextRequest) {
         newFollowersList: newFollows.slice(0, 10), // Show first 10
         unfollowsList: unfollows.slice(0, 10) // Show first 10
       },
-      message: unfollows.length > 0 || newFollows.length > 0
-        ? `Extracted ${cleanFollowers.length} followers (+${newFollows.length} new, -${unfollows.length} unfollowed) in ${duration}s`
-        : `Extracted ${cleanFollowers.length} followers in ${duration}s`
+      message: inaccessibleCount > 0
+        ? `Extracted ${cleanFollowers.length} of ${apiCount} followers (${inaccessibleCount} private/protected) in ${duration}s`
+        : unfollows.length > 0 || newFollows.length > 0
+          ? `Extracted ${cleanFollowers.length} followers (+${newFollows.length} new, -${unfollows.length} unfollowed) in ${duration}s`
+          : `Extracted ${cleanFollowers.length} followers in ${duration}s`
     })
     
   } catch (error: any) {

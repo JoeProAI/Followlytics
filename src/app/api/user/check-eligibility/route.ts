@@ -141,22 +141,27 @@ export async function POST(request: NextRequest) {
       completedAt: new Date()
     })
 
-    // Use the actual count they'll receive (extracted if available, API if needs extraction)
-    const displayCount = needsExtraction ? currentFollowerCount : cachedCount
+    // Always show the Twitter API count (what they actually have)
+    // But explain if some are inaccessible
+    const hasInaccessible = cachedCount > 0 && cachedCount < currentFollowerCount
+    const inaccessibleCount = hasInaccessible ? currentFollowerCount - cachedCount : 0
     
     return NextResponse.json({
       username: cleanUsername,
-      followerCount: displayCount, // Show the count they'll actually get
+      followerCount: currentFollowerCount, // Always show real Twitter count
+      extractableCount: cachedCount, // How many we can actually get
       isFree,
       price,
       tier,
       needsExtraction,
       status: 'pending_payment',
       message: isFree 
-        ? `🎉 You have ${displayCount.toLocaleString()} followers - FREE download!`
+        ? `🎉 You have ${currentFollowerCount.toLocaleString()} followers - FREE download!`
         : needsExtraction
-          ? `💰 ${currentFollowerCount.toLocaleString()} followers detected - Pay $${price} to extract and download.`
-          : `💰 ${displayCount.toLocaleString()} followers ready - Pay $${price} to download instantly!`
+          ? `💰 ${currentFollowerCount.toLocaleString()} followers - Pay $${price} to extract (~${Math.floor(currentFollowerCount * 0.99)} accessible accounts).`
+          : hasInaccessible
+            ? `💰 ${currentFollowerCount.toLocaleString()} followers (${cachedCount.toLocaleString()} accessible, ${inaccessibleCount} private/protected) - Pay $${price} to download instantly!`
+            : `💰 ${currentFollowerCount.toLocaleString()} followers ready - Pay $${price} to download instantly!`
     })
 
   } catch (error: any) {
