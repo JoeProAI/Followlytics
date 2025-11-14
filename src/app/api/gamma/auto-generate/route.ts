@@ -118,9 +118,7 @@ export async function POST(request: NextRequest) {
         model: 'dalle3'
       },
       textOptions: {
-        language: 'English',
-        tone: gammaStyle === 'clean' ? 'professional' : gammaStyle as any,
-        detailLevel: 'comprehensive'
+        language: 'en' // Use language code 'en' not 'English'
       }
     })
 

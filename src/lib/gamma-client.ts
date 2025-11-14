@@ -58,17 +58,26 @@ class GammaClient {
       if (options.themeId) payload.themeId = options.themeId
       if (options.folderIds) payload.folderIds = options.folderIds
       
-      // Image options
-      if (options.imageOptions) {
+      // Image options (only model is supported)
+      if (options.imageOptions?.model) {
         payload.imageOptions = {
-          model: options.imageOptions.model || 'dalle3'
+          model: options.imageOptions.model
         }
       }
       
-      // Text options
-      if (options.textOptions) {
+      // Text options (language must be language code like 'en', not 'English')
+      if (options.textOptions?.language) {
+        const langMap: Record<string, string> = {
+          'English': 'en',
+          'Spanish': 'es',
+          'French': 'fr',
+          'German': 'de',
+          'Chinese': 'zh-cn',
+          'Japanese': 'ja',
+          'Korean': 'ko'
+        }
         payload.textOptions = {
-          language: options.textOptions.language || 'English'
+          language: langMap[options.textOptions.language] || options.textOptions.language || 'en'
         }
       }
 
