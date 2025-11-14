@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Username required' }, { status: 400 })
     }
 
-    console.log(`[Apify] Extracting followers for @${username}, requested: ${requestedFollowers}`)
+    console.log(`[Extraction] Extracting followers for @${username}, requested: ${requestedFollowers}`)
 
     // Initialize Apify client
     const APIFY_API_TOKEN = process.env.APIFY_API_TOKEN
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       ? Number.POSITIVE_INFINITY 
       : baseRemaining + followerAddons
     
-    console.log(`[Apify] Capacity check: Tier limit=${limitForTier}, Used=${usedThisMonth}, Base remaining=${baseRemaining}, Add-ons=${followerAddons}, Total capacity=${totalCapacity}`)
+    console.log(`[Extraction] Capacity check: Tier limit=${limitForTier}, Used=${usedThisMonth}, Base remaining=${baseRemaining}, Add-ons=${followerAddons}, Total capacity=${totalCapacity}`)
 
     if (!limitIsUnlimited && totalCapacity <= 0) {
       await usageRef.set(usageData, { merge: true })
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
       getFollowing: false, // We won't use following data even though we have to set min 200
     }
 
-    console.log('[Apify] Starting Actor run...')
+    console.log('[Extraction] Starting follower extraction...')
     const startResponse = await fetch(
       `https://api.apify.com/v2/acts/kaitoeasyapi~premium-x-follower-scraper-following-data/runs?token=${APIFY_API_TOKEN}`,
       {
@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
     const runId = runData.data.id
     const defaultDatasetId = runData.data.defaultDatasetId
 
-    console.log(`[Apify] Actor run started: ${runId}`)
+    console.log(`[Extraction] Actor run started: ${runId}`)
 
     // Wait for the run to finish (poll status)
     let status = 'RUNNING'
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
       status = statusData.data.status
       attempts++
 
-      console.log(`[Apify] Status check ${attempts}: ${status}`)
+      console.log(`[Extraction] Status check ${attempts}: ${status}`)
     }
 
     if (status !== 'SUCCEEDED') {
@@ -206,20 +206,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch results from dataset
-    console.log(`[Apify] Fetching results from dataset: ${defaultDatasetId}`)
+    console.log(`[Extraction] Fetching results from dataset: ${defaultDatasetId}`)
     const datasetResponse = await fetch(
       `https://api.apify.com/v2/datasets/${defaultDatasetId}/items?token=${APIFY_API_TOKEN}`
     )
 
     const followers = await datasetResponse.json()
 
-    console.log(`[Apify] Extracted ${followers.length} followers`)
+    console.log(`[Extraction] Extracted ${followers.length} followers`)
     
     // Debug: Log first follower structure to understand ALL available fields
     if (followers.length > 0) {
       const sample = followers[0]
-      console.log('[Apify] Sample follower ALL fields:', JSON.stringify(sample, null, 2))
-      console.log('[Apify] Verification fields:', {
+      console.log('[Extraction] Sample follower ALL fields:', JSON.stringify(sample, null, 2))
+      console.log('[Extraction] Verification fields:', {
         verified: sample.verified,
         is_blue_verified: sample.is_blue_verified,
         verified_type: sample.verified_type,
@@ -235,7 +235,7 @@ export async function POST(request: NextRequest) {
         legacy_verified: followers.filter((f: any) => f.legacy_verified).length,
         verified_type_present: followers.filter((f: any) => f.verified_type).length
       }
-      console.log('[Apify] Verification field stats:', verifiedFlags)
+      console.log('[Extraction] Verification field stats:', verifiedFlags)
     }
 
     // Get existing followers to detect unfollows (scoped by target account)
@@ -251,7 +251,7 @@ export async function POST(request: NextRequest) {
       existingFollowersSnapshot.docs.map(doc => [doc.id, doc.data()])
     )
     
-    console.log(`[Apify] Found ${existingFollowers.size} existing followers for @${username}`)
+    console.log(`[Extraction] Found ${existingFollowers.size} existing followers for @${username}`)
 
     // Process and save to Firestore
     const processedFollowers = followers.map((follower: any) => {
@@ -304,7 +304,7 @@ export async function POST(request: NextRequest) {
     
     // Log verified count IMMEDIATELY after processing
     const verifiedInBatch = followersToPersist.filter((f: any) => f.verified === true).length
-    console.log(`[Apify] Processed ${followersToPersist.length} followers, ${verifiedInBatch} are VERIFIED (${Math.round(verifiedInBatch/followersToPersist.length*100)}%)`)
+    console.log(`[Extraction] Processed ${followersToPersist.length} followers, ${verifiedInBatch} are VERIFIED (${Math.round(verifiedInBatch/followersToPersist.length*100)}%)`)
 
     // Track current follower usernames
     const currentFollowerUsernames = new Set(
@@ -344,7 +344,7 @@ export async function POST(request: NextRequest) {
 
       // Log first few verified followers to confirm data
       if (follower.verified && savedVerifiedCount < 5) {
-        console.log(`[Apify] Saving VERIFIED follower #${savedVerifiedCount + 1}: @${follower.username}, verified=${follower.verified}, type=${follower.verified_type}`)
+        console.log(`[Extraction] Saving VERIFIED follower #${savedVerifiedCount + 1}: @${follower.username}, verified=${follower.verified}, type=${follower.verified_type}`)
         savedVerifiedCount++
       }
 
@@ -369,7 +369,7 @@ export async function POST(request: NextRequest) {
       .collection('unfollower_events')
     
     if (shouldDetectUnfollows) {
-      console.log(`[Apify] Unfollower detection enabled (${Math.round(extractionCoverage * 100)}% coverage)`)
+      console.log(`[Extraction] Unfollower detection enabled (${Math.round(extractionCoverage * 100)}% coverage)`)
       
       // Detect unfollows
       existingFollowers.forEach((data, username) => {
@@ -404,7 +404,7 @@ export async function POST(request: NextRequest) {
         // Username is already sanitized from extraction
         const existing = existingFollowers.get(follower.username)
         if (existing && existing.status === 'unfollowed') {
-          console.log(`[Apify] Re-follow detected: ${follower.username}`)
+          console.log(`[Extraction] Re-follow detected: ${follower.username}`)
           
           // Create refollow event
           const eventRef = eventsCollectionRef.doc()
@@ -424,7 +424,7 @@ export async function POST(request: NextRequest) {
         }
       })
     } else {
-      console.log(`[Apify] Unfollower detection skipped (${Math.round(extractionCoverage * 100)}% coverage, need 80%+)`)
+      console.log(`[Extraction] Unfollower detection skipped (${Math.round(extractionCoverage * 100)}% coverage, need 80%+)`)
     }
 
     await batch.commit()
@@ -441,7 +441,7 @@ export async function POST(request: NextRequest) {
     const followersToVerify = followersToPersist.slice(0, 100).map((f: any) => f.username)
     
     if (followersToVerify.length > 0) {
-      console.log(`[Apify] Queueing ${followersToVerify.length} followers for Daytona verified check...`)
+      console.log(`[Extraction] Queueing ${followersToVerify.length} followers for Daytona verified check...`)
       
       // Store verification queue in Firestore for background processing
       try {
@@ -453,9 +453,9 @@ export async function POST(request: NextRequest) {
           created_at: nowIso,
           priority: 'high'
         })
-        console.log(`[Apify] ✅ Verification queued - will check via Daytona browser automation`)
+        console.log(`[Extraction] ✅ Verification queued - will check via Daytona browser automation`)
       } catch (queueError: any) {
-        console.error('[Apify] Failed to queue verification:', queueError.message)
+        console.error('[Extraction] Failed to queue verification:', queueError.message)
       }
     }
 
@@ -493,7 +493,7 @@ export async function POST(request: NextRequest) {
     
     await adminDb.collection('users').doc(userId).update(updateData)
 
-    console.log(`[Apify] Saved ${followersToPersist.length} followers to Firestore`)
+    console.log(`[Extraction] Saved ${followersToPersist.length} followers to Firestore`)
 
     // Calculate cost
     const cost = (followersToPersist.length / 1000) * 0.15
@@ -505,7 +505,7 @@ export async function POST(request: NextRequest) {
       ? Math.round(followersToPersist.reduce((sum: number, f: any) => sum + (f.followers_count || 0), 0) / followersToPersist.length)
       : 0
 
-    console.log(`[Apify] Stats: ${verifiedCount} verified (${Math.round(verifiedCount/followersToPersist.length*100)}%), ${followersWithBio} with bio`)
+    console.log(`[Extraction] Stats: ${verifiedCount} verified (${Math.round(verifiedCount/followersToPersist.length*100)}%), ${followersWithBio} with bio`)
 
     const stats = {
       verified: verifiedCount,
@@ -551,7 +551,7 @@ export async function POST(request: NextRequest) {
         addonsUsed = overage - previousOverage
         currentAddons = Math.max(followerAddons - addonsUsed, 0)
         
-        console.log(`[Apify] Deducting ${addonsUsed} from add-ons. Remaining add-ons: ${currentAddons}`)
+        console.log(`[Extraction] Deducting ${addonsUsed} from add-ons. Remaining add-ons: ${currentAddons}`)
         
         // Update user's add-on balance
         transaction.set(userRef, { follower_addons: currentAddons }, { merge: true })
@@ -593,8 +593,8 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error: any) {
-    console.error('[Apify] Error:', error)
-    console.error('[Apify] Error stack:', error.stack)
+    console.error('[Extraction] Error:', error)
+    console.error('[Extraction] Error stack:', error.stack)
     return NextResponse.json({
       error: 'Failed to extract followers',
       details: error.message,
