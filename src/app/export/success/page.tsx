@@ -317,12 +317,12 @@ function SuccessContent() {
                   })
                   pollGammaStatus(gammaData.gammaId)
                 } else if (gammaData.requiresPayment) {
-                  console.log('[Success Page] Gamma requires $5 payment')
+                  console.log(`[Success Page] Gamma requires $${gammaData.amount} payment`)
                   setGammaStatus({ 
                     generating: false, 
                     status: 'payment_required',
                     requiresPayment: true,
-                    amount: gammaData.amount
+                    amount: gammaData.amount || 2.99
                   })
                 } else {
                   console.error('[Success Page] Gamma failed:', gammaData.error)

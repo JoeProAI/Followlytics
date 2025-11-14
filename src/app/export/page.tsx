@@ -124,10 +124,11 @@ function ExportContent() {
     if (!pricing) return
 
     try {
-      const isFreeGamma = pricing.followerCount < 5000
-      const gammaCharge = isFreeGamma ? 0 : (isLaunchWeek() ? 25 : 50)
-      const basePrice = isLaunchWeek() ? getLaunchDiscount(pricing.price) : pricing.price
-      const total = basePrice + (addGamma ? gammaCharge : 0)
+      // 🔥 LAUNCH SPECIAL: Gamma is FREE for 500+ followers, $2.99 add-on for < 500
+      const gammaIncludedFree = pricing.followerCount >= 500
+      const gammaCharge = gammaIncludedFree ? 0 : 2.99
+      const basePrice = pricing.price // Already $2.99 from API
+      const total = basePrice + (addGamma && !gammaIncludedFree ? gammaCharge : 0)
 
       // Create Stripe checkout (for follower export)
       const res = await fetch('/api/export/create-checkout', {
@@ -279,18 +280,18 @@ function ExportContent() {
                   className="mt-1"
                 />
                 <div className="flex-1">
-                  {pricing.isFree || pricing.followerCount < 5000 ? (
+                  {pricing.followerCount >= 500 ? (
                     <>
-                      <div className="font-medium">Add Gamma Report (FREE)</div>
+                      <div className="font-medium">Add Gamma Report (FREE) 🎉</div>
                       <p className="text-sm text-gray-500 mt-1">
-                        Presentation-ready analysis. Clean, fast, professional. On us.
+                        AI presentation included free with 500+ followers! Clean, professional analysis.
                       </p>
                     </>
                   ) : (
                     <>
-                      <div className="font-medium">Add Gamma Report (+$50)</div>
+                      <div className="font-medium">🔥 Add Gamma Report (+$2.99)</div>
                       <p className="text-sm text-gray-500 mt-1">
-                        Premium presentation-ready analysis. Custom styling, shareable link.
+                        Launch special! AI-powered presentation (normally $4.99).
                       </p>
                     </>
                   )}
@@ -340,15 +341,15 @@ function ExportContent() {
                 className="w-full bg-white text-black py-4 rounded font-medium hover:bg-gray-200 transition-colors"
               >
                 {(() => {
-                  const isFreeGamma = pricing.followerCount < 5000
-                  const gammaCharge = isFreeGamma ? 0 : (isLaunchWeek() ? 25 : 50)
-                  const basePrice = isLaunchWeek() ? getLaunchDiscount(pricing.price) : pricing.price
-                  const total = basePrice + (addGamma ? gammaCharge : 0)
+                  const gammaIncludedFree = pricing.followerCount >= 500
+                  const gammaCharge = gammaIncludedFree ? 0 : 2.99
+                  const basePrice = pricing.price // Already $2.99 from API
+                  const total = basePrice + (addGamma && !gammaIncludedFree ? gammaCharge : 0)
                   
-                  if (addGamma && isFreeGamma) {
-                    return `Pay $${basePrice} (Gamma FREE)`
-                  } else if (addGamma) {
-                    return `Pay $${total} (Data + Gamma)`
+                  if (addGamma && gammaIncludedFree) {
+                    return `Pay $${basePrice} (Gamma FREE 🎉)`
+                  } else if (addGamma && !gammaIncludedFree) {
+                    return `Pay $${total.toFixed(2)} (Data + Gamma)`
                   } else {
                     return `Pay $${basePrice}`
                   }
