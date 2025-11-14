@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { auth } from '@/lib/firebase'
 
-interface ExtractionProgress {
+interface AnalysisProgress {
   status: string
   message: string
   percentage: number
@@ -20,7 +20,7 @@ interface DownloadData {
   jsonUrl?: string
   excelUrl?: string
   ready: boolean
-  progress?: ExtractionProgress
+  progress?: AnalysisProgress
 }
 
 function SuccessContent() {
@@ -78,7 +78,7 @@ function SuccessContent() {
   }
 
   useEffect(() => {
-    let extractionTriggered = false
+    let analysisTriggered = false
     let gammaTriggered = false
     
     // Verify payment and get download links
@@ -109,12 +109,12 @@ function SuccessContent() {
         const data = await res.json()
 
         if (res.status === 202) {
-          // Data not ready yet - check if we need to trigger extraction
-          if (data.progress?.status === 'pending' && !extractionTriggered) {
-            console.log('[Success Page] Triggering extraction for', username)
-            extractionTriggered = true
+          // Data not ready yet - check if we need to trigger analysis
+          if (data.progress?.status === 'pending' && !analysisTriggered) {
+            console.log('[Success Page] Triggering analysis for', username)
+            analysisTriggered = true
             
-            // Trigger extraction in background with userId
+            // Trigger analysis in background with userId
             const user = auth.currentUser
             fetch('/api/export/trigger-extraction', {
               method: 'POST',
@@ -124,7 +124,7 @@ function SuccessContent() {
                 userId: user?.uid // Send userId so it can check dashboard data
               })
             }).catch(err => {
-              console.error('[Success Page] Failed to trigger extraction:', err)
+              console.error('[Success Page] Failed to trigger analysis:', err)
             })
             
             // ALSO trigger auto-Gamma generation in parallel (only once)
@@ -401,7 +401,7 @@ function SuccessContent() {
           {!downloadData && !loading && !error && (
             <div className="space-y-4 max-w-md mx-auto mt-6">
               <p className="text-yellow-400 text-sm font-medium animate-pulse text-center">
-                ⏳ Starting extraction... Please wait
+                ⏳ Starting analysis... Please wait
               </p>
               <div className="w-full bg-gray-900 rounded-full h-3 overflow-hidden">
                 <div className="bg-gradient-to-r from-yellow-500 to-yellow-400 h-full w-1/4 animate-pulse" />
@@ -424,7 +424,7 @@ function SuccessContent() {
             {/* Disclaimer */}
             <div className="mb-6 p-4 bg-blue-900/30 border border-blue-700/50 rounded-lg">
               <p className="text-sm text-blue-300 text-center">
-                <span className="font-semibold">ℹ️ Note:</span> The extracted follower count may differ from your Twitter follower count due to private, protected, suspended, or deleted accounts that cannot be accessed via API.
+                <span className="font-semibold">ℹ️ Note:</span> The analyzed follower count may differ from your Twitter follower count due to private, protected, suspended, or deleted accounts that cannot be accessed via API.
               </p>
             </div>
             
@@ -543,9 +543,9 @@ function SuccessContent() {
                 1
               </div>
               <div>
-                <h3 className="font-medium mb-1">Data Extraction</h3>
+                <h3 className="font-medium mb-1">Data Analysis</h3>
                 <p className="text-sm text-gray-400">
-                  We're extracting all follower data in the background. This usually takes 5-30 minutes depending on follower count.
+                  We're analyzing all follower data in the background. This usually takes 5-30 minutes depending on follower count.
                 </p>
               </div>
             </div>
