@@ -20,7 +20,7 @@ interface GammaGenerateOptions {
 
 interface GammaResponse {
   gamma_id: string
-  status: 'processing' | 'completed' | 'failed'
+  status: 'pending' | 'processing' | 'completed' | 'failed'
   urls?: {
     view: string
     pdf?: string
@@ -114,7 +114,8 @@ class GammaClient {
    */
   async getFileUrls(gammaId: string): Promise<GammaResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/generations/${gammaId}/files`, {
+      // Check generation status first
+      const response = await fetch(`${this.baseUrl}/generations/${gammaId}`, {
         headers: {
           'X-API-KEY': this.apiKey,
           'Accept': 'application/json'
@@ -124,21 +125,32 @@ class GammaClient {
       const data = await response.json()
 
       if (!response.ok) {
-        console.error('[Gamma] File URL fetch error:', data)
-        throw new Error(`Failed to get Gamma URLs (${response.status}): ${data.message || response.statusText}`)
+        console.error('[Gamma] Status check error:', data)
+        throw new Error(`Failed to get Gamma status (${response.status}): ${data.message || response.statusText}`)
       }
       
+      // Check if still processing
+      if (data.status === 'processing' || data.status === 'pending') {
+        return {
+          gamma_id: gammaId,
+          status: data.status,
+          message: 'Generation in progress...'
+        }
+      }
+      
+      // If completed, return URLs
       return {
         gamma_id: gammaId,
         status: data.status || 'completed',
         urls: {
-          view: data.viewUrl || data.view_url,
+          view: data.webUrl || data.viewUrl || data.view_url || data.url,
           pdf: data.pdfUrl || data.pdf_url,
           pptx: data.pptxUrl || data.pptx_url
-        }
+        },
+        message: 'Generation complete'
       }
     } catch (error: any) {
-      console.error('[Gamma] Failed to get file URLs:', error)
+      console.error('[Gamma] Failed to check status:', error)
       throw error
     }
   }

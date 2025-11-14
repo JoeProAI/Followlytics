@@ -13,14 +13,29 @@ export async function GET(
       return NextResponse.json({ error: 'Gamma ID required' }, { status: 400 })
     }
 
+    console.log(`[Gamma Status] Checking status for: ${gammaId}`)
     const gamma = getGammaClient()
     const result = await gamma.getFileUrls(gammaId)
 
+    console.log(`[Gamma Status] Result:`, result)
+
+    // If still processing, return 202 status
+    if (result.status === 'processing' || result.status === 'pending') {
+      return NextResponse.json({
+        success: true,
+        gammaId: result.gamma_id,
+        status: result.status,
+        message: result.message || 'Still generating...'
+      }, { status: 202 })
+    }
+
+    // If completed, return URLs
     return NextResponse.json({
       success: true,
       gammaId: result.gamma_id,
       status: result.status,
-      urls: result.urls
+      urls: result.urls,
+      message: result.message
     })
 
   } catch (error: any) {
