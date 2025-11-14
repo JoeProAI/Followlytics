@@ -149,28 +149,17 @@ export async function POST(request: NextRequest) {
     const selectedModel = availableModels[Math.floor(Math.random() * availableModels.length)]
     console.log(`[Auto-Gamma] Selected image model: ${selectedModel}`)
     
-    // Use real Gamma theme IDs (fetched from API)
+    // Use ALL 50 real Gamma theme IDs (fetched from API)
     const gammaThemes = [
-      'aurora',          // Dark gradient, vibrant
-      'atmosphere',      // Light gradient, colorful
-      'electric',        // Dark gradient, bold
-      'gamma',           // Light, warm, friendly
-      'gamma-dark',      // Dark purple gradient
-      'elysia',          // Light pastel gradient
-      'daydream',        // Light glassy gradient
-      'borealis',        // Dark navy/turquoise
-      'blues',           // Dark blue, professional
-      'coral-glow',      // Coral/pink radiant
-      'gold-leaf',       // Gold/cream, elegant
-      'gleam',           // Gray/silver, professional
-      'consultant',      // Light blue, corporate
-      'default-light',   // Classic light
-      'default-dark',    // Classic dark
-      'ash',             // B&W high contrast
-      'howlite',         // White/black elegant
-      'chimney-smoke',   // Light gray, subtle
-      'breeze',          // Soft blue, fresh
-      'fluo'             // Lime green, bold
+      'alien', 'ash', 'ashrose', 'atacama', 'atmosphere', 'aurora', 'aurum',
+      'default-dark', 'default-light', 'bee-happy', 'blueberry', 'blues',
+      'blue-steel', 'bonan-hale', 'borealis', 'breeze', 'bubble-gum',
+      'canaveral', 'chimney-dust', 'chimney-smoke', 'chisel', 'chocolate',
+      'cigar', 'clementa', 'coal', 'commons', 'consultant', 'coral-glow',
+      'cornfield', 'cornflower', 'creme', 'daktilo', 'dawn', 'daydream',
+      'dialogue', 'dune', 'editoria', 'electric', 'elysia', 'finesse',
+      'ag4mc9ggtxi8iyi', 'flax', 'fluo', 'founder', 'gamma', 'gamma-dark',
+      'gleam', 'gold-leaf', 'howlite', 'icebreaker'
     ]
     
     const selectedTheme = gammaThemes[Math.floor(Math.random() * gammaThemes.length)]
