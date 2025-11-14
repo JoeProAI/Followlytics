@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase-admin'
+import * as XLSX from 'xlsx'
 
 export async function POST(request: NextRequest) {
   try {
@@ -123,13 +124,31 @@ export async function POST(request: NextRequest) {
         })
 
       case 'xlsx': {
-        // Reuse CSV generator but serve it as an .xlsx download
-        // Excel opens CSV content fine when the extension is .xlsx
-        const csvForExcel = convertToCSV(followers)
-        return new NextResponse(csvForExcel, {
+        // Generate REAL Excel file
+        const excelData = followers.map(f => ({
+          Username: f.username || '',
+          Name: f.name || '',
+          Bio: f.bio || '',
+          Followers: f.followersCount || 0,
+          Following: f.followingCount || 0,
+          Tweets: f.tweetsCount || 0,
+          Verified: f.isVerified ? 'Yes' : 'No',
+          'Created At': f.createdAt || '',
+          Location: f.location || '',
+          Website: f.website || ''
+        }))
+        
+        const worksheet = XLSX.utils.json_to_sheet(excelData)
+        const workbook = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Followers')
+        
+        // Generate Excel file as buffer
+        const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' })
+        
+        return new NextResponse(excelBuffer, {
           status: 200,
           headers: {
-            'Content-Type': 'text/csv',
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition': `attachment; filename="${cleanUsername}_followers.xlsx"`
           }
         })
