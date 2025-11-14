@@ -73,13 +73,22 @@ export async function POST(request: NextRequest) {
       cachedCount = data.followerCount || 0 // Actual extracted count
       cachedApiCount = data.apiFollowerCount || 0 // What API said last time
       
-      // Compare API counts (not extracted counts) to detect real changes
-      // This handles the 805 API vs 800 extracted discrepancy
-      if (cachedApiCount === currentFollowerCount && cachedApiCount > 0) {
-        needsExtraction = false
-        console.log(`[Eligibility] API count unchanged (${currentFollowerCount}) - using cached ${cachedCount} extracted followers`)
-      } else {
+      // Compare API counts to detect follower changes
+      const apiChanged = cachedApiCount !== currentFollowerCount && cachedApiCount > 0
+      
+      // ALSO check if extracted count is stale (>1% difference from API count)
+      const extractedVsApi = cachedCount > 0 ? Math.abs(currentFollowerCount - cachedCount) : 0
+      const isStale = extractedVsApi > Math.max(5, currentFollowerCount * 0.01) // More than 1% or 5 followers difference
+      
+      if (apiChanged) {
+        needsExtraction = true
         console.log(`[Eligibility] API count changed: ${cachedApiCount} → ${currentFollowerCount} (${currentFollowerCount - cachedApiCount > 0 ? '+' : ''}${currentFollowerCount - cachedApiCount}) - needs fresh extraction`)
+      } else if (isStale) {
+        needsExtraction = true
+        console.log(`[Eligibility] Cached data is stale (extracted: ${cachedCount}, API: ${currentFollowerCount}, diff: ${extractedVsApi}) - needs fresh extraction`)
+      } else {
+        needsExtraction = false
+        console.log(`[Eligibility] API count unchanged (${currentFollowerCount}) and extracted count fresh (${cachedCount}) - using cache`)
       }
     } else {
       console.log(`[Eligibility] No cached data - needs extraction`)

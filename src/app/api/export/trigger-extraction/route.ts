@@ -106,14 +106,16 @@ export async function POST(request: NextRequest) {
       })
     }
     
-    // Check if already complete
-    if (data?.extractionProgress?.status === 'complete') {
-      console.log(`[Extraction API] Already complete for @${cleanUsername}`)
+    // Check if already complete (but allow re-extraction if needsExtraction flag is set)
+    if (data?.extractionProgress?.status === 'complete' && !needsExtraction) {
+      console.log(`[Extraction API] Already complete for @${cleanUsername}, using cached ${data.followerCount}`)
       return NextResponse.json({ 
         message: 'Extraction already complete',
         followerCount: data.followerCount,
         status: 'complete'
       })
+    } else if (data?.extractionProgress?.status === 'complete' && needsExtraction) {
+      console.log(`[Extraction API] Cached data exists but needsExtraction=true, will extract fresh`)
     }
     
     // Set starting state
