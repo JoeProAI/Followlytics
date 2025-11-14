@@ -140,32 +140,26 @@ class GammaClient {
         }
       }
       
-      // If completed, extract URL - Gamma uses 'webUrl' field
-      let viewUrl = data.webUrl || data.viewUrl || data.view_url || data.url || data.gamma_url
+      // Extract URL - Gamma actually uses 'gammaUrl' field!
+      let viewUrl = data.gammaUrl || data.webUrl || data.viewUrl || data.view_url || data.url || data.gamma_url
       
-      // FALLBACK: Construct Gamma URL if not provided (Gamma has predictable URL structure)
-      if (!viewUrl && (data.status === 'completed' || data.status === 'success')) {
+      console.log('[Gamma] ✅ URL from API:', viewUrl)
+      
+      // Fallback only if truly missing
+      if (!viewUrl) {
         viewUrl = `https://gamma.app/docs/${gammaId}`
-        console.log('[Gamma] No URL in response, using constructed URL:', viewUrl)
-      }
-      
-      console.log('[Gamma] Extracted view URL:', viewUrl)
-      console.log('[Gamma] Status:', data.status)
-      
-      // If no URL found but status is complete, log all fields for debugging
-      if (!viewUrl && data.status === 'completed') {
-        console.error('[Gamma] WARNING: No URL found in completed generation! Available fields:', Object.keys(data))
+        console.log('[Gamma] ⚠️ Using constructed fallback:', viewUrl)
       }
       
       return {
         gamma_id: gammaId,
         status: data.status || 'completed',
-        urls: viewUrl ? {
-          view: viewUrl,
+        urls: {
+          view: viewUrl,  // Always provide URL (either from API or fallback)
           pdf: data.pdfUrl || data.pdf_url,
           pptx: data.pptxUrl || data.pptx_url
-        } : undefined,
-        message: viewUrl ? 'Generation complete' : 'Completed but URL not available yet'
+        },
+        message: 'Generation complete'
       }
     } catch (error: any) {
       console.error('[Gamma] Failed to check status:', error)

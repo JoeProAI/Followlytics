@@ -33,26 +33,28 @@ export async function GET(
       }, { status: 202 })
     }
 
-    // If completed, send email if not already sent
+    // If completed, send email if not already sent (wrapped to not break main response)
     if (result.status === 'completed' && result.urls?.view) {
-      // Check if email already sent
-      const gammaGenDoc = await adminDb.collectionGroup('gamma_generations')
-        .where('gammaId', '==', gammaId)
-        .limit(1)
-        .get()
-      
-      if (!gammaGenDoc.empty) {
-        const genData = gammaGenDoc.docs[0].data()
-        const genRef = gammaGenDoc.docs[0].ref
+      try {
+        // Check if email already sent
+        const gammaGenDoc = await adminDb.collectionGroup('gamma_generations')
+          .where('gammaId', '==', gammaId)
+          .limit(1)
+          .get()
         
-        // Send email if not already sent
-        if (!genData.emailSent && process.env.RESEND_API_KEY) {
-          try {
+        if (!gammaGenDoc.empty) {
+          const genData = gammaGenDoc.docs[0].data()
+          const genRef = gammaGenDoc.docs[0].ref
+          
+          // Send email if not already sent
+          if (!genData.emailSent && process.env.RESEND_API_KEY) {
             // Get user email from follower_database
             const followerDoc = await adminDb.collection('follower_database').doc(genData.username).get()
             const customerEmail = followerDoc.data()?.customerEmail
             
             if (customerEmail) {
+              console.log(`[Gamma Status] Sending email to ${customerEmail}`)
+              
               await resend.emails.send({
                 from: 'Followlytics <notifications@followlytics.io>',
                 to: customerEmail,
@@ -77,19 +79,28 @@ export async function GET(
                 `
               })
               
-              console.log(`[Gamma Status] Email sent to ${customerEmail} for presentation ${gammaId}`)
+              console.log(`[Gamma Status] ✅ Email sent successfully`)
               
-              // Mark as sent
-              await genRef.update({ 
-                emailSent: true,
-                completedAt: new Date(),
-                viewUrl: result.urls.view
-              })
+              // Mark as sent (with error handling)
+              try {
+                await genRef.update({ 
+                  emailSent: true,
+                  completedAt: new Date(),
+                  viewUrl: result.urls.view
+                })
+                console.log('[Gamma Status] ✅ Marked as sent in database')
+              } catch (updateErr) {
+                console.error('[Gamma Status] Warning: Could not update emailSent flag:', updateErr)
+                // Continue anyway - email was sent
+              }
+            } else {
+              console.log('[Gamma Status] No customer email found, skipping notification')
             }
-          } catch (emailErr) {
-            console.error('[Gamma Status] Email error:', emailErr)
           }
         }
+      } catch (emailProcessErr) {
+        console.error('[Gamma Status] Email process error (non-fatal):', emailProcessErr)
+        // Don't throw - just log and continue to return the URLs
       }
     }
     
