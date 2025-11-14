@@ -282,18 +282,6 @@ export async function POST(request: NextRequest) {
     
     console.log(`[Analysis API] SUCCESS - Stored ${cleanFollowers.length} followers in subcollection for @${cleanUsername}`)
     
-    // Generate secure download token
-    const downloadToken = randomBytes(32).toString('hex') // 64 character secure token
-    
-    // Store token in database
-    await adminDb.collection('download_tokens').doc(downloadToken).set({
-      username: cleanUsername,
-      createdAt: new Date(),
-      followerCount: cleanFollowers.length
-    })
-    
-    console.log(`[Analysis API] Generated download token: ${downloadToken.substring(0, 16)}...`)
-    
     // Send email
     const customerEmail = data?.customerEmail
     if (customerEmail && customerEmail !== 'no-email') {
@@ -301,7 +289,8 @@ export async function POST(request: NextRequest) {
         const { Resend } = await import('resend')
         const resend = new Resend(process.env.RESEND_API_KEY)
         
-        const downloadUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://followlytics-zeta.vercel.app'}/download/${downloadToken}`
+        // Use simple direct link to success page - works with existing session/payment
+        const downloadUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://followlytics-zeta.vercel.app'}/export/success?username=${cleanUsername}&session_id=email_access`
         
         await resend.emails.send({
           from: 'Followlytics <notifications@followlytics.joepro.ai>',
