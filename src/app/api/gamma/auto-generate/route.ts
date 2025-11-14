@@ -111,17 +111,20 @@ export async function POST(request: NextRequest) {
     const gamma = getGammaClient()
     console.log('[Auto-Gamma] Gamma client initialized')
     
-    // Use variety of BEST image models (rotate for different presentations)
-    const topModels = [
-      'imagen-4-ultra',      // Google's best - photorealistic
-      'flux-1-ultra',        // Amazing quality and coherence
-      'ideogram-v3-quality', // Best for text in images
-      'leonardo-phoenix',    // Great for creative/artistic
-      'recraft-v3'          // Modern, clean aesthetic
+    // Use BEST models available on current Gamma plan (non-ultra)
+    const premiumModels = [
+      'dall-e-3',              // OpenAI's best
+      'imagen-3-pro',          // Google's premium
+      'flux-1-pro',            // Flux premium quality
+      'ideogram-v3',           // Ideogram standard (still excellent)
+      'flux-kontext-pro',      // Flux with context awareness
+      'luma-photon-1',         // Luma's photorealistic AI
+      'recraft-v3',            // Modern, clean aesthetic
+      'gpt-image-1-high'       // GPT high quality
     ]
     
-    // Pick random top model for variety
-    const selectedModel = topModels[Math.floor(Math.random() * topModels.length)]
+    // Pick random premium model for variety
+    const selectedModel = premiumModels[Math.floor(Math.random() * premiumModels.length)]
     console.log(`[Auto-Gamma] Selected image model: ${selectedModel}`)
     
     const result = await gamma.generate({
