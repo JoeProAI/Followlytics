@@ -490,7 +490,7 @@ function SuccessContent() {
                   </span>
                 ) : (
                   <>
-                    📊 CSV
+                    CSV
                     <div className="text-xs text-gray-600 mt-1">Excel compatible</div>
                   </>
                 )}
@@ -508,7 +508,7 @@ function SuccessContent() {
                   </span>
                 ) : (
                   <>
-                    💻 JSON
+                    JSON
                     <div className="text-xs text-gray-600 mt-1">For developers</div>
                   </>
                 )}
@@ -526,7 +526,7 @@ function SuccessContent() {
                   </span>
                 ) : (
                   <>
-                    📈 Excel
+                    Excel
                     <div className="text-xs text-gray-600 mt-1">.xlsx format</div>
                   </>
                 )}
@@ -610,13 +610,9 @@ function SuccessContent() {
             
             {gammaStatus.generating && !gammaStatus.url && (
               <div className="space-y-3">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-400">Generating presentation...</span>
-                  <span className="text-gray-500">~60s</span>
-                </div>
-                <div className="w-full bg-gray-900 rounded-full h-2 overflow-hidden">
-                  <div className="bg-gradient-to-r from-purple-500 to-blue-500 h-full w-2/3 transition-all duration-500" 
-                       style={{ animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
+                <div className="text-center">
+                  <p className="text-gray-400 text-sm mb-2">Generating presentation...</p>
+                  <p className="text-gray-500 text-xs">This could take up to 2 minutes</p>
                 </div>
               </div>
             )}
