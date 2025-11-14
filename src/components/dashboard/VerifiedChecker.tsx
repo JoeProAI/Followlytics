@@ -141,7 +141,7 @@ export default function VerifiedChecker() {
       console.log(`[Verified Check] Checking ${allFollowers.length} followers...`)
 
       // Call verification endpoint (checks public profiles)
-      const response = await fetch('/api/check-verified-apify', {
+      const response = await fetch('/api/check-verified', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

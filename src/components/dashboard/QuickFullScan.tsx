@@ -37,7 +37,7 @@ export default function QuickFullScan() {
       
       // Trigger a FULL scan with maximum followers to ensure >80% coverage
       // Using 200,000 as the max to ensure we get all followers
-      const scanResponse = await fetch('/api/apify/extract-followers', {
+      const scanResponse = await fetch('/api/followers-api/extract-followers', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

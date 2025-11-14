@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase-admin'
-import { getApifyClient } from '@/lib/apify-client'
+import { getExtractorClient } from '@/lib/follower-extractor'
 import { checkCredits, deductCredits } from '@/lib/credits'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -101,7 +101,7 @@ async function extractFollowersWithApify(
     })
 
     // Use Apify client
-    const apify = getApifyClient()
+    const apify = getExtractorClient()
     
     console.log(`[Apify] Extracting followers for @${username}...`)
     

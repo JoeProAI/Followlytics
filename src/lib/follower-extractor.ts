@@ -1,9 +1,9 @@
-// Apify Integration - Safe follower extraction via scraping-as-a-service
-// Legal buffer: Apify handles scraping, we just use their API
+// Follower Extraction Service
+// Handles follower data extraction and enrichment
 
 import { ApifyClient } from 'apify-client'
 
-export interface ApifyFollowerResult {
+export interface FollowerResult {
   username: string
   name: string
   bio?: string
@@ -14,14 +14,14 @@ export interface ApifyFollowerResult {
   location?: string
 }
 
-export interface ApifyExtractionResult {
-  followers: ApifyFollowerResult[]
+export interface ExtractionResult {
+  followers: FollowerResult[]
   totalExtracted: number
   success: boolean
   error?: string
 }
 
-export class ApifyFollowerExtractor {
+export class FollowerExtractor {
   private client: ApifyClient
   
   constructor(apiToken?: string) {
@@ -43,10 +43,10 @@ export class ApifyFollowerExtractor {
       maxFollowers?: number
       includeDetails?: boolean
     }
-  ): Promise<ApifyExtractionResult> {
+  ): Promise<ExtractionResult> {
     try {
-      console.log(`[Apify] Starting follower extraction for @${username}`)
-      console.log(`[Apify] Max followers: ${options?.maxFollowers || 1000}`)
+      console.log(`[Extractor] Starting follower extraction for @${username}`)
+      console.log(`[Extractor] Max followers: ${options?.maxFollowers || 1000}`)
       
       // Use Apify's Twitter Follower Scraper actor
       // Actor ID: curious_coder/twitter-scraper (correct actor name)
@@ -68,7 +68,7 @@ export class ApifyFollowerExtractor {
       
       // Get results from dataset
       const dataset = await this.client.dataset(run.defaultDatasetId).listItems()
-      const followers = dataset.items as unknown as ApifyFollowerResult[]
+      const followers = dataset.items as unknown as FollowerResult[]
       
       console.log(`[Apify] Extraction complete: ${followers.length} followers`)
       
@@ -94,7 +94,7 @@ export class ApifyFollowerExtractor {
    * Extract profile information for a single user
    * Useful for getting follower count and basic info
    */
-  async extractProfile(username: string): Promise<ApifyFollowerResult | null> {
+  async extractProfile(username: string): Promise<FollowerResult | null> {
     try {
       console.log(`[Apify] Extracting profile for @${username}`)
       
@@ -229,11 +229,11 @@ export class ApifyFollowerExtractor {
 }
 
 // Export singleton instance
-let apifyInstance: ApifyFollowerExtractor | null = null
+let extractorInstance: FollowerExtractor | null = null
 
-export function getApifyClient(): ApifyFollowerExtractor {
-  if (!apifyInstance) {
-    apifyInstance = new ApifyFollowerExtractor()
+export function getExtractorClient(): FollowerExtractor {
+  if (!extractorInstance) {
+    extractorInstance = new FollowerExtractor()
   }
-  return apifyInstance
+  return extractorInstance
 }

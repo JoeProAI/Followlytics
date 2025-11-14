@@ -54,7 +54,7 @@ export default function FollowerEnrichment() {
       for (let i = 0; i < batches.length; i++) {
         console.log(`[Enrich] Processing batch ${i + 1}/${batches.length} (${batches[i].length} users)`)
         
-        const enrichResponse = await fetch('/api/apify/enrich-followers', {
+        const enrichResponse = await fetch('/api/followers-api/enrich-followers', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,

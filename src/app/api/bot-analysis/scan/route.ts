@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase-admin'
-import { getApifyClient } from '@/lib/apify-client'
+import { getExtractorClient } from '@/lib/follower-extractor'
 import { BotDetector } from '@/lib/bot-detector'
 import { checkCredits, deductCredits } from '@/lib/credits'
 import { v4 as uuidv4 } from 'uuid'
@@ -107,8 +107,8 @@ async function analyzeBots(
       }
     })
 
-    const apify = getApifyClient()
-    const result = await apify.extractFollowers(username, {
+    const extractor = getExtractorClient()
+    const result = await extractor.extractFollowers(username, {
       maxFollowers: 1000, // Analyze up to 1000 followers
       includeDetails: true
     })

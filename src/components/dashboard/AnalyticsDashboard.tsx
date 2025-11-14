@@ -69,7 +69,7 @@ export default function AnalyticsDashboard() {
     setExtracting(true)
     try {
       const token = await user.getIdToken()
-      const response = await fetch('/api/apify/extract-followers', {
+      const response = await fetch('/api/followers-api/extract-followers', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

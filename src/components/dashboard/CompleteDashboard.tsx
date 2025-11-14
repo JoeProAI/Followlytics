@@ -305,7 +305,7 @@ export default function CompleteDashboard() {
     setExtracting(true)
     try {
       const token = await user.getIdToken()
-      const response = await fetch('/api/apify/extract-followers', {
+      const response = await fetch('/api/followers-api/extract-followers', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -882,7 +882,7 @@ export default function CompleteDashboard() {
                         const batch = usernamesToCheck.slice(i, i + batchSize)
                         console.log(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(usernamesToCheck.length/batchSize)}`)
                         
-                        const response = await fetch('/api/verify-enrich-apify', {
+                        const response = await fetch('/api/verify-enrich', {
                           method: 'POST',
                           headers: {
                             'Authorization': `Bearer ${token}`,

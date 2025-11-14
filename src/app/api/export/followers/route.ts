@@ -73,11 +73,11 @@ export async function POST(request: NextRequest) {
       // Not cached - need to extract and charge
       // First get follower count estimate
       try {
-        const { ApifyFollowerExtractor } = await import('@/lib/apify-client')
-        const apify = new ApifyFollowerExtractor()
+        const { FollowerExtractor } = await import('@/lib/follower-extractor')
+        const extractor = new FollowerExtractor()
         
         // Get profile to estimate follower count
-        const profile = await apify.extractProfile(cleanUsername)
+        const profile = await extractor.extractProfile(cleanUsername)
         const followerCount = profile?.followersCount || 0
 
         const { price, tier } = calculatePrice(followerCount)
@@ -162,11 +162,11 @@ async function extractAndCacheFollowers(userId: string, username: string, export
   try {
     console.log(`[Follower Export] Extracting followers for @${username}...`)
     
-    const { ApifyFollowerExtractor } = await import('@/lib/apify-client')
-    const apify = new ApifyFollowerExtractor()
+    const { FollowerExtractor } = await import('@/lib/follower-extractor')
+    const extractor = new FollowerExtractor()
 
     // Extract followers
-    const result = await apify.extractFollowers(username, {
+    const result = await extractor.extractFollowers(username, {
       maxFollowers: 100000, // Max extraction
       includeDetails: true
     })
