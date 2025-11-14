@@ -24,19 +24,26 @@ export async function POST(request: NextRequest) {
         const decodedToken = await adminAuth.verifyIdToken(idToken)
         const userId = decodedToken.uid
 
-        // Check user's exports
+        // Check user's exports - simplified query (no index needed)
         const exportsSnapshot = await adminDb
           .collection('users')
           .doc(userId)
           .collection('follower_exports')
           .where('username', '==', cleanUsername)
           .where('status', '==', 'completed')
-          .orderBy('completedAt', 'desc')
-          .limit(1)
           .get()
 
         if (!exportsSnapshot.empty) {
-          const exportData = exportsSnapshot.docs[0].data()
+          // Get the most recent one
+          const exports = exportsSnapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .sort((a: any, b: any) => {
+              const aTime = a.completedAt?.toMillis() || 0
+              const bTime = b.completedAt?.toMillis() || 0
+              return bTime - aTime
+            })
+          
+          const exportData: any = exports[0]
           followers = exportData.followers || []
           console.log(`[Download] Retrieved ${followers.length} followers from user export`)
         }
