@@ -121,8 +121,8 @@ export async function POST(request: NextRequest) {
         .collection('users')
         .doc(userId)
         .collection('followers')
-        .where('targetUsername', '==', cleanUsername)
-        .where('active', '==', true)
+        .where('target_username', '==', cleanUsername)
+        .where('status', '==', 'active')
         .get()
 
       if (!storedFollowersSnapshot.empty) {
