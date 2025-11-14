@@ -144,17 +144,28 @@ export async function POST(request: NextRequest) {
           followerCount: followers.length
         })
 
-        // Store followers in SUBCOLLECTION to avoid document size limit
+        // Store followers in SUBCOLLECTION with sanitized usernames as doc IDs
+        // This makes the database searchable and queryable
         // Process in batches of 500 (Firestore limit)
         const batchSize = 500
         for (let i = 0; i < followers.length; i += batchSize) {
           const batch = adminDb.batch()
           const chunk = followers.slice(i, i + batchSize)
-          chunk.forEach((follower: any, chunkIndex: number) => {
-            // Use index-based IDs to avoid reserved characters in usernames
-            const docId = `f_${i + chunkIndex}`
-            const followerRef = exportRef.collection('followers').doc(docId)
-            batch.set(followerRef, follower)
+          chunk.forEach((follower: any) => {
+            // Sanitize username for Firestore (same logic as dashboard)
+            const sanitizedUsername = (follower.username || `user_${Date.now()}_${Math.random()}`)
+              .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores (fixes __Firefly__)
+              .replace(/\//g, '_') // Replace slashes
+              .replace(/\./g, '_') // Replace dots
+              .replace(/__+/g, '_') // Replace multiple underscores with single
+              || `unknown_${Date.now()}`
+            
+            const followerRef = exportRef.collection('followers').doc(sanitizedUsername)
+            batch.set(followerRef, {
+              ...follower,
+              _docId: sanitizedUsername, // Store sanitized ID for reference
+              _originalUsername: follower.username // Preserve original
+            })
           })
           await batch.commit()
         }
@@ -255,16 +266,26 @@ async function extractAndCacheFollowers(userId: string, username: string, export
       }
     })
 
-    // Store followers in subcollection (batches of 500)
+    // Store followers in subcollection with sanitized usernames
     const batchSize = 500
     for (let i = 0; i < result.followers.length; i += batchSize) {
       const batch = adminDb.batch()
       const chunk = result.followers.slice(i, i + batchSize)
-      chunk.forEach((follower: any, chunkIndex: number) => {
-        // Use index-based IDs to avoid reserved characters
-        const docId = `f_${i + chunkIndex}`
-        const followerRef = exportRef.collection('followers').doc(docId)
-        batch.set(followerRef, follower)
+      chunk.forEach((follower: any) => {
+        // Sanitize username for Firestore
+        const sanitizedUsername = (follower.username || `user_${Date.now()}_${Math.random()}`)
+          .replace(/^_+|_+$/g, '')
+          .replace(/\//g, '_')
+          .replace(/\./g, '_')
+          .replace(/__+/g, '_')
+          || `unknown_${Date.now()}`
+        
+        const followerRef = exportRef.collection('followers').doc(sanitizedUsername)
+        batch.set(followerRef, {
+          ...follower,
+          _docId: sanitizedUsername,
+          _originalUsername: follower.username
+        })
       })
       await batch.commit()
     }
