@@ -193,13 +193,37 @@ export default function FollowerExportCard() {
     }, 3000)
   }
 
-  const downloadExport = (format: string) => {
-    const token = user?.getIdToken()
+  const downloadExport = async (format: string) => {
     const cleanUsername = username.replace('@', '')
     
-    // Open download URL in new tab
-    const downloadUrl = `/api/export/download?username=${cleanUsername}&format=${format}`
-    window.open(downloadUrl, '_blank')
+    try {
+      const res = await fetch('/api/export/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          sessionId: 'manual-test', // Dashboard downloads use test session
+          username: cleanUsername,
+          format
+        })
+      })
+
+      if (!res.ok) {
+        throw new Error('Download failed')
+      }
+
+      // Get the blob and trigger download
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${cleanUsername}_followers.${format === 'xlsx' ? 'xlsx' : format}`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (err) {
+      setError('Download failed. Please try again.')
+    }
   }
 
   return (

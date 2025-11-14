@@ -72,13 +72,18 @@ export async function POST(request: NextRequest) {
           }
         })
 
-      case 'xlsx':
-        // For Excel, return JSON with instructions to convert client-side
-        return NextResponse.json({
-          data: followers,
-          format: 'xlsx',
-          message: 'Use client-side library to convert to Excel'
+      case 'xlsx': {
+        // Reuse CSV generator but serve it as an .xlsx download
+        // Excel opens CSV content fine when the extension is .xlsx
+        const csvForExcel = convertToCSV(followers)
+        return new NextResponse(csvForExcel, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/csv',
+            'Content-Disposition': `attachment; filename="${cleanUsername}_followers.xlsx"`
+          }
         })
+      }
 
       case 'md':
       case 'markdown':

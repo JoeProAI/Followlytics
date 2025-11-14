@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from '@/hooks/useAuth'
+import SpeedBackdrop from '@/components/ui/SpeedBackdrop'
 import { PostHogProvider } from '@/components/providers/PostHogProvider'
-import NeuralBackground from '@/components/NeuralBackground'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -22,7 +22,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <PostHogProvider>
           <div className="min-h-screen bg-background text-foreground relative">
-            <NeuralBackground />
+            <SpeedBackdrop />
             <AuthProvider>
               {children}
             </AuthProvider>

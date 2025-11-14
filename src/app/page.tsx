@@ -166,6 +166,17 @@ export default function Home() {
               Get Started
             </button>
           </div>
+
+          {/* Safety note */}
+          <p className="mt-6 text-xs text-gray-500">
+            Your X account stays yours. We just read the numbers.
+            <Link
+              href="/terms"
+              className="ml-1 underline decoration-dotted hover:decoration-solid hover:text-gray-300 transition-colors"
+            >
+              Safety & small print →
+            </Link>
+          </p>
         </div>
       </section>
 
