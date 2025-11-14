@@ -19,35 +19,8 @@ export async function POST(request: NextRequest) {
 
     const cleanUsername = username.replace('@', '').toLowerCase()
 
-    // STEP 1: Check if we already have this data
-    const cachedRef = adminDb.collection('follower_database').doc(cleanUsername)
-    const cached = await cachedRef.get()
-
-    if (cached.exists) {
-      const data = cached.data()!
-      const age = Date.now() - data.lastExtractedAt?.toMillis()
-      const isRecent = age < 30 * 24 * 60 * 60 * 1000 // 30 days
-
-      if (isRecent && data.followers && data.followers.length > 0) {
-        const followerCount = data.followers.length
-        const { isFree, price, tier } = calculatePricing(followerCount)
-
-        return NextResponse.json({
-          username: cleanUsername,
-          followerCount,
-          isFree,
-          price,
-          tier,
-          status: 'ready',
-          message: isFree 
-            ? `🎉 Account eligible! ${followerCount} followers - export is FREE!`
-            : `✅ Account eligible! ${followerCount.toLocaleString()} followers found. Pay $${price} to download.`
-        })
-      }
-    }
-
-    // STEP 2: No data → Get EXACT follower count from Apify (RELIABLE!)
-    console.log(`[Eligibility] Getting EXACT follower count for @${cleanUsername}`)
+    // STEP 1: ALWAYS get current follower count (fast check)
+    console.log(`[Eligibility] Getting current follower count for @${cleanUsername}`)
     
     // Set initial status
     await adminDb.collection('price_check_status').doc(cleanUsername).set({
@@ -84,22 +57,44 @@ export async function POST(request: NextRequest) {
       }, { status: 404 })
     }
     
-    const followerCount = profile.followersCount || 0
+    const currentFollowerCount = profile.followersCount || 0
     
-    console.log(`[Eligibility] @${cleanUsername} has EXACTLY ${followerCount} followers`)
+    console.log(`[Eligibility] @${cleanUsername} currently has ${currentFollowerCount} followers`)
+    
+    // STEP 2: Check if we have cached data with same follower count
+    const cachedRef = adminDb.collection('follower_database').doc(cleanUsername)
+    const cached = await cachedRef.get()
+    let needsExtraction = true
+    let cachedCount = 0
+    
+    if (cached.exists) {
+      const data = cached.data()!
+      cachedCount = data.followerCount || 0
+      
+      // Compare counts - if same, we can use cached data
+      if (cachedCount === currentFollowerCount && cachedCount > 0) {
+        needsExtraction = false
+        console.log(`[Eligibility] Cached data matches current count (${cachedCount}) - extraction not needed!`)
+      } else {
+        console.log(`[Eligibility] Count changed: cached=${cachedCount}, current=${currentFollowerCount} - needs fresh extraction`)
+      }
+    } else {
+      console.log(`[Eligibility] No cached data - needs extraction`)
+    }
     
     // Update status: analyzing
     await adminDb.collection('price_check_status').doc(cleanUsername).update({
-      message: 'Calculating pricing...',
+      message: needsExtraction ? 'New followers detected - extraction needed' : 'Data up to date!',
       progress: 80,
-      followerCount: followerCount
+      followerCount: currentFollowerCount,
+      needsExtraction: needsExtraction
     })
     
     // Store in X database for analytics
     const { xDatabase } = await import('@/lib/firebase-x-database')
     await xDatabase.upsertProfile(cleanUsername, {
       displayName: profile.name || cleanUsername,
-      followerCount: followerCount,
+      followerCount: currentFollowerCount,
       verified: profile.verified || false,
       bio: profile.bio || '',
       location: '',  // Prevent undefined error
@@ -114,42 +109,47 @@ export async function POST(request: NextRequest) {
     await adminDb.collection('follower_database').doc(cleanUsername).set({
       username: cleanUsername,
       followers: [], // Empty - will extract after payment
-      followerCount: followerCount,
+      followerCount: currentFollowerCount,
       lastCheckedAt: new Date(),
       extractedBy: 'pending-payment',
       accessGranted: [],
       extractionProgress: {
-        status: 'pending',
-        message: 'Awaiting payment',
-        percentage: 0
-      }
-    })
+        status: needsExtraction ? 'pending' : 'complete',
+        message: needsExtraction ? 'Awaiting payment - will extract' : 'Ready to use cached data',
+        percentage: needsExtraction ? 0 : 100
+      },
+      needsExtraction: needsExtraction
+    }, { merge: true }) // Merge to preserve existing data if count matches
     
     console.log(`[Eligibility] Stored profile in X database and follower_database`)
 
-    const { isFree, price, tier } = calculatePricing(followerCount)
+    const { isFree, price, tier } = calculatePricing(currentFollowerCount)
 
     // Update status: complete
     await adminDb.collection('price_check_status').doc(cleanUsername).update({
       status: 'complete',
-      message: 'Ready for download',
+      message: needsExtraction ? 'Ready for extraction' : 'Ready with cached data',
       progress: 100,
       price: price,
       isFree: isFree,
       tier: tier,
+      needsExtraction: needsExtraction,
       completedAt: new Date()
     })
 
     return NextResponse.json({
       username: cleanUsername,
-      followerCount,
+      followerCount: currentFollowerCount,
       isFree,
       price,
       tier,
+      needsExtraction,
       status: 'pending_payment',
       message: isFree 
-        ? `🎉 You have ${followerCount} followers - FREE download!`
-        : `💰 ${followerCount.toLocaleString()} followers found - Pay $${price} to extract and download.`
+        ? `🎉 You have ${currentFollowerCount} followers - FREE download!`
+        : needsExtraction
+          ? `💰 ${currentFollowerCount.toLocaleString()} followers found (${currentFollowerCount - cachedCount > 0 ? '+' : ''}${currentFollowerCount - cachedCount} new) - Pay $${price} to extract and download.`
+          : `💰 ${currentFollowerCount.toLocaleString()} followers found - Pay $${price} to download (data ready!).`
     })
 
   } catch (error: any) {
