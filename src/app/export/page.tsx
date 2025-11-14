@@ -127,7 +127,7 @@ function ExportContent() {
       // 🔥 LAUNCH SPECIAL: Gamma is FREE for 500+ followers, $2.99 add-on for < 500
       const gammaIncludedFree = pricing.followerCount >= 500
       const gammaCharge = gammaIncludedFree ? 0 : 2.99
-      const basePrice = pricing.price // Already $2.99 from API
+      const basePrice = pricing.price // Tiered price from API
       const total = basePrice + (addGamma && !gammaIncludedFree ? gammaCharge : 0)
 
       // Create Stripe checkout (for follower export)
@@ -343,15 +343,15 @@ function ExportContent() {
                 {(() => {
                   const gammaIncludedFree = pricing.followerCount >= 500
                   const gammaCharge = gammaIncludedFree ? 0 : 2.99
-                  const basePrice = pricing.price // Already $2.99 from API
+                  const basePrice = pricing.price // Tiered price from API
                   const total = basePrice + (addGamma && !gammaIncludedFree ? gammaCharge : 0)
                   
                   if (addGamma && gammaIncludedFree) {
-                    return `Pay $${basePrice} (Gamma FREE 🎉)`
+                    return `Pay $${basePrice.toFixed(2)} (Gamma FREE 🎉)`
                   } else if (addGamma && !gammaIncludedFree) {
                     return `Pay $${total.toFixed(2)} (Data + Gamma)`
                   } else {
-                    return `Pay $${basePrice}`
+                    return `Pay $${basePrice.toFixed(2)}`
                   }
                 })()}
               </button>

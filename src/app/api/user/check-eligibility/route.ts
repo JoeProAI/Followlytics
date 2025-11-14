@@ -204,9 +204,23 @@ function calculatePricing(followerCount: number) {
   let tier = 'FREE (Under 500 followers)'
 
   if (!isFree) {
-    // 🔥 LAUNCH SPECIAL: Flat $2.99 for any account size!
-    price = 2.99
-    tier = `🔥 Launch Special: $2.99 (normally $4.99+)`
+    // 🔥 LAUNCH SPECIAL: Tiered pricing with sustainable margins
+    if (followerCount < 5000) {
+      price = 2.99
+      tier = '🔥 Launch Special: $2.99 (500-5K followers)'
+    } else if (followerCount < 25000) {
+      price = 4.99
+      tier = '🔥 Launch Special: $4.99 (5K-25K followers)'
+    } else if (followerCount < 100000) {
+      price = 9.99
+      tier = '🔥 Launch Special: $9.99 (25K-100K followers)'
+    } else if (followerCount < 500000) {
+      price = 19.99
+      tier = '🔥 Launch Special: $19.99 (100K-500K followers)'
+    } else {
+      price = 49.99
+      tier = '🔥 Launch Special: $49.99 (500K+ followers)'
+    }
   }
 
   return { isFree, price, tier }
