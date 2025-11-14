@@ -4,7 +4,14 @@ import { getGammaClient } from '@/lib/gamma-client'
 import { adminDb } from '@/lib/firebase-admin'
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Initialize Resend only if API key exists
+let resend: Resend | null = null
+if (process.env.RESEND_API_KEY) {
+  resend = new Resend(process.env.RESEND_API_KEY)
+  console.log('[Gamma Status] ✅ Resend initialized')
+} else {
+  console.warn('[Gamma Status] ⚠️ RESEND_API_KEY not set - emails will not be sent')
+}
 
 export async function GET(
   request: NextRequest,
@@ -46,8 +53,16 @@ export async function GET(
           const genData = gammaGenDoc.docs[0].data()
           const genRef = gammaGenDoc.docs[0].ref
           
+          console.log('[Gamma Status] Found generation record:', {
+            username: genData.username,
+            emailSent: genData.emailSent,
+            resendAvailable: !!resend
+          })
+          
           // Send email if not already sent
-          if (!genData.emailSent && process.env.RESEND_API_KEY) {
+          if (!genData.emailSent && resend) {
+            console.log('[Gamma Status] Preparing to send email notification...')
+            
             // Get user email from follower_database
             const followerDoc = await adminDb.collection('follower_database').doc(genData.username).get()
             const customerEmail = followerDoc.data()?.customerEmail
@@ -94,9 +109,15 @@ export async function GET(
                 // Continue anyway - email was sent
               }
             } else {
-              console.log('[Gamma Status] No customer email found, skipping notification')
+              console.log('[Gamma Status] ⚠️ No customer email found, skipping notification')
             }
+          } else if (genData.emailSent) {
+            console.log('[Gamma Status] Email already sent for this presentation')
+          } else if (!resend) {
+            console.error('[Gamma Status] ❌ RESEND_API_KEY not configured - cannot send email')
           }
+        } else {
+          console.log('[Gamma Status] No generation record found in database')
         }
       } catch (emailProcessErr) {
         console.error('[Gamma Status] Email process error (non-fatal):', emailProcessErr)
