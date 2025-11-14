@@ -33,6 +33,42 @@ function SuccessContent() {
   const [error, setError] = useState('')
   const [downloadData, setDownloadData] = useState<DownloadData | null>(null)
   const [downloading, setDownloading] = useState<string | null>(null)
+  const [gammaStatus, setGammaStatus] = useState<{
+    gammaId?: string
+    status?: string
+    url?: string
+    generating?: boolean
+  }>({})
+
+  // Poll for Gamma completion
+  const pollGammaStatus = async (gammaId: string) => {
+    try {
+      const res = await fetch(`/api/gamma/status/${gammaId}`)
+      const data = await res.json()
+      
+      if (data.status === 'completed' && data.urls) {
+        setGammaStatus({
+          gammaId,
+          status: 'completed',
+          url: data.urls.view,
+          generating: false
+        })
+      } else if (data.status === 'failed') {
+        setGammaStatus({
+          gammaId,
+          status: 'failed',
+          generating: false
+        })
+      } else {
+        // Still processing, check again in 5 seconds
+        setTimeout(() => pollGammaStatus(gammaId), 5000)
+      }
+    } catch (err) {
+      console.error('[Gamma Poll] Error:', err)
+      // Retry in 10 seconds
+      setTimeout(() => pollGammaStatus(gammaId), 10000)
+    }
+  }
 
   useEffect(() => {
     let extractionTriggered = false
@@ -82,6 +118,43 @@ function SuccessContent() {
             }).catch(err => {
               console.error('[Success Page] Failed to trigger extraction:', err)
             })
+            
+            // ALSO trigger auto-Gamma generation in parallel
+            if (user) {
+              setGammaStatus({ generating: true })
+              
+              user.getIdToken().then(token => {
+                fetch('/api/gamma/auto-generate', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    username,
+                    customInstructions: data.customInstructions || 'AI and Tech',
+                    gammaStyle: data.gammaStyle || 'professional',
+                    sessionId: sessionId
+                  })
+                }).then(res => res.json())
+                  .then(gammaData => {
+                    if (gammaData.success) {
+                      console.log('[Success Page] Gamma generation started:', gammaData.gammaId)
+                      setGammaStatus({
+                        gammaId: gammaData.gammaId,
+                        status: 'processing',
+                        generating: true
+                      })
+                      // Start polling for Gamma completion
+                      pollGammaStatus(gammaData.gammaId)
+                    }
+                  })
+                  .catch(err => {
+                    console.error('[Success Page] Gamma generation failed:', err)
+                    setGammaStatus({ generating: false })
+                  })
+              })
+            }
           }
           
           // Poll again
@@ -263,6 +336,13 @@ function SuccessContent() {
           <div className="border border-gray-900 rounded-lg p-8 mb-8">
             <h2 className="text-2xl font-light mb-6 text-center">Download Your Data</h2>
             
+            {/* Disclaimer */}
+            <div className="mb-6 p-4 bg-blue-900/30 border border-blue-700/50 rounded-lg">
+              <p className="text-sm text-blue-300 text-center">
+                <span className="font-semibold">ℹ️ Note:</span> The extracted follower count may differ from your Twitter follower count due to private, protected, suspended, or deleted accounts that cannot be accessed via API.
+              </p>
+            </div>
+            
             <div className="grid md:grid-cols-3 gap-4">
               <button
                 onClick={() => handleDownload('csv')}
@@ -322,6 +402,68 @@ function SuccessContent() {
             <p className="text-center text-sm text-gray-500 mt-6">
               Download link also sent to your email ✉️
             </p>
+          </div>
+        )}
+
+        {/* Gamma AI Presentation Status */}
+        {(gammaStatus.generating || gammaStatus.url) && (
+          <div className="border border-gray-900 rounded-lg p-8 mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="text-4xl">🎨</div>
+              <h2 className="text-2xl font-light">AI Presentation</h2>
+            </div>
+            
+            {gammaStatus.generating && !gammaStatus.url && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 text-yellow-400">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-400"></div>
+                  <span className="font-medium">AI is creating your custom presentation...</span>
+                </div>
+                <p className="text-sm text-gray-400">
+                  Our AI is analyzing your follower data and generating a beautiful, data-driven presentation. 
+                  This usually takes 30-60 seconds.
+                </p>
+                <div className="w-full bg-gray-900 rounded-full h-2 overflow-hidden">
+                  <div className="bg-gradient-to-r from-purple-500 to-blue-500 h-full w-2/3 animate-pulse" />
+                </div>
+              </div>
+            )}
+            
+            {gammaStatus.url && (
+              <div className="space-y-4">
+                <div className="p-4 bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-700/50 rounded-lg">
+                  <div className="flex items-center gap-2 text-green-400 mb-3">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="font-semibold">Your presentation is ready!</span>
+                  </div>
+                  <p className="text-sm text-gray-300 mb-4">
+                    AI-generated insights about your {downloadData?.followerCount.toLocaleString()} followers, 
+                    including top influencers, geographic distribution, and growth opportunities.
+                  </p>
+                  <a
+                    href={gammaStatus.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 px-6 rounded-lg font-semibold text-center hover:from-purple-700 hover:to-blue-700 transition-all"
+                  >
+                    🎯 View Your AI Presentation
+                  </a>
+                </div>
+                <p className="text-xs text-gray-500 text-center">
+                  Share this presentation with brands, investors, or stakeholders
+                </p>
+              </div>
+            )}
+            
+            {gammaStatus.status === 'failed' && (
+              <div className="p-4 bg-red-900/20 border border-red-700/50 rounded-lg">
+                <p className="text-red-400 text-sm">
+                  ⚠️ Presentation generation failed. Please contact support if you'd like us to retry.
+                </p>
+              </div>
+            )}
           </div>
         )}
 

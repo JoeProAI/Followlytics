@@ -372,6 +372,13 @@ function ExportContent() {
                   </>
                 )}
               </div>
+              
+              {/* Disclaimer */}
+              <div className="mt-4 p-3 bg-blue-900/20 border border-blue-700/30 rounded">
+                <p className="text-xs text-blue-300">
+                  <span className="font-semibold">ℹ️ Note:</span> Extracted count may differ from your total follower count due to private, protected, suspended, or deleted accounts that cannot be accessed via API.
+                </p>
+              </div>
             </div>
           </div>
         )}
