@@ -147,9 +147,9 @@ export async function POST(request: NextRequest) {
     
     const startTime = Date.now()
     
-    // ACTUALLY RUN THE ACTOR
+    // ACTUALLY RUN THE ACTOR - NO LIMITS, get ALL followers
     const result = await provider.getFollowers(cleanUsername, {
-      maxFollowers: 10000,
+      maxFollowers: 10000000, // 10M max (essentially unlimited)
       includeDetails: true
     })
     
