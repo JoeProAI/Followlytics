@@ -112,17 +112,58 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Payment not completed' }, { status: 402 })
       }
 
-      // Create export record
       const exportId = uuidv4()
       const exportRef = adminDb.collection('users').doc(userId).collection('follower_exports').doc(exportId)
 
+      // Check if user already has this data from dashboard
+      console.log(`[Export] Checking for existing followers for @${cleanUsername}`)
+      const storedFollowersSnapshot = await adminDb
+        .collection('users')
+        .doc(userId)
+        .collection('followers')
+        .where('targetUsername', '==', cleanUsername)
+        .where('active', '==', true)
+        .get()
+
+      if (!storedFollowersSnapshot.empty) {
+        // User already has this data - use it instantly!
+        console.log(`[Export] Found ${storedFollowersSnapshot.size} stored followers, using existing data`)
+        
+        const followers = storedFollowersSnapshot.docs.map(doc => doc.data())
+        
+        await exportRef.set({
+          exportId,
+          userId,
+          username: cleanUsername,
+          status: 'completed',
+          paymentIntentId,
+          amountPaid: paymentIntent.amount / 100,
+          createdAt: new Date(),
+          completedAt: new Date(),
+          followerCount: followers.length,
+          followers: followers
+        })
+
+        console.log(`[Export] Export ready instantly with ${followers.length} followers`)
+
+        return NextResponse.json({
+          success: true,
+          exportId,
+          message: 'Export ready',
+          ready: true,
+          followerCount: followers.length
+        })
+      }
+
+      // No stored data - need to extract
+      console.log(`[Export] No stored data found, starting fresh extraction`)
       await exportRef.set({
         exportId,
         userId,
         username: cleanUsername,
         status: 'extracting',
         paymentIntentId,
-        amountPaid: paymentIntent.amount / 100, // Convert cents to dollars
+        amountPaid: paymentIntent.amount / 100,
         createdAt: new Date(),
         progress: {
           phase: 'extracting',
