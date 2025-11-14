@@ -53,6 +53,14 @@ export default function FollowerExtractor() {
   const [selectedFollowers, setSelectedFollowers] = useState<Set<string>>(new Set())
   const [loadingStored, setLoadingStored] = useState(true)
   const [usage, setUsage] = useState<UsageSummary | null>(null)
+  const [storedFollowersCount, setStoredFollowersCount] = useState<number | null>(null)
+  const [storedFollowersList, setStoredFollowersList] = useState<string[]>([])
+  const [discrepancies, setDiscrepancies] = useState<{
+    unfollowed: string[]
+    newFollowers: string[]
+    totalStored: number
+    totalNew: number
+  } | null>(null)
 
   const limit = usage?.limit ?? null
   const usedFollowers = usage?.followers_extracted ?? 0
@@ -136,13 +144,19 @@ export default function FollowerExtractor() {
           setUsage(normalizeUsage(data.usage))
         }
         if (data.followers && data.followers.length > 0) {
+          // Track stored followers for discrepancy detection
+          const storedUsernames = data.followers.map((f: any) => f.username.toLowerCase())
+          setStoredFollowersCount(data.total || data.followers.length)
+          setStoredFollowersList(storedUsernames)
+          
           // Restore the previous extraction results
           setResult({
             count: data.total || data.followers.length,
             username: data.targetUsername || 'stored',
             cost: '0.00',
             stats: data.stats,
-            sample: data.followers
+            sample: data.followers,
+            isStored: true // Mark as stored/cached data
           })
         }
       }
@@ -195,13 +209,44 @@ export default function FollowerExtractor() {
         setUsage(normalizeUsage(data.usage))
       }
       
-      if (response.ok) {
-        setResult(data)
-      } else {
-        setError(data.error || 'Failed to extract followers')
+      // Detect discrepancies if we had stored followers
+      let discrepancyData = null
+      if (storedFollowersCount && storedFollowersList.length > 0) {
+        const newFollowers = (data.followers || []).map((f: any) => f.username.toLowerCase())
+        const newFollowersSet = new Set(newFollowers)
+        const storedSet = new Set(storedFollowersList)
+        
+        // Find unfollowed (in stored but not in new)
+        const unfollowed = storedFollowersList.filter((u: string) => !newFollowersSet.has(u))
+        
+        // Find new followers (in new but not in stored)
+        const newlyFound = newFollowers.filter((u: string) => !storedSet.has(u))
+        
+        if (unfollowed.length > 0 || newlyFound.length > 0 || storedFollowersCount !== data.count) {
+          discrepancyData = {
+            unfollowed,
+            newFollowers: newlyFound,
+            totalStored: storedFollowersCount,
+            totalNew: data.count || 0
+          }
+          setDiscrepancies(discrepancyData)
+        }
       }
+      
+      setResult({
+        count: data.count || 0,
+        username: username.replace('@', ''),
+        cost: data.cost || '0.00',
+        stats: data.stats,
+        sample: data.followers || [],
+        isStored: false // Mark as fresh extraction
+      })
+      
+      // Reload stored followers and usage after successful extraction
+      loadStoredFollowers()
+      
     } catch (err: any) {
-      setError(err.message)
+      setError(err.message || 'Failed to extract followers')
     } finally {
       setLoading(false)
     }
@@ -473,8 +518,90 @@ export default function FollowerExtractor() {
             
             <div className="text-xs text-gray-400">
               Cost: <strong className="text-green-300">${result.cost}</strong>
+              {result.isStored && <span className="ml-3 text-yellow-400">📦 Cached Data</span>}
+              {!result.isStored && storedFollowersCount && <span className="ml-3 text-cyan-400">✨ Fresh Extraction</span>}
             </div>
           </div>
+
+          {/* Discrepancy Alert */}
+          {discrepancies && (
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="text-2xl">⚠️</div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-yellow-300 mb-1">Follower Changes Detected</h4>
+                  <p className="text-sm text-gray-300 mb-3">
+                    Comparing <strong className="text-cyan-400">{discrepancies.totalStored.toLocaleString()}</strong> stored followers vs <strong className="text-green-400">{discrepancies.totalNew.toLocaleString()}</strong> newly extracted
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Unfollowed */}
+                    {discrepancies.unfollowed.length > 0 && (
+                      <div className="bg-red-500/10 border border-red-500/20 rounded p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-red-400 text-lg">📉</span>
+                          <div>
+                            <div className="text-sm font-semibold text-red-400">Unfollowed/Deleted</div>
+                            <div className="text-xs text-gray-400">{discrepancies.unfollowed.length} accounts no longer following</div>
+                          </div>
+                        </div>
+                        <div className="max-h-32 overflow-y-auto mt-2">
+                          {discrepancies.unfollowed.slice(0, 10).map((username, i) => (
+                            <div key={i} className="text-xs text-red-300 flex items-center gap-1">
+                              <span>→</span>
+                              <span>@{username}</span>
+                            </div>
+                          ))}
+                          {discrepancies.unfollowed.length > 10 && (
+                            <div className="text-xs text-gray-500 mt-1">...and {discrepancies.unfollowed.length - 10} more</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* New Followers */}
+                    {discrepancies.newFollowers.length > 0 && (
+                      <div className="bg-green-500/10 border border-green-500/20 rounded p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-green-400 text-lg">📈</span>
+                          <div>
+                            <div className="text-sm font-semibold text-green-400">New Followers</div>
+                            <div className="text-xs text-gray-400">{discrepancies.newFollowers.length} new accounts following</div>
+                          </div>
+                        </div>
+                        <div className="max-h-32 overflow-y-auto mt-2">
+                          {discrepancies.newFollowers.slice(0, 10).map((username, i) => (
+                            <div key={i} className="text-xs text-green-300 flex items-center gap-1">
+                              <span>→</span>
+                              <span>@{username}</span>
+                            </div>
+                          ))}
+                          {discrepancies.newFollowers.length > 10 && (
+                            <div className="text-xs text-gray-500 mt-1">...and {discrepancies.newFollowers.length - 10} more</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Net Change */}
+                  <div className="mt-3 pt-3 border-t border-yellow-500/20 text-sm">
+                    <strong className="text-yellow-300">Net Change:</strong>
+                    <span className={`ml-2 font-semibold ${
+                      discrepancies.totalNew > discrepancies.totalStored 
+                        ? 'text-green-400' 
+                        : discrepancies.totalNew < discrepancies.totalStored
+                        ? 'text-red-400'
+                        : 'text-gray-400'
+                    }`}>
+                      {discrepancies.totalNew > discrepancies.totalStored && '+'}
+                      {discrepancies.totalNew - discrepancies.totalStored} followers
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* REAL Extracted Followers Preview */}
           {result.sample && result.sample.length > 0 && (
