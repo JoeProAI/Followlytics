@@ -415,8 +415,9 @@ export default function FollowerExtractor() {
       </div>
     )}
 
-    {/* Input Section */}
-    <div className="space-y-4 mb-6">
+    {/* Input Section - Only show if no cached data or explicitly showing inputs */}
+    {(!result || !result.isStored || loading) && (
+      <div className="space-y-4 mb-6">
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-2">
             X Username
@@ -471,6 +472,36 @@ export default function FollowerExtractor() {
           )}
         </div>
       </div>
+    )}
+
+      {/* Cached Data Info Banner */}
+      {result && result.isStored && !loading && (
+        <div className="mb-4 bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">💾</span>
+                <h4 className="font-semibold text-cyan-300">Using Cached Data</h4>
+              </div>
+              <p className="text-sm text-gray-300 mb-2">
+                Showing your stored followers - no extraction needed!
+              </p>
+              <p className="text-xs text-gray-400">
+                💡 <strong>Tip:</strong> Only refresh if you suspect changes (new followers, unfollows) since your last extraction.
+                <br />Same total count doesn't always mean same followers (e.g., +10 new, -10 unfollowed = same total).
+              </p>
+            </div>
+            <button
+              onClick={extractFollowers}
+              disabled={loading || limitReached || !username.trim()}
+              className="px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 whitespace-nowrap"
+            >
+              <span>🔄</span>
+              <span>Refresh Data</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Error Display */}
       {error && (
@@ -703,21 +734,23 @@ export default function FollowerExtractor() {
         </div>
       )}
 
-      {/* Action Button */}
-      <button
-        onClick={extractFollowers}
-        disabled={loading || !username.trim() || limitReached}
-        className="w-full px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:from-gray-700 disabled:to-gray-700 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {loading ? (
-          <span className="flex items-center justify-center gap-2">
-            <XSpinner size="md" />
-            Extracting followers...
-          </span>
-        ) : (
-          '🚀 Extract Followers'
-        )}
-      </button>
+      {/* Action Button - Only show if no cached data */}
+      {(!result || !result.isStored) && (
+        <button
+          onClick={extractFollowers}
+          disabled={loading || !username.trim() || limitReached}
+          className="w-full px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:from-gray-700 disabled:to-gray-700 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <XSpinner size="md" />
+              Extracting followers...
+            </span>
+          ) : (
+            '🚀 Extract Followers'
+          )}
+        </button>
+      )}
 
       {/* Info Box */}
       <div className="mt-6 bg-black/40 border border-gray-700 rounded-lg p-4">
