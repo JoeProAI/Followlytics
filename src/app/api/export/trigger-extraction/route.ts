@@ -210,9 +210,9 @@ export async function POST(request: NextRequest) {
         oldFollowers.forEach((followerData, username) => {
           if (!newFollowersSet.has(username)) {
             unfollows.push({
-              username: followerData.username,
-              name: followerData.name,
-              followersCount: followerData.followersCount,
+              username: followerData.username || 'unknown',
+              name: followerData.name || 'Unknown',
+              followersCount: followerData.followersCount || 0,
               unfollowedAt: new Date()
             })
           }
@@ -223,9 +223,9 @@ export async function POST(request: NextRequest) {
           const sanitized = sanitizeUsername(follower.username)
           if (!oldFollowers.has(sanitized)) {
             newFollows.push({
-              username: follower.username,
-              name: follower.name,
-              followersCount: follower.followersCount,
+              username: follower.username || 'unknown',
+              name: follower.name || 'Unknown',
+              followersCount: follower.followersCount || 0,
               followedAt: new Date()
             })
           }
