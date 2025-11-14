@@ -31,7 +31,7 @@ interface GammaResponse {
 
 class GammaClient {
   private apiKey: string
-  private baseUrl = 'https://api.gamma.app/api/v1'
+  private baseUrl = 'https://public-api.gamma.app/v1.0'
 
   constructor(apiKey?: string) {
     this.apiKey = apiKey || process.env.GAMMA_API_KEY || ''
@@ -46,41 +46,53 @@ class GammaClient {
    */
   async generate(options: GammaGenerateOptions): Promise<GammaResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/generate`, {
+      const payload: any = {
+        inputText: options.text, // Gamma expects 'inputText' not 'text'
+        textMode: 'generate', // REQUIRED by Gamma API
+        format: options.type || 'presentation', // 'format' not 'type'
+        numCards: 10,
+        cardSplit: 'auto'
+      }
+
+      // Add optional params
+      if (options.themeId) payload.themeId = options.themeId
+      if (options.folderIds) payload.folderIds = options.folderIds
+      
+      // Image options
+      if (options.imageOptions) {
+        payload.imageOptions = {
+          model: options.imageOptions.model || 'dalle3'
+        }
+      }
+      
+      // Text options
+      if (options.textOptions) {
+        payload.textOptions = {
+          language: options.textOptions.language || 'English'
+        }
+      }
+
+      const response = await fetch(`${this.baseUrl}/generations`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json'
+          'X-API-KEY': this.apiKey, // Gamma uses X-API-KEY header
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
-        body: JSON.stringify({
-          text: options.text,
-          type: options.type || 'presentation',
-          theme_id: options.themeId,
-          folder_ids: options.folderIds,
-          image_options: options.imageOptions ? {
-            model: options.imageOptions.model || 'dalle3',
-            search_query: options.imageOptions.searchQuery
-          } : undefined,
-          text_options: options.textOptions ? {
-            language: options.textOptions.language || 'English',
-            tone: options.textOptions.tone || 'professional',
-            audience: options.textOptions.audience,
-            detail_level: options.textOptions.detailLevel || 'comprehensive'
-          } : undefined
-        })
+        body: JSON.stringify(payload)
       })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(`Gamma API error: ${error.message || response.statusText}`)
-      }
 
       const data = await response.json()
       
+      if (!response.ok) {
+        console.error('[Gamma] API error response:', data)
+        throw new Error(`Gamma API error (${response.status}): ${data.message || data.error || response.statusText}`)
+      }
+      
       return {
-        gamma_id: data.gamma_id,
-        status: data.status || 'processing',
-        message: data.message
+        gamma_id: data.generationId, // Gamma returns 'generationId'
+        status: 'processing',
+        message: 'Generation started'
       }
     } catch (error: any) {
       console.error('[Gamma] Generation failed:', error)
@@ -93,25 +105,27 @@ class GammaClient {
    */
   async getFileUrls(gammaId: string): Promise<GammaResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/gamma/${gammaId}/files`, {
+      const response = await fetch(`${this.baseUrl}/generations/${gammaId}/files`, {
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`
+          'X-API-KEY': this.apiKey,
+          'Accept': 'application/json'
         }
       })
 
-      if (!response.ok) {
-        throw new Error(`Failed to get Gamma URLs: ${response.statusText}`)
-      }
-
       const data = await response.json()
+
+      if (!response.ok) {
+        console.error('[Gamma] File URL fetch error:', data)
+        throw new Error(`Failed to get Gamma URLs (${response.status}): ${data.message || response.statusText}`)
+      }
       
       return {
         gamma_id: gammaId,
-        status: data.status,
+        status: data.status || 'completed',
         urls: {
-          view: data.view_url,
-          pdf: data.pdf_url,
-          pptx: data.pptx_url
+          view: data.viewUrl || data.view_url,
+          pdf: data.pdfUrl || data.pdf_url,
+          pptx: data.pptxUrl || data.pptx_url
         }
       }
     } catch (error: any) {
@@ -128,23 +142,24 @@ class GammaClient {
       const response = await fetch(`${this.baseUrl}/create-from-template`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json'
+          'X-API-KEY': this.apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
         body: JSON.stringify({
-          template_id: templateId,
+          templateId: templateId,
           data: data
         })
       })
 
-      if (!response.ok) {
-        throw new Error(`Failed to create from template: ${response.statusText}`)
-      }
-
       const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(`Failed to create from template (${response.status}): ${result.message || response.statusText}`)
+      }
       
       return {
-        gamma_id: result.gamma_id,
+        gamma_id: result.generationId || result.gamma_id,
         status: result.status || 'processing'
       }
     } catch (error: any) {
@@ -160,7 +175,8 @@ class GammaClient {
     try {
       const response = await fetch(`${this.baseUrl}/themes`, {
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`
+          'X-API-KEY': this.apiKey,
+          'Accept': 'application/json'
         }
       })
 
