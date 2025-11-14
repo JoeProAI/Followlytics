@@ -4,10 +4,21 @@ import { adminDb } from '@/lib/firebase-admin'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300 // 5 minutes for extraction
 
+// Sanitize username helper
+function sanitizeUsername(username: string): string {
+  if (!username) return `unknown_${Date.now()}`
+  return username
+    .replace(/^_+|_+$/g, '')
+    .replace(/\//g, '_')
+    .replace(/\./g, '_')
+    .replace(/__+/g, '_')
+    .trim() || `unknown_${Date.now()}`
+}
+
 // DEDICATED extraction endpoint - NOT in webhook!
 export async function POST(request: NextRequest) {
   try {
-    const { username } = await request.json()
+    const { username, userId } = await request.json()
     
     if (!username) {
       return NextResponse.json({ error: 'Username required' }, { status: 400 })
@@ -15,6 +26,63 @@ export async function POST(request: NextRequest) {
     
     const cleanUsername = username.toLowerCase().replace(/^@/, '')
     console.log(`[Extraction API] Starting extraction for @${cleanUsername}`)
+    
+    // FIRST: Check if user already has dashboard data (faster!)
+    if (userId) {
+      console.log(`[Extraction API] Checking dashboard data for user ${userId}`)
+      const dashboardFollowers = await adminDb
+        .collection('users')
+        .doc(userId)
+        .collection('followers')
+        .where('target_username', '==', cleanUsername)
+        .where('status', '==', 'active')
+        .get()
+      
+      if (!dashboardFollowers.empty) {
+        console.log(`[Extraction API] Found ${dashboardFollowers.size} dashboard followers, using them!`)
+        
+        const followers = dashboardFollowers.docs.map(doc => doc.data())
+        
+        // Store in export location
+        await adminDb.collection('follower_database').doc(cleanUsername).set({
+          followerCount: followers.length,
+          lastExtractedAt: new Date(),
+          extractedBy: 'dashboard-cache',
+          extractionProgress: {
+            status: 'complete',
+            message: 'Ready to download!',
+            percentage: 100,
+            completedAt: new Date()
+          }
+        }, { merge: true })
+        
+        // Store in subcollection with sanitized usernames
+        const followersRef = adminDb.collection('follower_database').doc(cleanUsername).collection('followers')
+        const batchSize = 500
+        
+        for (let i = 0; i < followers.length; i += batchSize) {
+          const batch = adminDb.batch()
+          const chunk = followers.slice(i, i + batchSize)
+          
+          chunk.forEach((follower: any) => {
+            const sanitized = sanitizeUsername(follower.username)
+            const docRef = followersRef.doc(sanitized)
+            batch.set(docRef, follower)
+          })
+          
+          await batch.commit()
+        }
+        
+        console.log(`[Extraction API] SUCCESS - Used dashboard cache (${followers.length} followers)`)
+        
+        return NextResponse.json({
+          success: true,
+          followerCount: followers.length,
+          cached: true,
+          message: `Ready! ${followers.length} followers from dashboard`
+        })
+      }
+    }
     
     // Check if extraction already in progress
     const existing = await adminDb.collection('follower_database').doc(cleanUsername).get()
@@ -29,11 +97,11 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if already complete
-    if (data?.followers?.length > 0 && data?.extractionProgress?.status === 'complete') {
+    if (data?.extractionProgress?.status === 'complete') {
       console.log(`[Extraction API] Already complete for @${cleanUsername}`)
       return NextResponse.json({ 
         message: 'Extraction already complete',
-        followerCount: data.followers.length,
+        followerCount: data.followerCount,
         status: 'complete'
       })
     }
@@ -130,7 +198,8 @@ export async function POST(request: NextRequest) {
       const chunk = cleanFollowers.slice(i, i + batchSize)
       
       chunk.forEach((follower: any) => {
-        const docRef = followersRef.doc(follower.username)
+        const sanitized = sanitizeUsername(follower.username)
+        const docRef = followersRef.doc(sanitized)
         batch.set(docRef, follower)
       })
       

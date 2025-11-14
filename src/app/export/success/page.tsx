@@ -70,11 +70,15 @@ function SuccessContent() {
             console.log('[Success Page] Triggering extraction for', username)
             extractionTriggered = true
             
-            // Trigger extraction in background
+            // Trigger extraction in background with userId
+            const user = auth.currentUser
             fetch('/api/export/trigger-extraction', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ username })
+              body: JSON.stringify({ 
+                username,
+                userId: user?.uid // Send userId so it can check dashboard data
+              })
             }).catch(err => {
               console.error('[Success Page] Failed to trigger extraction:', err)
             })

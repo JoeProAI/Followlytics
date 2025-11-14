@@ -1,15 +1,27 @@
 // Clean Database Script
 // Removes all old follower data to start fresh with sanitized usernames
 
-import { initializeApp, cert } from 'firebase-admin/app'
+import { initializeApp, cert, getApps } from 'firebase-admin/app'
 import { getFirestore } from 'firebase-admin/firestore'
 
-// Initialize Firebase Admin
-const serviceAccount = require('../followlytics-cd4e1-firebase-adminsdk-rr3ex-cea11fecc5.json')
+// Initialize Firebase Admin using environment variables
+if (!getApps().length) {
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+  
+  if (!privateKey || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PROJECT_ID) {
+    console.error('❌ Missing Firebase environment variables!')
+    console.error('Required: FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL, FIREBASE_PROJECT_ID')
+    process.exit(1)
+  }
 
-initializeApp({
-  credential: cert(serviceAccount)
-})
+  initializeApp({
+    credential: cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: privateKey
+    })
+  })
+}
 
 const db = getFirestore()
 
