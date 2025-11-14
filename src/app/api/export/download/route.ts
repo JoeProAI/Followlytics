@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
         if (!exportsSnapshot.empty) {
           // Get the most recent one
           const exports = exportsSnapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .map(doc => ({ id: doc.id, ref: doc.ref, ...doc.data() }))
             .sort((a: any, b: any) => {
               const aTime = a.completedAt?.toMillis() || 0
               const bTime = b.completedAt?.toMillis() || 0
@@ -44,8 +44,19 @@ export async function POST(request: NextRequest) {
             })
           
           const exportData: any = exports[0]
-          followers = exportData.followers || []
-          console.log(`[Download] Retrieved ${followers.length} followers from user export`)
+          
+          // Check if followers are in the document (old format) or subcollection (new format)
+          if (exportData.followers && Array.isArray(exportData.followers)) {
+            followers = exportData.followers
+            console.log(`[Download] Retrieved ${followers.length} followers from export document`)
+          } else {
+            // Fetch from subcollection
+            const followersSnapshot = await exportData.ref.collection('followers').get()
+            if (!followersSnapshot.empty) {
+              followers = followersSnapshot.docs.map((doc: any) => doc.data())
+              console.log(`[Download] Retrieved ${followers.length} followers from export subcollection`)
+            }
+          }
         }
       } catch (authError) {
         console.log('[Download] Auth check failed, trying fallback', authError)

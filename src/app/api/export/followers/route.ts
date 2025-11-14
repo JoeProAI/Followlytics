@@ -131,6 +131,7 @@ export async function POST(request: NextRequest) {
         
         const followers = storedFollowersSnapshot.docs.map(doc => doc.data())
         
+        // Create export record (without followers array to avoid 1MB limit)
         await exportRef.set({
           exportId,
           userId,
@@ -140,11 +141,23 @@ export async function POST(request: NextRequest) {
           amountPaid: paymentIntent.amount / 100,
           createdAt: new Date(),
           completedAt: new Date(),
-          followerCount: followers.length,
-          followers: followers
+          followerCount: followers.length
         })
 
-        console.log(`[Export] Export ready instantly with ${followers.length} followers`)
+        // Store followers in SUBCOLLECTION to avoid document size limit
+        // Process in batches of 500 (Firestore limit)
+        const batchSize = 500
+        for (let i = 0; i < followers.length; i += batchSize) {
+          const batch = adminDb.batch()
+          const chunk = followers.slice(i, i + batchSize)
+          chunk.forEach((follower: any, chunkIndex: number) => {
+            const followerRef = exportRef.collection('followers').doc(`follower_${i + chunkIndex}`)
+            batch.set(followerRef, follower)
+          })
+          await batch.commit()
+        }
+
+        console.log(`[Export] Export ready instantly with ${followers.length} followers in subcollection`)
 
         return NextResponse.json({
           success: true,
@@ -228,11 +241,10 @@ async function extractAndCacheFollowers(userId: string, username: string, export
       lastExtractedBy: userId
     })
 
-    // Update export record with followers data
+    // Update export record (without followers array)
     await exportRef.update({
       status: 'completed',
       followerCount: result.followers.length,
-      followers: result.followers, // Store followers in export record for download
       completedAt: new Date(),
       progress: {
         phase: 'completed',
@@ -241,7 +253,19 @@ async function extractAndCacheFollowers(userId: string, username: string, export
       }
     })
 
-    console.log(`[Follower Export] Export ${exportId} completed successfully`)
+    // Store followers in subcollection (batches of 500)
+    const batchSize = 500
+    for (let i = 0; i < result.followers.length; i += batchSize) {
+      const batch = adminDb.batch()
+      const chunk = result.followers.slice(i, i + batchSize)
+      chunk.forEach((follower: any, chunkIndex: number) => {
+        const followerRef = exportRef.collection('followers').doc(`follower_${i + chunkIndex}`)
+        batch.set(followerRef, follower)
+      })
+      await batch.commit()
+    }
+
+    console.log(`[Follower Export] Export ${exportId} completed with ${result.followers.length} followers in subcollection`)
 
   } catch (error: any) {
     console.error('[Follower Export] Extraction failed:', error)
