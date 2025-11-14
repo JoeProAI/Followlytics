@@ -64,13 +64,27 @@ export async function POST(request: NextRequest) {
       }, { status: 202 })
     }
     
+    // Check if there's a completed Gamma presentation
+    const gammaData = data?.gammaGeneration
+    let gammaStatus = null
+    
+    if (gammaData?.gammaId && gammaData?.status === 'complete' && gammaData?.viewUrl) {
+      gammaStatus = {
+        gammaId: gammaData.gammaId,
+        url: gammaData.viewUrl,
+        status: 'complete'
+      }
+      console.log('[Get Data] Found completed Gamma presentation:', gammaData.gammaId)
+    }
+    
     // Return complete data (followers are in subcollection, not in main doc)
     return NextResponse.json({
       username,
       followerCount: followerCount,
       ready: true,
       extractedAt: data?.lastExtractedAt,
-      progress: progress
+      progress: progress,
+      gamma: gammaStatus  // Include Gamma status if available
     })
 
   } catch (error: any) {

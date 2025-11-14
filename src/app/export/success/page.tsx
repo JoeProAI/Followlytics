@@ -21,6 +21,11 @@ interface DownloadData {
   excelUrl?: string
   ready: boolean
   progress?: AnalysisProgress
+  gamma?: {
+    gammaId: string
+    url: string
+    status: string
+  }
 }
 
 function SuccessContent() {
@@ -239,17 +244,30 @@ function SuccessContent() {
         setDownloadData(data)
         setLoading(false)
         
-        // Trigger Gamma for ALL users (will show upgrade if needed)
+        // Check if there's already a completed Gamma presentation
+        if (data.gamma && data.gamma.url) {
+          console.log('[Success Page] Found existing Gamma presentation:', data.gamma.url)
+          setGammaStatus({
+            gammaId: data.gamma.gammaId,
+            url: data.gamma.url,
+            status: 'complete',
+            generating: false
+          })
+          gammaTriggered = true // Mark as handled
+        }
+        
+        // Trigger Gamma for ALL users (will show upgrade if needed) - only if not already exists
         const user = auth.currentUser
         console.log('[Success Page] Gamma check:', { 
           hasUser: !!user, 
           gammaTriggered, 
           hasData: !!data, 
+          existingGamma: !!data.gamma,
           free,
-          shouldTrigger: !!(user && !gammaTriggered && data)
+          shouldTrigger: !!(user && !gammaTriggered && data && !data.gamma)
         })
         
-        if (user && !gammaTriggered && data) {
+        if (user && !gammaTriggered && data && !data.gamma) {
           gammaTriggered = true
           console.log('[Success Page] ✅ TRIGGERING GAMMA GENERATION')
           setGammaStatus({ generating: true })
