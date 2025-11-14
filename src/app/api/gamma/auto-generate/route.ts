@@ -97,8 +97,19 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Auto-Gamma] AI generated prompt (${aiPrompt.length} chars)`)
 
+    // Check if Gamma API key is set
+    if (!process.env.GAMMA_API_KEY) {
+      console.error('[Auto-Gamma] GAMMA_API_KEY not set in environment')
+      return NextResponse.json({
+        error: 'Gamma API not configured',
+        details: 'GAMMA_API_KEY environment variable missing'
+      }, { status: 500 })
+    }
+
     // Generate with Gamma AI
+    console.log('[Auto-Gamma] Initializing Gamma client...')
     const gamma = getGammaClient()
+    console.log('[Auto-Gamma] Gamma client initialized')
     
     const result = await gamma.generate({
       text: aiPrompt,
