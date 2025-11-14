@@ -62,6 +62,14 @@ export async function POST(request: NextRequest) {
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?canceled=true`,
       client_reference_id: decodedToken.uid,
       customer_email: decodedToken.email,
+      // Customize checkout appearance - hide business name
+      custom_text: {
+        submit: {
+          message: 'Secure checkout powered by Stripe'
+        }
+      },
+      // Use custom branding instead of account name
+      ui_mode: 'hosted',
       metadata: {
         userId: decodedToken.uid,
         tier: tier,
