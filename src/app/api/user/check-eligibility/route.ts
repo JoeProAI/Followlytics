@@ -39,10 +39,9 @@ export async function POST(request: NextRequest) {
           price,
           tier,
           status: 'ready',
-          extractedAt: data.lastExtractedAt?.toDate().toISOString(),
           message: isFree 
-            ? `🎉 Already extracted! You have ${followerCount} followers - export is FREE!`
-            : `✅ Already extracted! ${followerCount.toLocaleString()} followers ready. Pay $${price} to download.`
+            ? `🎉 Account eligible! ${followerCount} followers - export is FREE!`
+            : `✅ Account eligible! ${followerCount.toLocaleString()} followers found. Pay $${price} to download.`
         })
       }
     }
