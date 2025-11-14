@@ -41,7 +41,7 @@ function normalizeUsage(raw: any): UsageSummary {
   }
 }
 
-export default function ApifyFollowerExtractor() {
+export default function FollowerExtractor() {
   const { user } = useAuth()
   const [username, setUsername] = useState('')
   const [maxFollowers, setMaxFollowers] = useState(200)
@@ -301,7 +301,7 @@ export default function ApifyFollowerExtractor() {
       <div className="mb-6">
         <h2 className="text-xl font-medium mb-2">Extract X Followers</h2>
         <p className="text-sm text-gray-400 mb-2">
-          Extract and analyze your X (Twitter) followers using Apify's Premium X Scraper.
+          Extract and analyze your X (Twitter) followers with detailed profile data.
         </p>
         <div className="flex items-center gap-2 text-xs">
           <span className="px-2 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded">

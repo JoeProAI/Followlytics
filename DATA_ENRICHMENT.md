@@ -1,8 +1,8 @@
-# 🚀 Apify Premium X User Scraper Integration
+# 🚀 X Profile Data Enrichment
 
 ## Overview
 
-Followlytics now integrates with **Apify's Premium X User Scraper** to enrich follower data with detailed profile information including **verified status** (Blue/Gold/Gray checkmarks), comprehensive metrics, and more.
+Followlytics enriches follower data with detailed profile information including **verified status** (Blue/Gold/Gray checkmarks), comprehensive metrics, and more.
 
 ## What This Integration Provides
 
@@ -35,19 +35,17 @@ Followlytics now integrates with **Apify's Premium X User Scraper** to enrich fo
 
 ## Setup Instructions
 
-### 1. Get Apify API Token
+### 1. Get API Token
 
-1. Go to [Apify Console](https://console.apify.com/)
-2. Sign up or log in
-3. Navigate to **Settings** → **Integrations**
-4. Copy your **API Token**
+1. Configure your data provider credentials
+2. Add the required API token to your environment
 
 ### 2. Add Environment Variable
 
 Add to your Vercel environment variables:
 
 ```bash
-APIFY_API_TOKEN=your_apify_token_here
+DATA_PROVIDER_API_TOKEN=your_token_here
 ```
 
 ### 3. Deploy
@@ -67,7 +65,7 @@ The integration is ready to use! Just redeploy your app to Vercel.
 ### Option 2: API Endpoint
 
 ```bash
-POST /api/apify/enrich-followers
+POST /api/enrich-followers
 Authorization: Bearer <firebase_token>
 Content-Type: application/json
 
@@ -186,16 +184,15 @@ Filter out protected/spam accounts to analyze real audience.
 
 ## Technical Details
 
-### Actor Information
-- **Actor ID:** `kaitoeasyapi/premium-twitter-user-scraper-pay-per-result`
-- **Short ID:** `tLs1g71YVTPoXAPnb`
+### Service Information
+- **Data Provider:** External API integration
 - **Version:** Latest
-- **Documentation:** [Apify Store](https://apify.com/kaitoeasyapi/premium-twitter-user-scraper-pay-per-result)
+- **Documentation:** Contact support for details
 
 ### Rate Limits
 - **Extraction Speed:** 40 profiles/second
-- **Apify Free Tier:** $5/month included credit
-- **Recommended Tier:** Starter ($49/month) for serious usage
+- **Free Tier:** Limited monthly credits
+- **Recommended Tier:** Paid plan for production usage
 
 ### Error Handling
 
@@ -217,7 +214,7 @@ The integration includes automatic error handling:
 3. **Cost Management**
    - Start with top 100 followers
    - Expand to full list if needed
-   - Monitor Apify usage dashboard
+   - Monitor your usage dashboard
 
 4. **Refresh Strategy**
    - Re-enrich monthly for metric updates
@@ -225,8 +222,8 @@ The integration includes automatic error handling:
 
 ## Troubleshooting
 
-### Error: "Missing APIFY_API_TOKEN"
-**Solution:** Add `APIFY_API_TOKEN` to Vercel environment variables
+### Error: "Missing API Token"
+**Solution:** Add `DATA_PROVIDER_API_TOKEN` to Vercel environment variables
 
 ### Error: "No followers found to enrich"
 **Solution:** Extract followers first using the main extraction feature
@@ -236,8 +233,8 @@ The integration includes automatic error handling:
 
 ## Next Steps
 
-1. ✅ Install: `npm install apify-client` (Done)
-2. ✅ Add APIFY_API_TOKEN to Vercel
+1. ✅ Install: Dependencies installed
+2. ✅ Add API token to Vercel
 3. ✅ Deploy to production
 4. ✅ Test with top 100 followers
 5. ✅ Monitor costs and results
@@ -245,9 +242,8 @@ The integration includes automatic error handling:
 
 ## Support
 
-- **Apify Support:** [https://apify.com/support](https://apify.com/support)
-- **Actor Documentation:** [Premium X User Scraper Docs](https://apify.com/kaitoeasyapi/premium-twitter-user-scraper-pay-per-result)
-- **Followlytics:** Check dashboard for integration status
+- **Followlytics Support:** Check dashboard for integration status
+- **Data Provider:** Contact support for technical assistance
 
 ---
 

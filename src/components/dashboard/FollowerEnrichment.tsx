@@ -253,7 +253,7 @@ export default function FollowerEnrichment() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div className="text-xs text-gray-400 space-y-1">
-            <p><strong className="text-gray-300">How it works:</strong> Uses Apify's Premium X User Scraper to fetch detailed profile data.</p>
+            <p><strong className="text-gray-300">How it works:</strong> Fetches detailed profile data from X (Twitter).</p>
             <p><strong className="text-gray-300">What you get:</strong> Verified badges (Blue/Gold/Gray checkmarks), complete metrics, bio, location, and more.</p>
             <p><strong className="text-gray-300">Speed:</strong> 40 profiles per second - blazing fast!</p>
             <p><strong className="text-gray-300">Cost:</strong> $0.15 per 1,000 users enriched (same as extraction).</p>

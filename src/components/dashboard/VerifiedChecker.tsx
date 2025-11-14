@@ -138,9 +138,9 @@ export default function VerifiedChecker() {
         throw new Error('All followers already checked! Refresh to see results.')
       }
 
-      console.log(`[Verified Check] Checking ${allFollowers.length} followers via Apify scraper...`)
+      console.log(`[Verified Check] Checking ${allFollowers.length} followers...`)
 
-      // Call Apify verification (scrapes public profiles, no API needed!)
+      // Call verification endpoint (checks public profiles)
       const response = await fetch('/api/check-verified-apify', {
         method: 'POST',
         headers: {
@@ -342,7 +342,7 @@ export default function VerifiedChecker() {
             {checking ? (
               <span className="flex items-center justify-center gap-2">
                 <XSpinner size="md" />
-                🔍 Checking ALL Followers via Apify...
+                🔍 Checking ALL Followers...
               </span>
             ) : (
               '✓ Check ALL Followers for Verified Badges'
