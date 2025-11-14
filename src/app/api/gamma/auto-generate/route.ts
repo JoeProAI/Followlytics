@@ -137,20 +137,16 @@ export async function POST(request: NextRequest) {
     const gamma = getGammaClient()
     console.log('[Auto-Gamma] Gamma client initialized')
     
-    // Use BEST models available on current Gamma plan (non-ultra)
-    const premiumModels = [
-      'dall-e-3',              // OpenAI's best
-      'imagen-3-pro',          // Google's premium
-      'flux-1-pro',            // Flux premium quality
-      'ideogram-v3',           // Ideogram standard (still excellent)
-      'flux-kontext-pro',      // Flux with context awareness
-      'luma-photon-1',         // Luma's photorealistic AI
-      'recraft-v3',            // Modern, clean aesthetic
-      'gpt-image-1-high'       // GPT high quality
+    // Use models available on standard Gamma plan (no ultra required)
+    const availableModels = [
+      'dall-e-3',              // OpenAI - available on standard
+      'flux-1.1-pro',          // Flux standard
+      'ideogram-2',            // Ideogram standard
+      'recraft-v3'             // Recraft standard
     ]
     
-    // Pick random premium model for variety
-    const selectedModel = premiumModels[Math.floor(Math.random() * premiumModels.length)]
+    // Pick random model for variety
+    const selectedModel = availableModels[Math.floor(Math.random() * availableModels.length)]
     console.log(`[Auto-Gamma] Selected image model: ${selectedModel}`)
     
     // Use real Gamma theme IDs (fetched from API)
