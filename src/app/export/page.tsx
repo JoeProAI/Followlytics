@@ -306,7 +306,7 @@ function ExportContent() {
                       onChange={(e) => setGammaStyle(e.target.value)}
                       className="w-full px-4 py-2 bg-black border border-gray-800 rounded text-white focus:outline-none focus:border-white"
                     >
-                      <option value="clean">Clean & Fast (Cheetah on a Snowboard)</option>
+                      <option value="clean">Clean & Fast</option>
                       <option value="minimal">Minimal</option>
                       <option value="corporate">Corporate / Professional</option>
                       <option value="bold">Bold & Direct</option>

@@ -128,7 +128,7 @@ export default function FollowerEnrichment() {
           <div className="text-xs text-gray-400">40 profiles/sec</div>
         </div>
         <div className="bg-black/40 rounded-lg p-3 border border-gray-800">
-          <div className="text-yellow-400 text-xl mb-1">💰</div>
+          <div className="text-yellow-400 text-xl mb-1">💵</div>
           <div className="text-xs text-gray-400">$0.15/1K users</div>
         </div>
       </div>

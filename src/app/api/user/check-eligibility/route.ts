@@ -167,10 +167,10 @@ export async function POST(request: NextRequest) {
       message: isFree 
         ? `🎉 You have ${currentFollowerCount.toLocaleString()} followers - FREE download!`
         : needsExtraction
-          ? `💰 ${currentFollowerCount.toLocaleString()} followers - Pay $${price} to extract (~${Math.floor(currentFollowerCount * 0.99)} accessible accounts).`
+          ? `${currentFollowerCount.toLocaleString()} followers - Pay $${price} to extract (~${Math.floor(currentFollowerCount * 0.99)} accessible accounts).`
           : hasInaccessible
-            ? `💰 ${currentFollowerCount.toLocaleString()} followers (${cachedCount.toLocaleString()} accessible, ${inaccessibleCount} private/protected) - Pay $${price} to download instantly!`
-            : `💰 ${currentFollowerCount.toLocaleString()} followers ready - Pay $${price} to download instantly!`
+            ? `${currentFollowerCount.toLocaleString()} followers (${cachedCount.toLocaleString()} accessible, ${inaccessibleCount} private/protected) - Pay $${price} to download instantly!`
+            : `${currentFollowerCount.toLocaleString()} followers ready - Pay $${price} to download instantly!`
     })
 
   } catch (error: any) {

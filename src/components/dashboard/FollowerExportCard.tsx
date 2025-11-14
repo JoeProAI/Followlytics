@@ -274,7 +274,7 @@ export default function FollowerExportCard() {
             <div className="flex items-start justify-between mb-3">
               <div>
                 <p className={`font-semibold ${exportData.cached ? 'text-green-400' : 'text-blue-400'}`}>
-                  {exportData.cached ? '🎉 FREE Export Available!' : '💰 Pricing'}
+                  {exportData.cached ? '🎉 FREE Export Available!' : 'Pricing'}
                 </p>
                 <p className="text-sm text-gray-300 mt-1">{exportData.message}</p>
               </div>
@@ -362,7 +362,7 @@ export default function FollowerExportCard() {
 
         {/* Pricing Info */}
         <div className="pt-4 border-t border-gray-800">
-          <p className="text-xs font-semibold text-gray-400 mb-2">💰 Pricing Tiers:</p>
+          <p className="text-xs font-semibold text-gray-400 mb-2">Pricing Tiers:</p>
           <div className="space-y-1 text-xs text-gray-500">
             <p>• Up to 500 followers: $1</p>
             <p>• 500-1,000: $3</p>
