@@ -123,6 +123,7 @@ export async function POST(request: NextRequest) {
           }
         })
 
+      case 'excel':
       case 'xlsx': {
         // Generate REAL Excel file
         const excelData = followers.map(f => ({
