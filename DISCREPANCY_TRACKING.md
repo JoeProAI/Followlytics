@@ -8,20 +8,34 @@ The system now clearly shows the difference between **stored/cached followers** 
 
 ### **Step 1: Initial Load (Cached Data)**
 
-When you open the dashboard, the system loads your **stored followers** from the database:
+When you open the dashboard, the system **automatically loads your stored followers** from the database:
 
 ```
-📦 Showing 1,234 Cached Followers from @elonmusk
+� Using Cached Data
+Showing your stored followers - no extraction needed!
+
+💡 Tip: Only refresh if you suspect changes (new followers, unfollows) 
+since your last extraction. Same total count doesn't always mean same 
+followers (e.g., +10 new, -10 unfollowed = same total).
+
+[🔄 Refresh Data]  ← Optional button
 ```
 
 **This count represents:**
 - The last extraction you ran
 - Followers stored in your Firestore database
 - **NOT live data** - it's a snapshot from your previous extraction
+- **NO COST** - no extraction needed unless you click refresh
 
-### **Step 2: New Extraction (Fresh Data)**
+**Why this is great:**
+- ✅ No unnecessary extractions
+- ✅ No wasted API costs
+- ✅ Instant data on dashboard load
+- ✅ Only refresh when you actually need to check for changes
 
-When you click "Extract Followers" again:
+### **Step 2: Optional Refresh (When You Need It)**
+
+**When you click "🔄 Refresh Data" button:**
 
 ```
 ✨ Fresh Extraction Complete: 1,250 followers
@@ -101,22 +115,35 @@ After posting content:
 
 ## 💡 Pro Tips
 
-### **Baseline Extraction**
+### **First Time Setup**
 Run your first extraction to establish a baseline:
 ```
-1. Extract followers (e.g., 1,000 followers)
-2. This is now your "stored" baseline
-3. Wait some time (day/week)
-4. Extract again
-5. See exact changes
+1. Click "Extract Followers" (first time - no cached data yet)
+2. Wait for extraction to complete
+3. Now you have cached data!
+4. Dashboard will show cached data on next visit
+5. Only refresh when you want to check for changes
 ```
+
+### **When to Refresh**
+**REFRESH when:**
+- ✅ You posted viral content and want to see new followers
+- ✅ It's been a week+ since last extraction
+- ✅ You suspect account issues (bot purge, mass unfollows)
+- ✅ You want to check offsetting changes (same total, different people)
+
+**DON'T REFRESH when:**
+- ❌ You just want to view your follower list (use cached data!)
+- ❌ You checked yesterday and nothing significant happened
+- ❌ You're just browsing/analyzing existing followers
 
 ### **Regular Monitoring**
 For active tracking:
 ```
-Monday: Extract → 1,234 followers (baseline)
-Friday: Extract → 1,250 followers
+Monday: View cached data → 1,234 followers (baseline)
+Friday: Click Refresh → 1,250 followers (fresh extraction)
 → See: +24 new, -8 unfollowed, Net: +16
+→ This refresh cost you $0.15-0.30
 ```
 
 ### **Campaign Attribution**
