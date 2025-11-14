@@ -153,13 +153,37 @@ export async function POST(request: NextRequest) {
     const selectedModel = premiumModels[Math.floor(Math.random() * premiumModels.length)]
     console.log(`[Auto-Gamma] Selected image model: ${selectedModel}`)
     
-    // Note: Gamma has its own intelligent theme selection based on content
-    // Letting Gamma choose the best theme automatically for each presentation
+    // Use real Gamma theme IDs (fetched from API)
+    const gammaThemes = [
+      'aurora',          // Dark gradient, vibrant
+      'atmosphere',      // Light gradient, colorful
+      'electric',        // Dark gradient, bold
+      'gamma',           // Light, warm, friendly
+      'gamma-dark',      // Dark purple gradient
+      'elysia',          // Light pastel gradient
+      'daydream',        // Light glassy gradient
+      'borealis',        // Dark navy/turquoise
+      'blues',           // Dark blue, professional
+      'coral-glow',      // Coral/pink radiant
+      'gold-leaf',       // Gold/cream, elegant
+      'gleam',           // Gray/silver, professional
+      'consultant',      // Light blue, corporate
+      'default-light',   // Classic light
+      'default-dark',    // Classic dark
+      'ash',             // B&W high contrast
+      'howlite',         // White/black elegant
+      'chimney-smoke',   // Light gray, subtle
+      'breeze',          // Soft blue, fresh
+      'fluo'             // Lime green, bold
+    ]
+    
+    const selectedTheme = gammaThemes[Math.floor(Math.random() * gammaThemes.length)]
+    console.log(`[Auto-Gamma] Selected theme: ${selectedTheme}`)
     
     const result = await gamma.generate({
       text: aiPrompt,
       type: 'presentation',
-      // No themeId - let Gamma's AI choose the best theme for the content
+      themeId: selectedTheme,  // Use real Gamma theme ID
       imageOptions: {
         model: selectedModel
       },
@@ -176,6 +200,7 @@ export async function POST(request: NextRequest) {
       prompt: aiPrompt.substring(0, 500), // Store first 500 chars
       customInstructions,
       gammaStyle,
+      theme: selectedTheme,      // Track which theme was used
       imageModel: selectedModel,  // Track which image model was used
       followerCount,
       createdAt: new Date(),
