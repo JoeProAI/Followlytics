@@ -151,7 +151,9 @@ export async function POST(request: NextRequest) {
           const batch = adminDb.batch()
           const chunk = followers.slice(i, i + batchSize)
           chunk.forEach((follower: any, chunkIndex: number) => {
-            const followerRef = exportRef.collection('followers').doc(`follower_${i + chunkIndex}`)
+            // Use index-based IDs to avoid reserved characters in usernames
+            const docId = `f_${i + chunkIndex}`
+            const followerRef = exportRef.collection('followers').doc(docId)
             batch.set(followerRef, follower)
           })
           await batch.commit()
@@ -259,7 +261,9 @@ async function extractAndCacheFollowers(userId: string, username: string, export
       const batch = adminDb.batch()
       const chunk = result.followers.slice(i, i + batchSize)
       chunk.forEach((follower: any, chunkIndex: number) => {
-        const followerRef = exportRef.collection('followers').doc(`follower_${i + chunkIndex}`)
+        // Use index-based IDs to avoid reserved characters
+        const docId = `f_${i + chunkIndex}`
+        const followerRef = exportRef.collection('followers').doc(docId)
         batch.set(followerRef, follower)
       })
       await batch.commit()
