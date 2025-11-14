@@ -43,10 +43,15 @@ function SuccessContent() {
   // Poll for Gamma completion
   const pollGammaStatus = async (gammaId: string) => {
     try {
+      console.log('[Gamma Poll] Checking status for:', gammaId)
       const res = await fetch(`/api/gamma/status/${gammaId}`)
       const data = await res.json()
       
-      if (data.status === 'completed' && data.urls) {
+      console.log('[Gamma Poll] Response:', data)
+      
+      // Check for completed with URL
+      if (data.urls && data.urls.view) {
+        console.log('[Gamma Poll] ✅ PRESENTATION READY! URL:', data.urls.view)
         setGammaStatus({
           gammaId,
           status: 'completed',
@@ -54,6 +59,7 @@ function SuccessContent() {
           generating: false
         })
       } else if (data.status === 'failed') {
+        console.error('[Gamma Poll] Generation failed')
         setGammaStatus({
           gammaId,
           status: 'failed',
@@ -61,6 +67,7 @@ function SuccessContent() {
         })
       } else {
         // Still processing, check again in 5 seconds
+        console.log('[Gamma Poll] Still processing, checking again in 5s...')
         setTimeout(() => pollGammaStatus(gammaId), 5000)
       }
     } catch (err) {

@@ -129,6 +129,8 @@ class GammaClient {
         throw new Error(`Failed to get Gamma status (${response.status}): ${data.message || response.statusText}`)
       }
       
+      console.log('[Gamma] Full API response for', gammaId, ':', JSON.stringify(data, null, 2))
+      
       // Check if still processing
       if (data.status === 'processing' || data.status === 'pending') {
         return {
@@ -138,16 +140,32 @@ class GammaClient {
         }
       }
       
-      // If completed, return URLs
+      // If completed, extract URL - Gamma uses 'webUrl' field
+      let viewUrl = data.webUrl || data.viewUrl || data.view_url || data.url || data.gamma_url
+      
+      // FALLBACK: Construct Gamma URL if not provided (Gamma has predictable URL structure)
+      if (!viewUrl && (data.status === 'completed' || data.status === 'success')) {
+        viewUrl = `https://gamma.app/docs/${gammaId}`
+        console.log('[Gamma] No URL in response, using constructed URL:', viewUrl)
+      }
+      
+      console.log('[Gamma] Extracted view URL:', viewUrl)
+      console.log('[Gamma] Status:', data.status)
+      
+      // If no URL found but status is complete, log all fields for debugging
+      if (!viewUrl && data.status === 'completed') {
+        console.error('[Gamma] WARNING: No URL found in completed generation! Available fields:', Object.keys(data))
+      }
+      
       return {
         gamma_id: gammaId,
         status: data.status || 'completed',
-        urls: {
-          view: data.webUrl || data.viewUrl || data.view_url || data.url,
+        urls: viewUrl ? {
+          view: viewUrl,
           pdf: data.pdfUrl || data.pdf_url,
           pptx: data.pptxUrl || data.pptx_url
-        },
-        message: 'Generation complete'
+        } : undefined,
+        message: viewUrl ? 'Generation complete' : 'Completed but URL not available yet'
       }
     } catch (error: any) {
       console.error('[Gamma] Failed to check status:', error)
