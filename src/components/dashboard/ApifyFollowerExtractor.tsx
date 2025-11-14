@@ -415,9 +415,8 @@ export default function FollowerExtractor() {
       </div>
     )}
 
-    {/* Input Section - Only show if no cached data or explicitly showing inputs */}
-    {(!result || !result.isStored || loading) && (
-      <div className="space-y-4 mb-6">
+    {/* Input Section */}
+    <div className="space-y-4 mb-6">
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-2">
             X Username
@@ -472,36 +471,6 @@ export default function FollowerExtractor() {
           )}
         </div>
       </div>
-    )}
-
-      {/* Cached Data Info Banner */}
-      {result && result.isStored && !loading && (
-        <div className="mb-4 bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">💾</span>
-                <h4 className="font-semibold text-cyan-300">Using Cached Data</h4>
-              </div>
-              <p className="text-sm text-gray-300 mb-2">
-                Showing your stored followers - no extraction needed!
-              </p>
-              <p className="text-xs text-gray-400">
-                💡 <strong>Tip:</strong> Only refresh if you suspect changes (new followers, unfollows) since your last extraction.
-                <br />Same total count doesn't always mean same followers (e.g., +10 new, -10 unfollowed = same total).
-              </p>
-            </div>
-            <button
-              onClick={extractFollowers}
-              disabled={loading || limitReached || !username.trim()}
-              className="px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 whitespace-nowrap"
-            >
-              <span>🔄</span>
-              <span>Refresh Data</span>
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Error Display */}
       {error && (
@@ -519,7 +488,6 @@ export default function FollowerExtractor() {
               <div>
                 <div className="font-semibold text-green-300 mb-1 flex items-center gap-2">
                   ✅ Extraction Complete
-                  <span className="text-xs px-2 py-0.5 bg-green-500/20 border border-green-500/30 rounded text-green-400">REAL DATA</span>
                 </div>
                 <div className="text-sm text-gray-400">Target: <strong className="text-white">@{result.username}</strong></div>
               </div>
@@ -549,99 +517,18 @@ export default function FollowerExtractor() {
             
             <div className="text-xs text-gray-400">
               Cost: <strong className="text-green-300">${result.cost}</strong>
-              {result.isStored && <span className="ml-3 text-yellow-400">📦 Cached Data</span>}
-              {!result.isStored && storedFollowersCount && <span className="ml-3 text-cyan-400">✨ Fresh Extraction</span>}
             </div>
           </div>
 
-          {/* Discrepancy Alert */}
-          {discrepancies && (
-            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-              <div className="flex items-start gap-3 mb-3">
-                <div className="text-2xl">⚠️</div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-yellow-300 mb-1">Follower Changes Detected</h4>
-                  <p className="text-sm text-gray-300 mb-3">
-                    Comparing <strong className="text-cyan-400">{discrepancies.totalStored.toLocaleString()}</strong> stored followers vs <strong className="text-green-400">{discrepancies.totalNew.toLocaleString()}</strong> newly extracted
-                  </p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Unfollowed */}
-                    {discrepancies.unfollowed.length > 0 && (
-                      <div className="bg-red-500/10 border border-red-500/20 rounded p-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-red-400 text-lg">📉</span>
-                          <div>
-                            <div className="text-sm font-semibold text-red-400">Unfollowed/Deleted</div>
-                            <div className="text-xs text-gray-400">{discrepancies.unfollowed.length} accounts no longer following</div>
-                          </div>
-                        </div>
-                        <div className="max-h-32 overflow-y-auto mt-2">
-                          {discrepancies.unfollowed.slice(0, 10).map((username, i) => (
-                            <div key={i} className="text-xs text-red-300 flex items-center gap-1">
-                              <span>→</span>
-                              <span>@{username}</span>
-                            </div>
-                          ))}
-                          {discrepancies.unfollowed.length > 10 && (
-                            <div className="text-xs text-gray-500 mt-1">...and {discrepancies.unfollowed.length - 10} more</div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* New Followers */}
-                    {discrepancies.newFollowers.length > 0 && (
-                      <div className="bg-green-500/10 border border-green-500/20 rounded p-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-green-400 text-lg">📈</span>
-                          <div>
-                            <div className="text-sm font-semibold text-green-400">New Followers</div>
-                            <div className="text-xs text-gray-400">{discrepancies.newFollowers.length} new accounts following</div>
-                          </div>
-                        </div>
-                        <div className="max-h-32 overflow-y-auto mt-2">
-                          {discrepancies.newFollowers.slice(0, 10).map((username, i) => (
-                            <div key={i} className="text-xs text-green-300 flex items-center gap-1">
-                              <span>→</span>
-                              <span>@{username}</span>
-                            </div>
-                          ))}
-                          {discrepancies.newFollowers.length > 10 && (
-                            <div className="text-xs text-gray-500 mt-1">...and {discrepancies.newFollowers.length - 10} more</div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Net Change */}
-                  <div className="mt-3 pt-3 border-t border-yellow-500/20 text-sm">
-                    <strong className="text-yellow-300">Net Change:</strong>
-                    <span className={`ml-2 font-semibold ${
-                      discrepancies.totalNew > discrepancies.totalStored 
-                        ? 'text-green-400' 
-                        : discrepancies.totalNew < discrepancies.totalStored
-                        ? 'text-red-400'
-                        : 'text-gray-400'
-                    }`}>
-                      {discrepancies.totalNew > discrepancies.totalStored && '+'}
-                      {discrepancies.totalNew - discrepancies.totalStored} followers
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
-          {/* REAL Extracted Followers Preview */}
+          {/* Extracted Followers Preview */}
           {result.sample && result.sample.length > 0 && (
             <div className="bg-black/40 border border-gray-700 rounded-lg p-4">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-sm font-medium text-gray-300">
-                  Real Extracted Followers ({result.sample.length} shown)
+                  Extracted Followers ({result.sample.length} shown)
                 </h4>
-                <span className="text-xs text-green-400">● LIVE DATA - First {result.sample.length} of {result.count}</span>
+                <span className="text-xs text-gray-400">First {result.sample.length} of {result.count}</span>
               </div>
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {(showAll ? result.sample : result.sample.slice(0, 50)).map((follower: any, idx: number) => (
@@ -734,23 +621,21 @@ export default function FollowerExtractor() {
         </div>
       )}
 
-      {/* Action Button - Only show if no cached data */}
-      {(!result || !result.isStored) && (
-        <button
-          onClick={extractFollowers}
-          disabled={loading || !username.trim() || limitReached}
-          className="w-full px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:from-gray-700 disabled:to-gray-700 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? (
-            <span className="flex items-center justify-center gap-2">
-              <XSpinner size="md" />
-              Extracting followers...
-            </span>
-          ) : (
-            '🚀 Extract Followers'
-          )}
-        </button>
-      )}
+      {/* Action Button */}
+      <button
+        onClick={extractFollowers}
+        disabled={loading || !username.trim() || limitReached}
+        className="w-full px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:from-gray-700 disabled:to-gray-700 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {loading ? (
+          <span className="flex items-center justify-center gap-2">
+            <XSpinner size="md" />
+            Extracting followers...
+          </span>
+        ) : (
+          '🚀 Extract Followers'
+        )}
+      </button>
 
       {/* Info Box */}
       <div className="mt-6 bg-black/40 border border-gray-700 rounded-lg p-4">
