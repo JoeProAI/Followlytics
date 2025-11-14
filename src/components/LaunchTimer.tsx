@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 
-const LAUNCH_END = new Date('2025-11-17T23:59:59').getTime() // 7 days from now
+const LAUNCH_END = new Date('2025-11-17T19:27:00').getTime() // 72 hours from launch (Nov 14, 2025 2:27 PM EST)
 
 export default function LaunchTimer() {
   const [timeLeft, setTimeLeft] = useState({
@@ -46,8 +46,8 @@ export default function LaunchTimer() {
         <div className="flex items-center gap-4">
           <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
           <div>
-            <div className="font-light text-sm text-white">Launch Week</div>
-            <div className="text-xs text-gray-500">50% off all exports</div>
+            <div className="font-light text-sm text-white">🔥 Launch Special</div>
+            <div className="text-xs text-gray-500">$2.99 flat rate (normally $4.99+)</div>
           </div>
         </div>
         
@@ -82,6 +82,7 @@ export function isLaunchWeek(): boolean {
 }
 
 export function getLaunchDiscount(price: number): number {
-  if (!isLaunchWeek()) return price
-  return Math.round(price * 0.5) // 50% off
+  // Launch special uses flat $2.99 pricing (handled in API)
+  // This function kept for compatibility
+  return price
 }

@@ -155,9 +155,8 @@ export default function PricingPage() {
   const [loading, setLoading] = useState<string | null>(null)
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly')
   
-  // Set founder offer end date (72 hours from now - adjust as needed)
-  const founderEndDate = new Date()
-  founderEndDate.setHours(founderEndDate.getHours() + 72)
+  // 🔥 LAUNCH SPECIAL ends in 72 hours - November 17, 2025 at 2:27 PM EST
+  const founderEndDate = new Date('2025-11-17T19:27:00.000Z') // 72 hours from launch
 
   const handleSubscribe = async (priceId: string | null, tier: string, isLifetime: boolean = false) => {
     if (!user) {
