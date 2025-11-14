@@ -40,7 +40,38 @@ function SuccessContent() {
     generating?: boolean
     requiresPayment?: boolean
     amount?: number
-  }>({})
+  }>(() => {
+    // Load from localStorage on mount
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('gammaStatus')
+      if (saved) {
+        try {
+          return JSON.parse(saved)
+        } catch (e) {
+          return {}
+        }
+      }
+    }
+    return {}
+  })
+
+  // Save to localStorage whenever gammaStatus changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && gammaStatus && Object.keys(gammaStatus).length > 0) {
+      localStorage.setItem('gammaStatus', JSON.stringify(gammaStatus))
+    }
+  }, [gammaStatus])
+
+  // Resume polling if we have a gammaId and it's still processing
+  useEffect(() => {
+    const resumePolling = async () => {
+      if (gammaStatus.gammaId && gammaStatus.generating && !gammaStatus.url) {
+        console.log('[Success Page] Resuming Gamma polling for:', gammaStatus.gammaId)
+        pollGammaStatus(gammaStatus.gammaId)
+      }
+    }
+    resumePolling()
+  }, []) // Run once on mount
 
   // Poll for Gamma completion
   const pollGammaStatus = async (gammaId: string) => {
@@ -208,17 +239,17 @@ function SuccessContent() {
         setDownloadData(data)
         setLoading(false)
         
-        // Trigger Gamma if we haven't yet and have payment data
+        // Trigger Gamma for ALL users (will show upgrade if needed)
         const user = auth.currentUser
         console.log('[Success Page] Gamma check:', { 
           hasUser: !!user, 
           gammaTriggered, 
           hasData: !!data, 
           free,
-          shouldTrigger: !!(user && !gammaTriggered && data && !free)
+          shouldTrigger: !!(user && !gammaTriggered && data)
         })
         
-        if (user && !gammaTriggered && data && !free) {
+        if (user && !gammaTriggered && data) {
           gammaTriggered = true
           console.log('[Success Page] ✅ TRIGGERING GAMMA GENERATION')
           setGammaStatus({ generating: true })
