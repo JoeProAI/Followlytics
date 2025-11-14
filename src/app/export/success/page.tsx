@@ -45,20 +45,9 @@ function SuccessContent() {
     generating?: boolean
     requiresPayment?: boolean
     amount?: number
-  }>(() => {
-    // Load from localStorage on mount
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('gammaStatus')
-      if (saved) {
-        try {
-          return JSON.parse(saved)
-        } catch (e) {
-          return {}
-        }
-      }
-    }
-    return {}
-  })
+  }>({})
+  
+  const [hasLoadedFromAPI, setHasLoadedFromAPI] = useState(false)
 
   // Save to localStorage whenever gammaStatus changes
   useEffect(() => {
@@ -67,10 +56,30 @@ function SuccessContent() {
     }
   }, [gammaStatus])
 
+  // Load from localStorage ONLY on initial mount, then wait for API
+  useEffect(() => {
+    if (!hasLoadedFromAPI && typeof window !== 'undefined') {
+      const saved = localStorage.getItem('gammaStatus')
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved)
+          // Only load if actively generating (has gammaId but no url)
+          if (parsed.gammaId && parsed.generating && !parsed.url) {
+            console.log('[Success Page] Resuming Gamma polling from localStorage:', parsed.gammaId)
+            setGammaStatus(parsed)
+            pollGammaStatus(parsed.gammaId)
+          }
+        } catch (e) {
+          console.error('[Success Page] Failed to parse saved gamma status:', e)
+        }
+      }
+    }
+  }, [hasLoadedFromAPI])
+  
   // Resume polling if we have a gammaId and it's still processing
   useEffect(() => {
     const resumePolling = async () => {
-      if (gammaStatus.gammaId && gammaStatus.generating && !gammaStatus.url) {
+      if (hasLoadedFromAPI && gammaStatus.gammaId && gammaStatus.generating && !gammaStatus.url) {
         console.log('[Success Page] Resuming Gamma polling for:', gammaStatus.gammaId)
         pollGammaStatus(gammaStatus.gammaId)
       }
@@ -243,6 +252,7 @@ function SuccessContent() {
 
         setDownloadData(data)
         setLoading(false)
+        setHasLoadedFromAPI(true) // Mark that we've loaded from API
         
         // Check if there's already a completed Gamma presentation
         if (data.gamma && data.gamma.url) {
@@ -254,6 +264,10 @@ function SuccessContent() {
             generating: false
           })
           gammaTriggered = true // Mark as handled
+          // Clear localStorage since we have fresh data
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('gammaStatus')
+          }
         }
         
         // Trigger Gamma for ALL users (will show upgrade if needed) - only if not already exists
@@ -417,20 +431,20 @@ function SuccessContent() {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <main className="max-w-3xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {/* Success Message */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/10 mb-6">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="text-center mb-8 sm:mb-12">
+          <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-white/10 mb-4 sm:mb-6">
+            <svg className="w-6 h-6 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
           
-          <h1 className="text-4xl font-light mb-4">
+          <h1 className="text-2xl sm:text-4xl font-light mb-3 sm:mb-4 px-4">
             {free ? 'Export Ready!' : 'Payment Successful!'}
           </h1>
           
-          <p className="text-xl text-gray-400 mb-2">
+          <p className="text-lg sm:text-xl text-gray-400 mb-2 px-4">
             Follower data for <span className="text-white">@{username}</span>
           </p>
           
@@ -485,17 +499,17 @@ function SuccessContent() {
 
         {/* Download Buttons */}
         {downloadData?.ready && (
-          <div className="border border-gray-900 rounded-lg p-8 mb-8">
-            <h2 className="text-2xl font-light mb-6 text-center">Download Your Data</h2>
+          <div className="border border-gray-900 rounded-lg p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
+            <h2 className="text-xl sm:text-2xl font-light mb-4 sm:mb-6 text-center">Download Your Data</h2>
             
             {/* Disclaimer */}
-            <div className="mb-6 p-4 bg-blue-900/30 border border-blue-700/50 rounded-lg">
-              <p className="text-sm text-blue-300 text-center">
+            <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-blue-900/30 border border-blue-700/50 rounded-lg">
+              <p className="text-xs sm:text-sm text-blue-300 text-center">
                 <span className="font-semibold">ℹ️ Note:</span> The analyzed follower count may differ from your Twitter follower count due to private, protected, suspended, or deleted accounts that cannot be accessed via API.
               </p>
             </div>
             
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               <button
                 onClick={() => handleDownload('csv')}
                 disabled={downloading !== null}
@@ -559,17 +573,17 @@ function SuccessContent() {
 
         {/* Presentation Generation Status */}
         {(gammaStatus.generating || gammaStatus.url || gammaStatus.requiresPayment) && (
-          <div className="border border-gray-900 rounded-lg p-8 mb-8">
-            <h2 className="text-2xl font-light mb-6">AI Presentation</h2>
+          <div className="border border-gray-900 rounded-lg p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
+            <h2 className="text-xl sm:text-2xl font-light mb-4 sm:mb-6">AI Presentation</h2>
             
             {gammaStatus.requiresPayment && (
               <div className="space-y-4">
-                <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-700/50 rounded-lg p-6">
+                <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-700/50 rounded-lg p-4 sm:p-6">
                   <div className="flex items-start gap-3 mb-4">
-                    <div className="text-3xl">🎨</div>
+                    <div className="text-2xl sm:text-3xl">🎨</div>
                     <div>
-                      <h3 className="font-semibold mb-1">Upgrade to Gamma AI Presentation</h3>
-                      <p className="text-sm text-gray-400">Get a professional AI-generated presentation analyzing your audience</p>
+                      <h3 className="text-sm sm:text-base font-semibold mb-1">Upgrade to Gamma AI Presentation</h3>
+                      <p className="text-xs sm:text-sm text-gray-400">Get a professional AI-generated presentation analyzing your audience</p>
                     </div>
                   </div>
                   
@@ -734,10 +748,10 @@ function SuccessContent() {
         )}
 
         {/* CTA */}
-        <div className="text-center space-y-4">
+        <div className="text-center space-y-4 px-4">
           <Link 
             href="/export"
-            className="inline-block bg-white text-black px-8 py-3 rounded font-medium hover:bg-gray-200 transition-colors"
+            className="inline-block bg-white text-black px-6 sm:px-8 py-2.5 sm:py-3 rounded font-medium hover:bg-gray-200 transition-colors text-sm sm:text-base"
           >
             Export Another Account
           </Link>
@@ -745,7 +759,7 @@ function SuccessContent() {
           <div>
             <Link 
               href="/"
-              className="text-gray-400 hover:text-white transition-colors text-sm"
+              className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm"
             >
               Back to Home
             </Link>
@@ -753,8 +767,8 @@ function SuccessContent() {
         </div>
 
         {/* Support */}
-        <div className="mt-12 pt-8 border-t border-gray-900 text-center">
-          <p className="text-sm text-gray-500">
+        <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-gray-900 text-center px-4">
+          <p className="text-xs sm:text-sm text-gray-500">
             Questions? Email us at{' '}
             <a href="mailto:support@followlytics.com" className="text-white hover:underline">
               support@followlytics.com

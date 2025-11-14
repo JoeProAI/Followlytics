@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
     console.log(`[Auto-Gamma] Selected image model: ${selectedModel}`)
     
     // Use ALL 50 real Gamma theme IDs (fetched from API)
-    const gammaThemes = [
+    const allThemes = [
       'alien', 'ash', 'ashrose', 'atacama', 'atmosphere', 'aurora', 'aurum',
       'default-dark', 'default-light', 'bee-happy', 'blueberry', 'blues',
       'blue-steel', 'bonan-hale', 'borealis', 'breeze', 'bubble-gum',
@@ -162,8 +162,16 @@ export async function POST(request: NextRequest) {
       'gleam', 'gold-leaf', 'howlite', 'icebreaker'
     ]
     
-    const selectedTheme = gammaThemes[Math.floor(Math.random() * gammaThemes.length)]
-    console.log(`[Auto-Gamma] Selected theme: ${selectedTheme}`)
+    // Smart theme selection - avoid recently used themes
+    const userDoc = await adminDb.collection('users').doc(userId).get()
+    const recentThemes = userDoc.data()?.recentGammaThemes || []
+    
+    // Filter out last 5 themes to ensure variety
+    const availableThemes = allThemes.filter(theme => !recentThemes.slice(0, 5).includes(theme))
+    const themesToUse = availableThemes.length > 10 ? availableThemes : allThemes // Fallback if too few left
+    
+    const selectedTheme = themesToUse[Math.floor(Math.random() * themesToUse.length)]
+    console.log(`[Auto-Gamma] Selected theme: ${selectedTheme} (avoided ${recentThemes.length} recent themes)`)
     
     const result = await gamma.generate({
       text: aiPrompt,
@@ -202,6 +210,12 @@ export async function POST(request: NextRequest) {
       }
     }, { merge: true })
 
+    // Update recent themes for smart selection next time
+    const updatedRecentThemes = [selectedTheme, ...recentThemes].slice(0, 10) // Keep last 10
+    await adminDb.collection('users').doc(userId).set({
+      recentGammaThemes: updatedRecentThemes
+    }, { merge: true })
+    
     console.log(`[Auto-Gamma] Generated successfully: ${result.gamma_id}`)
 
     return NextResponse.json({
