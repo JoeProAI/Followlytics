@@ -137,12 +137,12 @@ export async function POST(request: NextRequest) {
     const gamma = getGammaClient()
     console.log('[Auto-Gamma] Gamma client initialized')
     
-    // Use models available on standard Gamma plan (no ultra required)
+    // Use models available on standard Gamma plan (exact names from API)
     const availableModels = [
-      'dall-e-3',              // OpenAI - available on standard
-      'flux-1.1-pro',          // Flux standard
-      'ideogram-2',            // Ideogram standard
-      'recraft-v3'             // Recraft standard
+      'dall-e-3',              // OpenAI
+      'flux-1-pro',            // Flux Pro
+      'ideogram-v3',           // Ideogram v3
+      'recraft-v3'             // Recraft v3
     ]
     
     // Pick random model for variety
