@@ -141,28 +141,113 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Select theme based on follower category and priority
-    const getThemeForFollower = (category: string, priority: string) => {
-      // Tech/Business categories get professional themes
-      if (category.toLowerCase().includes('tech') || category.toLowerCase().includes('engineer')) {
-        return priority === 'HIGH' ? 'aurora' : 'midnight'
+    // SUPER UNIQUE THEMING SYSTEM
+    // Each follower gets custom theme, image style, tone, and visuals
+    const getUniqueThemeConfig = (follower: any) => {
+      const cat = follower.category?.toLowerCase() || ''
+      const priority = follower.priority || 'MEDIUM'
+      const verified = follower.verified || false
+      const influenceScore = follower.influenceScore || 5
+      
+      // Dynamic theme selection based on multiple factors
+      let themeId = 'modern'
+      let imageStyle = 'modern, professional, high quality'
+      let tone = 'professional, engaging'
+      let audience = 'business professionals'
+      let visualConcepts = 'data visualization, metrics, analytics'
+      
+      // AI/ML/Tech personas
+      if (cat.includes('ai') || cat.includes('ml') || cat.includes('machine learning')) {
+        themeId = verified ? 'aurora' : 'midnight'
+        imageStyle = 'futuristic, neural networks, AI-themed, cyberpunk aesthetic, neon accents, tech patterns'
+        tone = 'technical but accessible, cutting-edge, innovative'
+        audience = 'AI engineers, ML researchers, tech innovators'
+        visualConcepts = 'neural networks, data flows, algorithmic patterns, futuristic dashboards'
       }
-      if (category.toLowerCase().includes('business') || category.toLowerCase().includes('entrepreneur')) {
-        return 'corporate'
+      // Developers/Engineers
+      else if (cat.includes('engineer') || cat.includes('developer') || cat.includes('programmer')) {
+        themeId = priority === 'HIGH' ? 'dusk' : 'ocean'
+        imageStyle = 'code-themed, terminal aesthetics, developer workspace, clean modern design, tech minimalism'
+        tone = 'direct, technical, code-friendly'
+        audience = 'software engineers, developers, tech teams'
+        visualConcepts = 'code snippets, terminal windows, development environments, technical diagrams'
       }
-      if (category.toLowerCase().includes('creator') || category.toLowerCase().includes('influencer')) {
-        return 'vibrant'
+      // Founders/Entrepreneurs
+      else if (cat.includes('founder') || cat.includes('entrepreneur') || cat.includes('ceo')) {
+        themeId = verified ? 'luxury' : 'corporate'
+        imageStyle = 'executive, premium, strategic, growth-focused, ambitious, high-end business aesthetic'
+        tone = 'strategic, visionary, results-driven'
+        audience = 'founders, CEOs, entrepreneurs, investors'
+        visualConcepts = 'growth charts, strategic roadmaps, business metrics, success indicators'
       }
-      if (category.toLowerCase().includes('media') || category.toLowerCase().includes('journalist')) {
-        return 'modern'
+      // VCs/Investors
+      else if (cat.includes('vc') || cat.includes('investor') || cat.includes('venture')) {
+        themeId = 'prestige'
+        imageStyle = 'financial, premium, investment-focused, wealth-building, sophisticated, data-rich'
+        tone = 'analytical, ROI-focused, strategic'
+        audience = 'venture capitalists, angel investors, fund managers'
+        visualConcepts = 'portfolio analytics, market trends, investment dashboards, financial growth'
       }
-      // Default themes based on priority
-      if (priority === 'HIGH') return 'aurora'
-      if (priority === 'MEDIUM') return 'modern'
-      return 'minimal'
+      // Content Creators/Influencers
+      else if (cat.includes('creator') || cat.includes('influencer') || cat.includes('content')) {
+        themeId = influenceScore > 7 ? 'vibrant' : 'creative'
+        imageStyle = 'dynamic, colorful, engaging, social media aesthetic, content-focused, eye-catching'
+        tone = 'energetic, relatable, engaging'
+        audience = 'content creators, influencers, digital marketers'
+        visualConcepts = 'social media engagement, viral content, audience growth, creative layouts'
+      }
+      // Media/Journalists
+      else if (cat.includes('journalist') || cat.includes('media') || cat.includes('reporter')) {
+        themeId = 'editorial'
+        imageStyle = 'editorial, news-worthy, storytelling, journalistic, impactful, narrative-driven'
+        tone = 'informative, credible, newsworthy'
+        audience = 'journalists, media professionals, news outlets'
+        visualConcepts = 'story angles, news impact, media reach, editorial graphics'
+      }
+      // Designers/Creatives
+      else if (cat.includes('design') || cat.includes('creative') || cat.includes('artist')) {
+        themeId = 'artistic'
+        imageStyle = 'artistic, creative, design-forward, aesthetic, visual-first, innovative layouts'
+        tone = 'creative, expressive, visually-driven'
+        audience = 'designers, artists, creative professionals'
+        visualConcepts = 'design systems, creative portfolios, visual hierarchies, aesthetic compositions'
+      }
+      // Marketers/Growth
+      else if (cat.includes('marketing') || cat.includes('growth') || cat.includes('seo')) {
+        themeId = 'performance'
+        imageStyle = 'growth-focused, conversion-driven, metrics-heavy, performance marketing, data-backed'
+        tone = 'results-oriented, data-driven, conversion-focused'
+        audience = 'marketers, growth hackers, performance specialists'
+        visualConcepts = 'conversion funnels, growth metrics, A/B testing, marketing dashboards'
+      }
+      // Academics/Researchers
+      else if (cat.includes('research') || cat.includes('professor') || cat.includes('phd')) {
+        themeId = 'academic'
+        imageStyle = 'scholarly, research-oriented, academic, evidence-based, scientific, publication-quality'
+        tone = 'scholarly, evidence-based, analytical'
+        audience = 'researchers, academics, scholars'
+        visualConcepts = 'research findings, data analysis, scientific diagrams, academic visuals'
+      }
+      
+      // Priority-based theme overrides for high-value followers
+      if (priority === 'HIGH' && influenceScore >= 8) {
+        themeId = verified ? 'prestige' : 'aurora'
+        imageStyle += ', premium quality, high-impact, executive-level'
+        tone += ', high-value, strategic'
+      }
+      
+      return {
+        themeId,
+        imageStyle,
+        tone,
+        audience,
+        visualConcepts,
+        // Dynamic card count based on influence
+        numCards: influenceScore >= 8 ? 15 : influenceScore >= 6 ? 12 : 10
+      }
     }
 
-    const selectedTheme = getThemeForFollower(followerData.category, followerData.priority)
+    const uniqueConfig = getUniqueThemeConfig(followerData)
 
     // Create rich markdown content for Gamma
     // Use custom prompt if provided, otherwise use default template
@@ -269,7 +354,8 @@ ${followerData.actionRecommendation}
       analysisId: analysisId || null,
       followerUsername: followerData.username,
       followerData: followerData,
-      theme: selectedTheme,
+      theme: uniqueConfig.themeId,
+      themeConfig: uniqueConfig,
       status: 'generating',
       createdAt: new Date(),
       type: 'individual_follower',
@@ -285,25 +371,28 @@ ${followerData.actionRecommendation}
         // Determine format based on user request
         const requestedFormat = format || 'presentation' // presentation, document, social, webpage
         
-        // Generate with enhanced options
+        // Generate with enhanced options using unique theme config
         const result = await gamma.generate({
           inputText: markdownContent,
           textMode: customPrompt ? 'generate' : 'preserve',
           format: requestedFormat,
-          numCards: requestedFormat === 'presentation' ? 10 : undefined,
+          numCards: requestedFormat === 'presentation' ? uniqueConfig.numCards : undefined,
           
-          // AI Image generation with professional style
+          // UNIQUE THEME ID based on follower profile
+          themeId: uniqueConfig.themeId,
+          
+          // SUPER CUSTOMIZED AI Image generation
           imageOptions: {
             source: 'aiGenerated',
             model: 'flux-1-pro',
-            style: `professional, vibrant, modern, ${followerData.category.toLowerCase()}-themed, high quality`
+            style: uniqueConfig.imageStyle
           },
           
-          // Text customization
+          // PERSONALIZED Text customization
           textOptions: {
             amount: 'medium',
-            tone: customPrompt ? 'engaging, informative' : 'professional',
-            audience: 'business professionals, marketers, content creators',
+            tone: uniqueConfig.tone,
+            audience: uniqueConfig.audience,
             language: 'en'
           },
           
@@ -317,10 +406,10 @@ ${followerData.actionRecommendation}
           // Export options
           exportAs: exportAs || undefined, // 'pdf', 'pptx', or 'both'
           
-          // Additional customization
+          // DYNAMIC Additional customization with visual concepts
           additionalInstructions: customPrompt ? 
-            `Focus the analysis on: ${customPrompt}. Use engaging visuals that match the ${followerData.category} category.` :
-            `Create a professional follower analysis report with data visualizations.`,
+            `Focus the analysis on: ${customPrompt}. Create visuals featuring: ${uniqueConfig.visualConcepts}. Use ${uniqueConfig.tone} tone for ${uniqueConfig.audience}.` :
+            `Create a ${followerData.priority}-priority ${followerData.category} analysis report. Visuals should feature: ${uniqueConfig.visualConcepts}. Tone: ${uniqueConfig.tone} for ${uniqueConfig.audience}.`,
           
           // Sharing settings
           sharingOptions: {
