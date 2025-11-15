@@ -16,6 +16,7 @@ function ExportContent() {
   const [addGamma, setAddGamma] = useState(false)
   const [gammaStyle, setGammaStyle] = useState('clean')
   const [customInstructions, setCustomInstructions] = useState('')
+  const [customerEmail, setCustomerEmail] = useState('')
   const [turnstileToken, setTurnstileToken] = useState('')
   
   // Status polling
@@ -137,6 +138,7 @@ function ExportContent() {
         body: JSON.stringify({
           username: pricing.username,
           amount: total,
+          customerEmail: customerEmail.trim() || undefined,
           includeGamma: addGamma,
           gammaStyle: addGamma ? gammaStyle : undefined,
           customInstructions: addGamma ? customInstructions : undefined
@@ -326,6 +328,25 @@ function ExportContent() {
                 </div>
               )}
             </div>
+
+            {/* Email Input (for Gamma delivery) */}
+            {addGamma && (
+              <div className="mb-6">
+                <label className="block text-sm text-gray-400 mb-2">
+                  Email for Gamma Report Delivery {!pricing.isFree && '(optional for data export)'}
+                </label>
+                <input
+                  type="email"
+                  value={customerEmail}
+                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  className="w-full px-4 py-3 bg-black border border-gray-800 rounded text-white placeholder-gray-600 focus:outline-none focus:border-white"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  We'll send your Gamma presentation report to this email when it's ready (2-5 minutes)
+                </p>
+              </div>
+            )}
 
             {/* Payment Button */}
             {pricing.isFree ? (

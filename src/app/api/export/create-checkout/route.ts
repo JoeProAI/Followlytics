@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    const { username, amount, includeGamma, gammaStyle, customInstructions } = await request.json()
+    const { username, amount, customerEmail, includeGamma, gammaStyle, customInstructions } = await request.json()
     
     if (!username || amount === undefined) {
       return NextResponse.json({ 
@@ -56,9 +56,13 @@ export async function POST(request: NextRequest) {
 
     // If no line items, it's completely free
     if (lineItems.length === 0) {
-      // For free exports, redirect directly to success page
+      // For free exports, redirect directly to success page with email if provided
+      let url = `${process.env.NEXT_PUBLIC_APP_URL}/export/success?username=${username}&free=true`
+      if (customerEmail) {
+        url += `&email=${encodeURIComponent(customerEmail)}`
+      }
       return NextResponse.json({
-        url: `${process.env.NEXT_PUBLIC_APP_URL}/export/success?username=${username}&free=true`,
+        url,
         free: true
       })
     }
@@ -94,6 +98,7 @@ export async function POST(request: NextRequest) {
       },
       metadata: {
         username,
+        customerEmail: customerEmail || '',
         includeGamma: includeGamma ? 'true' : 'false',
         gammaStyle: gammaStyle || '',
         customInstructions: customInstructions || '',

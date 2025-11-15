@@ -8,22 +8,33 @@ export const maxDuration = 60
 
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const idToken = authHeader.split('Bearer ')[1]
-    const decodedToken = await adminAuth.verifyIdToken(idToken)
-    const userId = decodedToken.uid
-
     const { 
       username, 
       customInstructions = '',
       gammaStyle = 'professional',
       sessionId
     } = await request.json()
+    
+    // Authenticate user (optional - can use sessionId instead)
+    let userId: string | null = null
+    const authHeader = request.headers.get('authorization')
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const idToken = authHeader.split('Bearer ')[1]
+        const decodedToken = await adminAuth.verifyIdToken(idToken)
+        userId = decodedToken.uid
+      } catch (error) {
+        console.log('[Auto-Gamma] Auth token invalid, will use sessionId')
+      }
+    }
+    
+    // If no userId and no sessionId, reject
+    if (!userId && !sessionId) {
+      return NextResponse.json({ 
+        error: 'Authentication required',
+        message: 'Please provide either authentication token or session ID'
+      }, { status: 401 })
+    }
 
     if (!username) {
       return NextResponse.json({ error: 'Username required' }, { status: 400 })
@@ -162,9 +173,12 @@ export async function POST(request: NextRequest) {
       'gleam', 'gold-leaf', 'howlite', 'icebreaker'
     ]
     
-    // Smart theme selection - avoid recently used themes
-    const userDoc = await adminDb.collection('users').doc(userId).get()
-    const recentThemes = userDoc.data()?.recentGammaThemes || []
+    // Smart theme selection - avoid recently used themes (only if user is authenticated)
+    let recentThemes: string[] = []
+    if (userId) {
+      const userDoc = await adminDb.collection('users').doc(userId).get()
+      recentThemes = userDoc.data()?.recentGammaThemes || []
+    }
     
     // Filter out last 5 themes to ensure variety
     const availableThemes = allThemes.filter(theme => !recentThemes.slice(0, 5).includes(theme))
@@ -185,20 +199,22 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Store in user's history
-    await adminDb.collection('users').doc(userId).collection('gamma_generations').add({
-      gammaId: result.gamma_id,
-      username: cleanUsername,
-      sessionId: sessionId,
-      prompt: aiPrompt.substring(0, 500), // Store first 500 chars
-      customInstructions,
-      gammaStyle,
-      theme: selectedTheme,      // Track which theme was used
-      imageModel: selectedModel,  // Track which image model was used
-      followerCount,
-      createdAt: new Date(),
-      status: 'processing'
-    })
+    // Store in user's history (only if authenticated)
+    if (userId) {
+      await adminDb.collection('users').doc(userId).collection('gamma_generations').add({
+        gammaId: result.gamma_id,
+        username: cleanUsername,
+        sessionId: sessionId,
+        prompt: aiPrompt.substring(0, 500), // Store first 500 chars
+        customInstructions,
+        gammaStyle,
+        theme: selectedTheme,      // Track which theme was used
+        imageModel: selectedModel,  // Track which image model was used
+        followerCount,
+        createdAt: new Date(),
+        status: 'processing'
+      })
+    }
 
     // Also store reference in follower_database for easy lookup
     await adminDb.collection('follower_database').doc(cleanUsername).set({
@@ -210,11 +226,13 @@ export async function POST(request: NextRequest) {
       }
     }, { merge: true })
 
-    // Update recent themes for smart selection next time
-    const updatedRecentThemes = [selectedTheme, ...recentThemes].slice(0, 10) // Keep last 10
-    await adminDb.collection('users').doc(userId).set({
-      recentGammaThemes: updatedRecentThemes
-    }, { merge: true })
+    // Update recent themes for smart selection next time (only if authenticated)
+    if (userId) {
+      const updatedRecentThemes = [selectedTheme, ...recentThemes].slice(0, 10) // Keep last 10
+      await adminDb.collection('users').doc(userId).set({
+        recentGammaThemes: updatedRecentThemes
+      }, { merge: true })
+    }
     
     console.log(`[Auto-Gamma] Generated successfully: ${result.gamma_id}`)
 

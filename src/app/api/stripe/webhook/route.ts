@@ -85,8 +85,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     const gammaStyle = session.metadata?.gammaStyle || ''
     const customInstructions = session.metadata?.customInstructions || ''
     
-    // Get customer email - fetch from customer object if not in session
-    let customerEmail = session.customer_email
+    // Get customer email - prioritize metadata email, then session email, then fetch from customer
+    let customerEmail = session.metadata?.customerEmail || session.customer_email
     if (!customerEmail && session.customer) {
       try {
         const customer = await stripe.customers.retrieve(session.customer as string)
