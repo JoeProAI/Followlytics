@@ -78,7 +78,7 @@ You are solely responsible for how you use exported data. You must:
 - Users should verify critical data independently
 
 ### 6.3 Third-Party Services
-We use third-party services (including Apify, Grok AI, and others) to collect and analyze data. These services operate under their own terms and privacy policies.
+We use third-party services (including Apify, Grok, and others) to collect and analyze data. These services operate under their own terms and privacy policies.
 
 ## 7. Intellectual Property
 

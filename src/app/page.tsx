@@ -22,7 +22,7 @@ export default function Home() {
           <div className="max-w-4xl">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full mb-6">
               <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-              <span className="text-sm text-gray-400">Powered by Grok AI</span>
+              <span className="text-sm text-gray-400">Powered by Grok</span>
             </div>
             <h1 className="text-6xl md:text-7xl font-light tracking-tight mb-6">
               Export Anyone's Followers.
@@ -63,7 +63,7 @@ export default function Home() {
               <div className="text-sm text-gray-600 uppercase tracking-wider mb-3">🤖 Grok-Powered</div>
               <h3 className="text-2xl font-light mb-4">AI Analysis. Instant Insights.</h3>
               <p className="text-gray-400 font-light">
-                Grok AI analyzes follower quality, engagement patterns, and audience demographics.
+                Grok analyzes follower quality, engagement patterns, and audience demographics.
                 Professional presentation reports included.
               </p>
             </div>
@@ -176,7 +176,7 @@ export default function Home() {
               </div>
               <div className="mt-6 p-4 bg-white/5 rounded border border-white/10">
                 <div className="text-sm text-gray-400">
-                  + Grok AI presentation report FREE with all paid exports
+                  + Grok presentation report FREE with all paid exports
                 </div>
               </div>
             </div>

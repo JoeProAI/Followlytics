@@ -36,7 +36,7 @@ So I built Followlytics.
 
 Export any public account's followers:
 • Full profile data
-• Grok AI analysis
+• Grok analysis
 • CSV/JSON/Excel
 • 2-5 minutes
 
@@ -60,7 +60,7 @@ Pricing is transparent:
 100K-500K: $19.99
 500K+: $49.99
 
-+ Grok AI report FREE with all paid exports
++ Grok report FREE with all paid exports
 
 **Tweet 7:**
 Why so cheap?
@@ -69,7 +69,7 @@ Because I remember being at 300 followers and not being able to afford $99 tools
 
 My cost per export:
 • APIs: $0.50-$3
-• Grok AI: $0.75
+• Grok: $0.75
 • Infrastructure: $0.05
 
 I make ~60-70% margin. Fair for both of us.
@@ -101,7 +101,7 @@ Or export your competitor's. See where your customers are hiding.
 
 Just costs a little gas ⚡
 
-Powered by Grok AI 🤖
+Powered by Grok 🤖
 
 ---
 
@@ -116,7 +116,7 @@ Hey everyone,
 I just launched Followlytics and wanted to share the story + be fully transparent about costs since I hate when founders aren't.
 
 **What it does:**
-Export followers from any public X account (yours, competitors', anyone's) + get Grok AI analysis. CSV/JSON/Excel ready in 2-5 minutes.
+Export followers from any public X account (yours, competitors', anyone's) + get Grok analysis. CSV/JSON/Excel ready in 2-5 minutes.
 
 **Why I built it:**
 When I was at 300 followers, I had zero visibility into my audience. Couldn't afford enterprise tools ($42K/month for Twitter API). So I built what I wish I had.
@@ -127,7 +127,7 @@ When I was at 300 followers, I had zero visibility into my audience. Couldn't af
 - Large (100K): My cost $3.00, you pay $9.99
 - Massive (1M+): My cost $15.00, you pay $49.99
 
-+ $0.75 per Grok AI analysis (included free)
++ $0.75 per Grok analysis (included free)
 
 **Why not charge more?**
 Could easily charge $99+ and businesses would pay. But I remember being the broke founder who couldn't afford tools. So:
@@ -159,7 +159,7 @@ Grok-powered competitive intelligence for X - export anyone's followers
 
 **What is Followlytics?**
 
-Export followers from any public X account and get instant Grok AI analysis. Your account, competitors, industry leaders - anyone's.
+Export followers from any public X account and get instant Grok analysis. Your account, competitors, industry leaders - anyone's.
 
 **Why it exists:**
 
@@ -175,7 +175,7 @@ We made it accessible.
 
 ✅ Export any public account's followers
 ✅ Full profile data (username, bio, follower count, location, etc.)
-✅ Grok AI analysis & presentation reports
+✅ Grok analysis & presentation reports
 ✅ CSV, JSON, Excel formats
 ✅ 2-5 minute exports (even for 100K+ accounts)
 ✅ No account connection required
@@ -198,7 +198,7 @@ We're transparent about costs because we hate hidden pricing:
 - 100K-500K: **$19.99**
 - 500K+: **$49.99**
 
-Grok AI presentation report included FREE with all paid exports.
+Grok presentation report included FREE with all paid exports.
 
 **Coming Soon:**
 
@@ -208,7 +208,7 @@ Grok AI presentation report included FREE with all paid exports.
 
 Our actual costs:
 - Data extraction: $0.20-$15 (depending on account size)
-- Grok AI: $0.75
+- Grok: $0.75
 - Infrastructure: $0.05
 
 We make ~60-70% margin. Fair for everyone.
@@ -233,7 +233,7 @@ After spending months manually researching competitors' audiences on X/Twitter, 
 - Flying blind on growth strategy
 
 **The solution:**
-Export followers from any public X account + get Grok AI analysis in minutes.
+Export followers from any public X account + get Grok analysis in minutes.
 
 **Real business use cases:**
 
@@ -278,7 +278,7 @@ Couldn't afford $42K/month enterprise tools.
 So I built this:
 
 ✅ Export any account's followers  
-✅ Grok AI analyzes them
+✅ Grok analyzes them
 ✅ CSV/JSON/Excel ready
 ✅ 2-5 minutes
 
@@ -321,7 +321,7 @@ Export followers from any public X/Twitter account + get AI analysis.
 **How it works:**
 1. Enter any X username
 2. Export completes in 2-5 minutes
-3. Get CSV/JSON/Excel + Grok AI presentation
+3. Get CSV/JSON/Excel + Grok presentation
 
 **Pricing:**
 Small accounts: $2.99-$4.99
@@ -384,7 +384,7 @@ P.S. Building an API for Q1 if you need automation/integration. Happy to chat ab
 **Key Features**
 
 - Export followers from any public X account in 2-5 minutes
-- Grok AI analysis providing audience demographics and engagement insights
+- Grok analysis providing audience demographics and engagement insights
 - Support for accounts from 500 to 1M+ followers
 - Export formats: CSV, JSON, Excel
 - Presentation-ready reports for stakeholders
@@ -405,7 +405,7 @@ Unlike traditional B2B intelligence tools, Followlytics uses pay-per-export pric
 - 5,000-25,000 followers: $4.99
 - 25,000+ followers: $9.99-$49.99
 
-All pricing includes Grok AI analysis at no additional cost.
+All pricing includes Grok analysis at no additional cost.
 
 **Future Development**
 

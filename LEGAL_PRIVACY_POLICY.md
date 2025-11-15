@@ -48,7 +48,7 @@ We access publicly available information from X (Twitter) and other platforms, i
 
 ### 4.1 To Provide the Service
 - Process your export requests
-- Generate AI-powered analysis (via Grok AI)
+- Generate AI-powered analysis (via Grok)
 - Deliver files via email or download
 - Track job status and progress
 
@@ -76,7 +76,7 @@ We share data with trusted service providers who help us operate:
 
 - **Stripe:** Payment processing (PCI-DSS compliant)
 - **Apify:** Data extraction services
-- **Grok AI / xAI:** AI analysis and insights
+- **Grok / xAI:** AI analysis and insights
 - **Firebase/Google Cloud:** Data storage and authentication
 - **Resend:** Email delivery
 - **Vercel:** Hosting and infrastructure
@@ -217,7 +217,7 @@ Privacy Rights Contact: [same email as above]
 
 ✅ **We only access public data** (no passwords, no private content)  
 ✅ **We don't sell your information** (never have, never will)  
-✅ **We use trusted providers** (Stripe, Firebase, Grok AI)  
+✅ **We use trusted providers** (Stripe, Firebase, Grok)  
 ✅ **You control your data** (request deletion anytime)  
 ✅ **We're transparent** (this policy tells you everything)
 

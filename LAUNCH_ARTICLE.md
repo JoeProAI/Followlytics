@@ -1,6 +1,6 @@
 # Why I Built Followlytics: Grok-Powered Intelligence for X
 
-**TL;DR:** I built a tool that exports followers from any X account (yours, competitors', anyone's) and analyzes them with Grok AI. It's the competitive intelligence tool I wish I had when I was growing my first account. Under 500 followers? It's free.
+**TL;DR:** I built a tool that exports followers from any X account (yours, competitors', anyone's) and analyzes them with Grok. It's the competitive intelligence tool I wish I had when I was growing my first account. Under 500 followers? It's free.
 
 ---
 
@@ -46,7 +46,7 @@ Full profile data for every follower:
 
 **No more guessing.** Know exactly who follows any account.
 
-### 3. Get Grok AI Analysis Instantly
+### 3. Get Grok Analysis Instantly
 This is where it gets powerful.
 
 Grok analyzes the entire follower base and generates a professional presentation showing:
@@ -142,7 +142,7 @@ I'm going to be brutally honest about costs because I hate when founders aren't 
    - Large accounts (100K followers): ~$3.00
    - Massive accounts (1M+ followers): ~$15.00
 
-2. **Grok AI analysis:** Every presentation report uses Grok's API
+2. **Grok analysis:** Every presentation report uses Grok's API
    - Per analysis: ~$0.75
    - Custom insights, quality scoring, demographic analysis
 
@@ -307,7 +307,7 @@ Most competitors would:
 - **25K-100K:** $9.99
 - **100K+:** $19.99-$49.99
 
-**Grok AI presentation report FREE with all paid exports.**
+**Grok presentation report FREE with all paid exports.**
 
 👉 **[Try Followlytics Now](https://followlytics.com)**
 
