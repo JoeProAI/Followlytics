@@ -32,7 +32,7 @@ export default function Home() {
             <p className="text-xl text-gray-400 mb-8 font-light leading-relaxed">
               Get the complete follower database of any X account. Grok-powered insights.
               <br />
-              Competitive intel made easy. Just costs a little gas ⚡
+              Competitive intel made easy. Just costs a little gas
             </p>
             <div className="flex gap-4 items-center">
               <input
@@ -60,7 +60,7 @@ export default function Home() {
           <div className="grid md:grid-cols-3 gap-12">
             
             <div>
-              <div className="text-sm text-gray-600 uppercase tracking-wider mb-3">🤖 Grok-Powered</div>
+              <div className="text-sm text-gray-600 uppercase tracking-wider mb-3">Grok-Powered</div>
               <h3 className="text-2xl font-light mb-4">AI Analysis. Instant Insights.</h3>
               <p className="text-gray-400 font-light">
                 Grok analyzes follower quality, engagement patterns, and audience demographics.
@@ -69,7 +69,7 @@ export default function Home() {
             </div>
 
             <div>
-              <div className="text-sm text-gray-600 uppercase tracking-wider mb-3">🎯 Any Account</div>
+              <div className="text-sm text-gray-600 uppercase tracking-wider mb-3">Any Account</div>
               <h3 className="text-2xl font-light mb-4">Your Competitors. Your Prospects.</h3>
               <p className="text-gray-400 font-light">
                 Export followers from ANY public X account. Your own, your competitors, industry leaders.
@@ -78,7 +78,7 @@ export default function Home() {
             </div>
 
             <div>
-              <div className="text-sm text-gray-600 uppercase tracking-wider mb-3">⚡ Pay Per Use</div>
+              <div className="text-sm text-gray-600 uppercase tracking-wider mb-3">Pay Per Use</div>
               <h3 className="text-2xl font-light mb-4">Just Costs a Little Gas</h3>
               <p className="text-gray-400 font-light">
                 No subscription. Pay once per export. CSV, JSON, Excel formats.
